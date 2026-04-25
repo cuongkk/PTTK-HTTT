@@ -15,7 +15,7 @@
 - Vẽ **Activity Diagram** 
 ---
 
-### Phạm Thuý Quy
+### Nguyễn Ngọc Như Quỳnh
 
 **Đặc tả UC2:**
 - **Use-case nghiệp vụ ** – Đăng ký thuê & Xem phòng
@@ -37,7 +37,7 @@
 
 ---
 
-### 👤 Nguyễn Ngọc Như Quỳnh
+### Phạm Thuý Quy
 
 **Đặc tả UC4:**
 - **Use-case nghiệp vụ ** – Đăng ký thuê & Xem phòng
@@ -48,7 +48,7 @@
 
 ---
 
-### 👤 Nguyễn Văn Khánh
+### Nguyễn Văn Khánh
 
 **Viết báo cáo**
 
