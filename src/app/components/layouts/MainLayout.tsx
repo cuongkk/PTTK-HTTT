@@ -46,6 +46,7 @@ export function MainLayout() {
     accountant: [
       { name: "Dashboard", path: "/accountant", icon: Home },
       { name: "Payment Requests", path: "/accountant/payment-requests", icon: DollarSign },
+      { name: "Check-in Charges", path: "/accountant/check-in-charges", icon: ClipboardList },
       { name: "Confirm Payments", path: "/accountant/payment-confirmation", icon: CheckCircle },
       { name: "Reconciliation", path: "/accountant/reconciliation", icon: Calculator },
     ],
@@ -87,11 +88,10 @@ export function MainLayout() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                      isActive
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isActive
                         ? "bg-blue-50 text-blue-600"
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{item.name}</span>
@@ -173,11 +173,10 @@ export function MainLayout() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${
-                      isActive
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${isActive
                         ? "bg-blue-50 text-blue-600"
                         : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.name}</span>

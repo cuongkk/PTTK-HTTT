@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { CheckCircle, XCircle, Eye, Image, FileText, DollarSign } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Image, FileText, DollarSign, Printer, Search } from "lucide-react";
 
 export function PaymentConfirmation() {
   const [selectedPayment, setSelectedPayment] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [showProofModal, setShowProofModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptPayment, setReceiptPayment] = useState<any>(null);
 
   const pendingPayments = [
     {
@@ -44,8 +47,15 @@ export function PaymentConfirmation() {
     },
   ];
 
-  const handleApprove = (id: number) => {
-    alert(`Payment ${id} approved!`);
+  const handleApproveClick = (payment: any) => {
+    setReceiptPayment(payment);
+    setShowReceiptModal(true);
+  };
+
+  const handleConfirmReceipt = () => {
+    alert(`Payment ${receiptPayment.id} approved and receipt generated!`);
+    setShowReceiptModal(false);
+    setReceiptPayment(null);
   };
 
   const handleReject = (id: number) => {
@@ -88,11 +98,28 @@ export function PaymentConfirmation() {
 
       {/* Pending Payments */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-xl font-bold text-gray-900">Pending Confirmations</h2>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name, room or TXN ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
         </div>
         <div className="divide-y divide-gray-200">
-          {pendingPayments.map((payment) => (
+          {pendingPayments
+            .filter(
+              (p) =>
+                p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.room.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.transactionId && p.transactionId.toLowerCase().includes(searchTerm.toLowerCase()))
+            )
+            .map((payment) => (
             <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
               <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                 <div className="flex-1">
@@ -126,9 +153,9 @@ export function PaymentConfirmation() {
                   </div>
 
                   {payment.transactionId && (
-                    <div className="ml-15 p-3 bg-gray-50 rounded-lg text-sm">
-                      <p className="text-gray-600">Transaction ID</p>
-                      <p className="font-mono text-gray-900">{payment.transactionId}</p>
+                    <div className="ml-15 p-3 bg-gray-50 rounded-lg text-sm inline-block">
+                      <span className="text-gray-600 mr-2">Transaction ID:</span>
+                      <span className="font-mono text-gray-900 font-medium">{payment.transactionId}</span>
                     </div>
                   )}
                 </div>
@@ -137,24 +164,24 @@ export function PaymentConfirmation() {
                   {payment.hasProof && (
                     <button
                       onClick={() => handleViewProof(payment.id)}
-                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                      className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors w-full lg:w-auto"
                     >
                       <Image className="w-4 h-4" />
                       View Proof
                     </button>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full lg:w-auto">
                     <button
-                      onClick={() => handleApprove(payment.id)}
-                      className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      onClick={() => handleApproveClick(payment)}
+                      className="flex-1 lg:flex-none flex justify-center items-center gap-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Approve
                     </button>
                     <button
                       onClick={() => handleReject(payment.id)}
-                      className="flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="flex-1 lg:flex-none flex justify-center items-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       <XCircle className="w-4 h-4" />
                       Reject
@@ -172,8 +199,6 @@ export function PaymentConfirmation() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Payment Proof</h2>
-
-            {/* Proof Image Placeholder */}
             <div className="mb-6 border-2 border-gray-200 rounded-lg overflow-hidden">
               <div className="aspect-video bg-gray-100 flex items-center justify-center">
                 <div className="text-center">
@@ -183,13 +208,82 @@ export function PaymentConfirmation() {
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowProofModal(false)}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Generation Modal */}
+      {showReceiptModal && receiptPayment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Payment Receipt</h2>
+              <div className="p-2 bg-green-100 rounded-full">
+                <CheckCircle className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg p-5 mb-6 bg-gray-50">
+              <div className="text-center mb-4 pb-4 border-b border-gray-200">
+                <p className="text-sm text-gray-500 mb-1">Receipt Number</p>
+                <p className="font-mono font-bold text-gray-900">RCPT-{new Date().getFullYear()}-{receiptPayment.id.toString().padStart(4, '0')}</p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Customer:</span>
+                  <span className="font-medium text-gray-900">{receiptPayment.customer}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Room:</span>
+                  <span className="font-medium text-gray-900">{receiptPayment.room}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Payment Type:</span>
+                  <span className="font-medium text-gray-900">{receiptPayment.type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Method:</span>
+                  <span className="font-medium text-gray-900">{receiptPayment.paymentMethod}</span>
+                </div>
+                {receiptPayment.transactionId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Transaction ID:</span>
+                    <span className="font-mono text-gray-900">{receiptPayment.transactionId}</span>
+                  </div>
+                )}
+                <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center">
+                  <span className="font-bold text-gray-900">Total Amount Received:</span>
+                  <span className="text-xl font-bold text-green-600">${receiptPayment.amount}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6 text-center">
+              Please review the receipt details before confirming. A copy will be sent to the customer automatically.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowReceiptModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReceipt}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                Confirm & Generate Receipt
               </button>
             </div>
           </div>

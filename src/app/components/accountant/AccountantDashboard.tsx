@@ -8,6 +8,7 @@ import {
   AlertCircle,
   FileText,
   Calendar,
+  Calculator,
 } from "lucide-react";
 
 export function AccountantDashboard() {
@@ -113,7 +114,7 @@ export function AccountantDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           to="/accountant/payment-requests"
           className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 hover:from-blue-600 hover:to-blue-700 transition-all"
@@ -121,6 +122,15 @@ export function AccountantDashboard() {
           <DollarSign className="w-8 h-8 mb-3" />
           <h3 className="text-lg font-semibold mb-1">Payment Requests</h3>
           <p className="text-sm text-blue-100">Send payment requests to customers</p>
+        </Link>
+
+        <Link
+          to="/accountant/check-in-charges"
+          className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl p-6 hover:from-indigo-600 hover:to-indigo-700 transition-all"
+        >
+          <Calculator className="w-8 h-8 mb-3" />
+          <h3 className="text-lg font-semibold mb-1">Check-in Charges</h3>
+          <p className="text-sm text-indigo-100">Calculate required check-in payments</p>
         </Link>
 
         <Link
