@@ -47,7 +47,7 @@ export function MainLayout() {
       { name: "Dashboard", path: "/accountant", icon: Home },
       { name: "Payment Requests", path: "/accountant/payment-requests", icon: DollarSign },
       { name: "Check-in Charges", path: "/accountant/check-in-charges", icon: ClipboardList },
-      { name: "Confirm Payments", path: "/accountant/payment-confirmation", icon: CheckCircle },
+      { name: "Payment Confirmation", path: "/accountant/payment-confirmation", icon: CheckCircle },
       { name: "Reconciliation", path: "/accountant/reconciliation", icon: Calculator },
     ],
     manager: [

@@ -138,7 +138,7 @@ export function AccountantDashboard() {
           className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 hover:from-green-600 hover:to-green-700 transition-all"
         >
           <CheckCircle className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Confirm Payments</h3>
+          <h3 className="text-lg font-semibold mb-1">Payment Confirmation</h3>
           <p className="text-sm text-green-100">Verify and approve payment proofs</p>
         </Link>
 

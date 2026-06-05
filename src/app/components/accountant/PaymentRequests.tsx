@@ -8,6 +8,7 @@ export function PaymentRequests() {
     paymentType: "deposit",
     amount: "",
     dueDate: "",
+    billingCycle: "",
     notes: "",
   });
 
@@ -48,6 +49,7 @@ export function PaymentRequests() {
       paymentType: "deposit",
       amount: "",
       dueDate: "",
+      billingCycle: "",
       notes: "",
     });
   };
@@ -175,6 +177,19 @@ export function PaymentRequests() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
+
+                  {(formData.paymentType === "rent" || formData.paymentType === "utilities") && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Billing Cycle (Month/Year)</label>
+                      <input
+                        type="month"
+                        required
+                        value={formData.billingCycle}
+                        onChange={(e) => setFormData({ ...formData, billingCycle: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                  )}
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">

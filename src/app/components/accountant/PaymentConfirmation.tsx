@@ -20,6 +20,9 @@ export function PaymentConfirmation() {
       paymentMethod: "Bank Transfer",
       transactionId: "TXN-2026-05-15-0001",
       hasProof: true,
+      bankName: "Chase Bank",
+      accountNumber: "1234567890",
+      accountName: "John Smith",
     },
     {
       id: 2,
@@ -29,9 +32,12 @@ export function PaymentConfirmation() {
       amount: 800,
       dueDate: "May 25, 2026",
       submittedDate: "May 14, 2026",
-      paymentMethod: "Credit Card",
+      paymentMethod: "Bank Transfer",
       transactionId: "TXN-2026-05-14-0003",
       hasProof: true,
+      bankName: "Bank of America",
+      accountNumber: "0987654321",
+      accountName: "Sarah M Johnson",
     },
     {
       id: 3,
@@ -195,19 +201,60 @@ export function PaymentConfirmation() {
       </div>
 
       {/* View Proof Modal */}
-      {showProofModal && (
+      {showProofModal && selectedPayment !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Payment Proof</h2>
-            <div className="mb-6 border-2 border-gray-200 rounded-lg overflow-hidden">
-              <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                <div className="text-center">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <h3 className="font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">Transaction Details</h3>
+                {(() => {
+                  const payment = pendingPayments.find(p => p.id === selectedPayment);
+                  return payment ? (
+                    <div className="space-y-4 text-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-gray-500">Payment Method</span>
+                        <span className="font-medium text-gray-900">{payment.paymentMethod}</span>
+                      </div>
+                      {payment.transactionId && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500">Transaction ID</span>
+                          <span className="font-mono text-gray-900 bg-gray-200 py-1 px-2 rounded w-fit">{payment.transactionId}</span>
+                        </div>
+                      )}
+                      {(payment as any).bankName && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500">Bank Name</span>
+                          <span className="font-medium text-gray-900">{(payment as any).bankName}</span>
+                        </div>
+                      )}
+                      {(payment as any).accountNumber && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500">Account Number</span>
+                          <span className="font-mono text-gray-900">{(payment as any).accountNumber}</span>
+                        </div>
+                      )}
+                      {(payment as any).accountName && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500">Account Name</span>
+                          <span className="font-medium text-gray-900 uppercase">{(payment as any).accountName}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+
+              <div className="border-2 border-gray-200 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 min-h-[300px]">
+                <div className="text-center p-6">
                   <FileText className="w-16 h-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600">Payment receipt image</p>
+                  <p className="text-gray-600 font-medium">Payment receipt image</p>
                   <p className="text-sm text-gray-500">Uploaded by customer</p>
                 </div>
               </div>
             </div>
+
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowProofModal(false)}
