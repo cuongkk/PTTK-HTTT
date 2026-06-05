@@ -13,37 +13,37 @@ export function PaymentRequests() {
   });
 
   const pendingContracts = [
-    { id: 1, name: "John Smith", room: "Room 203 - Building A", contractId: "CT-2026-0601" },
-    { id: 2, name: "Emily Davis", room: "Room 102 - Building C", contractId: "CT-2026-0604" },
-    { id: 3, name: "James Wilson", room: "Room 501 - Building A", contractId: "CT-2026-0605" },
+    { id: 1, name: "Nguyễn Văn A", room: "Phòng 203 - Tòa A", contractId: "CT-2026-0601" },
+    { id: 2, name: "Trần Thị B", room: "Phòng 102 - Tòa C", contractId: "CT-2026-0604" },
+    { id: 3, name: "Lê Văn C", room: "Phòng 501 - Tòa A", contractId: "CT-2026-0605" },
   ];
 
   const sentRequests = [
     {
       id: 1,
-      customer: "Sarah Johnson",
-      room: "Room 305 - Building B",
-      type: "Deposit",
-      amount: 800,
-      dueDate: "May 25, 2026",
-      sentDate: "May 13, 2026",
-      status: "Pending",
+      customer: "Phạm Thị D",
+      room: "Phòng 305 - Tòa B",
+      type: "Tiền cọc",
+      amount: 8000000,
+      dueDate: "14 Thg 5, 2026",
+      sentDate: "13 Thg 5, 2026",
+      status: "Chờ thanh toán",
     },
     {
       id: 2,
-      customer: "Michael Chen",
-      room: "Room 404 - Building A",
-      type: "Monthly Rent",
-      amount: 250,
-      dueDate: "June 1, 2026",
-      sentDate: "May 14, 2026",
-      status: "Pending",
+      customer: "Ngô Văn E",
+      room: "Phòng 404 - Tòa A",
+      type: "Tiền phòng tháng",
+      amount: 2500000,
+      dueDate: "15 Thg 5, 2026",
+      sentDate: "14 Thg 5, 2026",
+      status: "Chờ thanh toán",
     },
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Payment request sent successfully!");
+    alert("Đã gửi yêu cầu thanh toán thành công!");
     setSelectedContract(null);
     setFormData({
       paymentType: "deposit",
@@ -63,8 +63,8 @@ export function PaymentRequests() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Requests</h1>
-          <p className="text-gray-600">Send payment requests to customers</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Yêu cầu thanh toán</h1>
+          <p className="text-gray-600">Gửi yêu cầu thanh toán cho khách</p>
         </div>
       </div>
 
@@ -73,14 +73,14 @@ export function PaymentRequests() {
         {/* Pending Contracts List */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Pending Contracts</h2>
+            <h2 className="text-xl font-bold text-gray-900">Hợp đồng chờ xử lý</h2>
           </div>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, room or ID..."
+              placeholder="Tìm kiếm theo tên, phòng hoặc mã hợp đồng..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -96,28 +96,27 @@ export function PaymentRequests() {
                   c.contractId.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map((contract) => (
-              <div
-                key={contract.id}
-                onClick={() => handleSelectContract(contract.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                  selectedContract === contract.id
+                <div
+                  key={contract.id}
+                  onClick={() => handleSelectContract(contract.id)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedContract === contract.id
                     ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
                     : "border-gray-200 bg-white hover:border-blue-300"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-sm font-bold text-blue-600">{contract.contractId}</span>
+                    }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-sm font-bold text-blue-600">{contract.contractId}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-900 font-medium mb-1">
+                    <User className="w-4 h-4 text-gray-500" />
+                    {contract.name}
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600 text-sm">
+                    <Home className="w-4 h-4 text-gray-500" />
+                    {contract.room}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-gray-900 font-medium mb-1">
-                  <User className="w-4 h-4 text-gray-500" />
-                  {contract.name}
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 text-sm">
-                  <Home className="w-4 h-4 text-gray-500" />
-                  {contract.room}
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
 
@@ -130,9 +129,9 @@ export function PaymentRequests() {
                   <DollarSign className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Create Payment Request</h2>
+                  <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu thanh toán</h2>
                   <p className="text-sm text-gray-600">
-                    For {pendingContracts.find((c) => c.id === selectedContract)?.name}
+                    Cho {pendingContracts.find((c) => c.id === selectedContract)?.name}
                   </p>
                 </div>
               </div>
@@ -140,22 +139,22 @@ export function PaymentRequests() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Type</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Loại thanh toán</label>
                     <select
                       required
                       value={formData.paymentType}
                       onChange={(e) => setFormData({ ...formData, paymentType: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     >
-                      <option value="deposit">Deposit</option>
-                      <option value="rent">Monthly Rent</option>
-                      <option value="service">Service Fee</option>
-                      <option value="utilities">Utilities</option>
+                      <option value="deposit">Tiền cọc</option>
+                      <option value="rent">Tiền phòng tháng</option>
+                      <option value="service">Phí dịch vụ</option>
+                      <option value="utilities">Tiền điện nước</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Số tiền (VNĐ)</label>
                     <input
                       type="number"
                       required
@@ -163,12 +162,12 @@ export function PaymentRequests() {
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="Enter amount"
+                      placeholder="Nhập số tiền"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hạn chót</label>
                     <input
                       type="date"
                       required
@@ -180,7 +179,7 @@ export function PaymentRequests() {
 
                   {(formData.paymentType === "rent" || formData.paymentType === "utilities") && (
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Billing Cycle (Month/Year)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Kỳ thanh toán (Tháng/Năm)</label>
                       <input
                         type="month"
                         required
@@ -193,14 +192,14 @@ export function PaymentRequests() {
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notes (Optional)
+                      Ghi chú (Không bắt buộc)
                     </label>
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                      placeholder="Add any additional notes..."
+                      placeholder="Thêm ghi chú bất kỳ..."
                     />
                   </div>
                 </div>
@@ -211,7 +210,7 @@ export function PaymentRequests() {
                     className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                   >
                     <Send className="w-4 h-4" />
-                    Send Request
+                    Gửi yêu cầu
                   </button>
                 </div>
               </form>
@@ -219,9 +218,9 @@ export function PaymentRequests() {
           ) : (
             <div className="h-full min-h-[300px] flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-gray-200 border-dashed text-gray-500 p-8">
               <Send className="w-12 h-12 mb-4 text-gray-400" />
-              <p className="text-lg font-medium text-gray-900 mb-1">No Contract Selected</p>
+              <p className="text-lg font-medium text-gray-900 mb-1">Chưa chọn hợp đồng</p>
               <p className="text-center max-w-sm">
-                Select a pending contract from the list to create a payment request.
+                Chọn một hợp đồng chờ xử lý từ danh sách để tạo yêu cầu thanh toán.
               </p>
             </div>
           )}
@@ -231,7 +230,7 @@ export function PaymentRequests() {
       {/* Sent Requests */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-8">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Sent Requests</h2>
+          <h2 className="text-xl font-bold text-gray-900">Yêu cầu đã gửi</h2>
         </div>
         <div className="divide-y divide-gray-200">
           {sentRequests.map((request) => (
@@ -250,19 +249,19 @@ export function PaymentRequests() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm ml-0 lg:ml-15 mt-2 lg:mt-0">
                     <div>
-                      <p className="text-gray-600">Type</p>
+                      <p className="text-gray-600">Loại</p>
                       <p className="font-medium text-gray-900">{request.type}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Amount</p>
-                      <p className="font-medium text-gray-900">${request.amount}</p>
+                      <p className="text-gray-600">Số tiền</p>
+                      <p className="font-medium text-gray-900">{request.amount.toLocaleString()} VNĐ</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Due Date</p>
+                      <p className="text-gray-600">Hạn chót</p>
                       <p className="font-medium text-gray-900">{request.dueDate}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Sent Date</p>
+                      <p className="text-gray-600">Ngày gửi</p>
                       <p className="font-medium text-gray-900">{request.sentDate}</p>
                     </div>
                   </div>
