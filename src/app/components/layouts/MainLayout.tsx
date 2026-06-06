@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   Search,
@@ -20,15 +20,30 @@ import {
   Bell,
   User,
   LogOut,
+  Settings,
+  Sparkles,
 } from "lucide-react";
 
-type UserRole = "customer" | "sales" | "accountant" | "manager";
+type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
+
+const getRoleFromPathname = (pathname: string): UserRole => {
+  if (pathname.startsWith("/sales")) return "sales";
+  if (pathname.startsWith("/accountant")) return "accountant";
+  if (pathname.startsWith("/manager")) return "manager";
+  if (pathname.startsWith("/system-admin")) return "system-admin";
+
+  return "customer";
+};
 
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>("customer");
+  const [currentRole, setCurrentRole] = useState<UserRole>(getRoleFromPathname(location.pathname));
+
+  useEffect(() => {
+    setCurrentRole(getRoleFromPathname(location.pathname));
+  }, [location.pathname]);
 
   const roleNavigation = {
     customer: [
@@ -55,6 +70,13 @@ export function MainLayout() {
       { name: "Contract Approval", path: "/manager/contract-approval", icon: FileCheck },
       { name: "Tenant Verification", path: "/manager/tenant-verification", icon: UserCheck },
       { name: "Liquidation", path: "/manager/liquidation", icon: ClipboardCheck },
+    ],
+    "system-admin": [
+      { name: "Dashboard", path: "/system-admin", icon: Home },
+      { name: "Users", path: "/system-admin/users", icon: Users },
+      { name: "Settings", path: "/system-admin/settings", icon: Settings },
+      { name: "Rooms / Beds", path: "/system-admin/rooms", icon: Building2 },
+      { name: "Services", path: "/system-admin/services", icon: Sparkles },
     ],
   };
 
@@ -112,6 +134,7 @@ export function MainLayout() {
                 <option value="sales">Sales Staff</option>
                 <option value="accountant">Accountant</option>
                 <option value="manager">Manager</option>
+                <option value="system-admin">System Admin</option>
               </select>
 
               {/* Notifications */}
@@ -161,6 +184,7 @@ export function MainLayout() {
                   <option value="sales">Sales Staff</option>
                   <option value="accountant">Accountant</option>
                   <option value="manager">Manager</option>
+                  <option value="system-admin">System Admin</option>
                 </select>
               </div>
 

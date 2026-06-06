@@ -18,6 +18,11 @@ import { RoomInspection } from "./components/manager/RoomInspection";
 import { ContractApproval } from "./components/manager/ContractApproval";
 import { TenantVerification } from "./components/manager/TenantVerification";
 import { ContractLiquidation } from "./components/manager/ContractLiquidation";
+import { SystemAdminDashboard } from "./components/system-admin/SystemAdminDashboard";
+import { UserManagement } from "./components/system-admin/UserManagement";
+import { SystemSettings } from "./components/system-admin/SystemSettings";
+import { RoomBedCatalog } from "./components/system-admin/RoomBedCatalog";
+import { ServiceCatalog } from "./components/system-admin/ServiceCatalog";
 import { NotFound } from "./components/NotFound";
 
 export const router = createBrowserRouter([
@@ -72,6 +77,16 @@ export const router = createBrowserRouter([
           { path: "contract-approval", Component: ContractApproval },
           { path: "tenant-verification", Component: TenantVerification },
           { path: "liquidation", Component: ContractLiquidation },
+        ],
+      },
+      {
+        path: "system-admin",
+        children: [
+          { index: true, Component: SystemAdminDashboard },
+          { path: "users", Component: UserManagement },
+          { path: "settings", Component: SystemSettings },
+          { path: "rooms", Component: RoomBedCatalog },
+          { path: "services", Component: ServiceCatalog },
         ],
       },
       {

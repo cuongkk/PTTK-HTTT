@@ -86,6 +86,7 @@ export function LoginPage() {
                 <option value="sales">Sales Staff</option>
                 <option value="accountant">Accountant</option>
                 <option value="manager">Manager</option>
+                <option value="system-admin">System Admin</option>
               </select>
             </div>
 
