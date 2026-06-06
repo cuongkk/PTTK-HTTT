@@ -22,6 +22,8 @@ import {
   LogOut,
   Settings,
   Sparkles,
+  FilePlus,
+  DoorOpen,
 } from "lucide-react";
 
 type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
@@ -53,10 +55,13 @@ export function MainLayout() {
       { name: "My Payments", path: "/customer/payments", icon: CreditCard },
     ],
     sales: [
-      { name: "Dashboard", path: "/sales", icon: Home },
-      { name: "Rooms", path: "/sales/rooms", icon: Building2 },
-      { name: "Registrations", path: "/sales/registrations", icon: Users },
-      { name: "Contracts", path: "/sales/contracts", icon: FileText },
+      { name: "Trang chủ", path: "/sales", icon: Home },
+      { name: "Tra cứu phòng", path: "/sales/rooms", icon: Building2 },
+      { name: "Tiếp nhận ĐK", path: "/sales/registrations", icon: Users },
+      { name: "Tra cứu HĐ", path: "/sales/contracts", icon: FileText },
+      { name: "Lập HĐ cọc", path: "/sales/deposit-contract", icon: FilePlus },
+      { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileCheck },
+      { name: "Trả phòng", path: "/sales/checkout-contract", icon: DoorOpen },
     ],
     accountant: [
       { name: "Trang chủ", path: "/accountant", icon: Home },
