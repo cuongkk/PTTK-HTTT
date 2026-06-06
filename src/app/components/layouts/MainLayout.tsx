@@ -74,10 +74,10 @@ export function MainLayout() {
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },
-      { name: "Users", path: "/system-admin/users", icon: Users },
-      { name: "Settings", path: "/system-admin/settings", icon: Settings },
-      { name: "Rooms / Beds", path: "/system-admin/rooms", icon: Building2 },
-      { name: "Services", path: "/system-admin/services", icon: Sparkles },
+      { name: "Quản lý người dùng", path: "/system-admin/users", icon: Users },
+      { name: "Cài đặt thông số hệ thống", path: "/system-admin/settings", icon: Settings },
+      { name: "Quản lý danh mục phòng/giường", path: "/system-admin/rooms", icon: Building2 },
+      { name: "Quản lý dịch vụ", path: "/system-admin/services", icon: Sparkles },
     ],
   };
 

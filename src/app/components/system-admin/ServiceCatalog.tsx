@@ -1,39 +1,111 @@
+import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DollarSign, Plus, Search, Edit3, Trash2, PlugZap, Droplets, Wifi, Sparkles } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import { Label } from "../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 export function ServiceCatalog() {
-  const services = [
-    { name: "Electricity", unit: "kWh", price: "3,500 VND", category: "Utility", icon: PlugZap },
-    { name: "Water", unit: "m3", price: "15,000 VND", category: "Utility", icon: Droplets },
+  const [services, setServices] = useState([
+    { name: "Điện", unit: "kWh", price: "3,500 VND", category: "Utility", icon: PlugZap },
+    { name: "Nước", unit: "m3", price: "15,000 VND", category: "Utility", icon: Droplets },
     { name: "Wi-Fi", unit: "month", price: "120,000 VND", category: "Connectivity", icon: Wifi },
-    { name: "Cleaning", unit: "visit", price: "80,000 VND", category: "Service", icon: Sparkles },
-  ];
+    { name: "Dọn dẹp", unit: "visit", price: "80,000 VND", category: "Service", icon: Sparkles },
+  ]);
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [currentService, setCurrentService] = useState<any>(null);
+
+  const handleEditClick = (service: any) => {
+    setCurrentService(service);
+    setIsEditDialogOpen(true);
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <Badge className="mb-3">Fee management</Badge>
-          <h1 className="text-3xl font-bold text-slate-900">Service Catalog</h1>
+          <Badge className="mb-3">Quản lý phí</Badge>
+          <h1 className="text-3xl font-bold text-slate-900">Danh mục dịch vụ</h1>
           <p className="mt-2 text-slate-600">
-            Maintain utility charges and add-on services used across rental contracts.
+            Duy trì các khoản phí tiện ích và dịch vụ bổ sung được sử dụng trong các hợp đồng cho thuê.
           </p>
         </div>
-        <Button className="w-fit">
-          <Plus className="h-4 w-4" />
-          Add service
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-fit">
+              <Plus className="h-4 w-4" />
+              Thêm dịch vụ
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Thêm dịch vụ mới</DialogTitle>
+              <DialogDescription>
+                Tạo một loại dịch vụ hoặc tiện ích mới để tính phí.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="service-name">Tên dịch vụ</Label>
+                <Input id="service-name" placeholder="VD: Gửi xe" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="category">Loại</Label>
+                  <Select defaultValue="Service">
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Chọn loại" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Utility">Tiện ích</SelectItem>
+                      <SelectItem value="Connectivity">Kết nối</SelectItem>
+                      <SelectItem value="Service">Dịch vụ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="unit">Đơn vị</Label>
+                  <Input id="unit" placeholder="VD: xe/tháng" />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="service-price">Giá đơn vị (VND)</Label>
+                <Input id="service-price" placeholder="100,000" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Hủy</Button>
+              <Button type="submit" onClick={() => setIsAddDialogOpen(false)}>Lưu dịch vụ</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {[
-          { label: "Active services", value: "9", icon: DollarSign },
-          { label: "Utility items", value: "4", icon: PlugZap },
-          { label: "Monthly updates", value: "2", icon: Trash2 },
+          { label: "Dịch vụ đang hoạt động", value: "9", icon: DollarSign },
+          { label: "Mục tiện ích", value: "4", icon: PlugZap },
+          { label: "Cập nhật hàng tháng", value: "2", icon: Trash2 },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -52,8 +124,8 @@ export function ServiceCatalog() {
 
       <Card className="shadow-sm border-slate-200/80">
         <CardHeader>
-          <CardTitle className="text-slate-900">Service price list</CardTitle>
-          <CardDescription>Update unit rates for electricity, water, Wi-Fi, and cleaning fees.</CardDescription>
+          <CardTitle className="text-slate-900">Danh sách giá dịch vụ</CardTitle>
+          <CardDescription>Cập nhật tỷ lệ đơn vị cho điện, nước, Wi-Fi và phí dọn dẹp.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="relative max-w-xl">
@@ -65,12 +137,12 @@ export function ServiceCatalog() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Unit price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Dịch vụ</TableHead>
+                  <TableHead>Loại</TableHead>
+                  <TableHead>Đơn vị</TableHead>
+                  <TableHead>Giá đơn vị</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -90,11 +162,16 @@ export function ServiceCatalog() {
                       <TableCell>{service.unit}</TableCell>
                       <TableCell className="font-medium">{service.price}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">Active</Badge>
+                        <Badge variant="secondary">Hoạt động</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="icon" aria-label="Edit service">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            aria-label="Edit service"
+                            onClick={() => handleEditClick(service)}
+                          >
                             <Edit3 className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="icon" aria-label="Delete service">
@@ -110,6 +187,52 @@ export function ServiceCatalog() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa dịch vụ</DialogTitle>
+            <DialogDescription>
+              Cập nhật thông tin và đơn giá cho dịch vụ {currentService?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          {currentService && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-service-name">Tên dịch vụ</Label>
+                <Input id="edit-service-name" defaultValue={currentService.name} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-category">Loại</Label>
+                  <Select defaultValue={currentService.category}>
+                    <SelectTrigger id="edit-category">
+                      <SelectValue placeholder="Chọn loại" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Utility">Tiện ích</SelectItem>
+                      <SelectItem value="Connectivity">Kết nối</SelectItem>
+                      <SelectItem value="Service">Dịch vụ</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-unit">Đơn vị</Label>
+                  <Input id="edit-unit" defaultValue={currentService.unit} />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-service-price">Giá đơn vị (VND)</Label>
+                <Input id="edit-service-price" defaultValue={currentService.price} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Hủy</Button>
+            <Button type="submit" onClick={() => setIsEditDialogOpen(false)}>Cập nhật</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
