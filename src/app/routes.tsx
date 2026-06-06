@@ -13,6 +13,7 @@ import { AccountantDashboard } from "./components/accountant/AccountantDashboard
 import { PaymentRequests } from "./components/accountant/PaymentRequests";
 import { PaymentConfirmation } from "./components/accountant/PaymentConfirmation";
 import { Reconciliation } from "./components/accountant/Reconciliation";
+import { CheckInCharges } from "./components/accountant/CheckInCharges";
 import { ManagerDashboard } from "./components/manager/ManagerDashboard";
 import { RoomInspection } from "./components/manager/RoomInspection";
 import { ContractApproval } from "./components/manager/ContractApproval";
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
           { index: true, Component: AccountantDashboard },
           { path: "payment-requests", Component: PaymentRequests },
           { path: "payment-confirmation", Component: PaymentConfirmation },
+          { path: "check-in-charges", Component: CheckInCharges },
           { path: "reconciliation", Component: Reconciliation },
         ],
       },
