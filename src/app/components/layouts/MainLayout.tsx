@@ -44,10 +44,11 @@ export function MainLayout() {
       { name: "Contracts", path: "/sales/contracts", icon: FileText },
     ],
     accountant: [
-      { name: "Dashboard", path: "/accountant", icon: Home },
-      { name: "Payment Requests", path: "/accountant/payment-requests", icon: DollarSign },
-      { name: "Confirm Payments", path: "/accountant/payment-confirmation", icon: CheckCircle },
-      { name: "Reconciliation", path: "/accountant/reconciliation", icon: Calculator },
+      { name: "Trang chủ", path: "/accountant", icon: Home },
+      { name: "Yêu cầu thanh toán", path: "/accountant/payment-requests", icon: DollarSign },
+      { name: "Khoản thu nhận phòng", path: "/accountant/check-in-charges", icon: ClipboardList },
+      { name: "Xác nhận thanh toán", path: "/accountant/payment-confirmation", icon: CheckCircle },
+      { name: "Đối soát trả phòng", path: "/accountant/reconciliation", icon: Calculator },
     ],
     manager: [
       { name: "Dashboard", path: "/manager", icon: Home },
@@ -75,11 +76,11 @@ export function MainLayout() {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <Building2 className="w-8 h-8 text-blue-600" />
-              <h1 className="text-xl font-bold text-gray-900">RoomManager</h1>
+              <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">HomeStay Dorm</h1>
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-3">
               {navigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -87,14 +88,13 @@ export function MainLayout() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-colors text-sm whitespace-nowrap ${isActive
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden xl:inline lg:inline-block">{item.name}</span>
                   </Link>
                 );
               })}
@@ -173,11 +173,10 @@ export function MainLayout() {
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${
-                      isActive
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${isActive
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-50"
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.name}</span>
