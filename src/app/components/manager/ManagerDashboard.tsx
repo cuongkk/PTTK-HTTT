@@ -12,63 +12,63 @@ import {
 
 export function ManagerDashboard() {
   const stats = [
-    { label: "Occupancy Rate", value: "85%", icon: Building2, color: "blue", trend: "+5%" },
-    { label: "Monthly Revenue", value: "$24,500", icon: DollarSign, color: "green", trend: "+12%" },
-    { label: "Pending Approvals", value: "6", icon: AlertCircle, color: "orange" },
-    { label: "Active Contracts", value: "42", icon: FileCheck, color: "purple" },
+    { label: "Tỷ lệ lấp đầy", value: "85%", icon: Building2, color: "blue", trend: "+5%" },
+    { label: "Doanh thu tháng này", value: "$24,500", icon: DollarSign, color: "green", trend: "+12%" },
+    { label: "Yêu cầu chờ duyệt", value: "6", icon: AlertCircle, color: "orange" },
+    { label: "Hợp đồng hiệu lực", value: "42", icon: FileCheck, color: "purple" },
   ];
 
   const pendingApprovals = [
     {
       id: 1,
-      type: "Deposit Payment",
+      type: "Thanh toán tiền cọc",
       customer: "Sarah Johnson",
-      room: "Room 305 - Building B",
+      room: "Phòng 305 - Tòa B",
       amount: "$800",
-      date: "May 13, 2026",
+      date: "13/05/2026",
     },
     {
       id: 2,
-      type: "Rental Contract",
+      type: "Hợp đồng thuê phòng",
       customer: "Michael Chen",
-      room: "Room 404 - Building A",
-      amount: "$250/mo",
-      date: "May 14, 2026",
+      room: "Phòng 404 - Tòa A",
+      amount: "$250/tháng",
+      date: "14/05/2026",
     },
     {
       id: 3,
-      type: "Tenant Verification",
+      type: "Xác minh khách thuê",
       customer: "Emma Wilson",
-      room: "Room 501 - Building C",
+      room: "Phòng 501 - Tòa C",
       amount: "-",
-      date: "May 14, 2026",
+      date: "14/05/2026",
     },
   ];
 
   const roomStats = [
-    { building: "Building A", total: 20, occupied: 18, available: 2, maintenance: 0 },
-    { building: "Building B", total: 15, occupied: 12, available: 2, maintenance: 1 },
-    { building: "Building C", total: 10, occupied: 8, available: 1, maintenance: 1 },
+    { building: "Tòa A", total: 20, occupied: 18, available: 2, maintenance: 0 },
+    { building: "Tòa B", total: 15, occupied: 12, available: 2, maintenance: 1 },
+    { building: "Tòa C", total: 10, occupied: 8, available: 1, maintenance: 1 },
   ];
 
   const recentActivity = [
     {
       id: 1,
-      action: "Contract Approved",
-      details: "Rental contract for John Smith - Room 203",
-      time: "2 hours ago",
+      action: "Xác nhận thuê phòng",
+      details: "Hợp đồng thuê của John Smith - Phòng 203",
+      time: "2 giờ trước",
     },
     {
       id: 2,
-      action: "Room Inspected",
-      details: "Room 501 passed inspection - Ready for new tenant",
-      time: "4 hours ago",
+      action: "Kiểm tra tình trạng phòng",
+      details: "Phòng 501 đạt kiểm tra - Sẵn sàng đón khách mới",
+      time: "4 giờ trước",
     },
     {
       id: 3,
-      action: "Tenant Verified",
-      details: "Background check completed for Sarah Johnson",
-      time: "1 day ago",
+      action: "Kiểm tra điều kiện lưu trú khách hàng",
+      details: "Đã hoàn thành xác minh lý lịch cho Sarah Johnson",
+      time: "1 ngày trước",
     },
   ];
 
@@ -76,8 +76,8 @@ export function ManagerDashboard() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Manager Dashboard</h1>
-        <p className="text-gray-600">Overview and approvals management</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Trang chủ</h1>
+        <p className="text-gray-600">Tổng quan hệ thống và quản lý phê duyệt</p>
       </div>
 
       {/* Stats */}
@@ -113,12 +113,33 @@ export function ManagerDashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
-          to="/manager/inspection"
+          to="/manager/inspection-status"
           className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 hover:from-blue-600 hover:to-blue-700 transition-all"
         >
           <Building2 className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Room Inspection</h3>
-          <p className="text-sm text-blue-100">Check room conditions</p>
+          <h3 className="text-lg font-semibold mb-1">Kiểm tra tình trạng phòng</h3>
+          <p className="text-sm text-blue-100">Xác nhận tình trạng phòng</p>
+        </Link>
+
+        <Link
+          to="/manager/inspection-conditions"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 hover:from-blue-600 hover:to-blue-700 transition-all"
+        >
+          <Building2 className="w-8 h-8 mb-3" />
+          <h3 className="text-lg font-semibold mb-1">Kiểm tra trạng thái phòng</h3>
+          <p className="text-sm text-blue-100">Xác nhận trạng thái phòng</p>
+        </Link>
+
+
+        <Link
+          to="/manager/deposit-confirmation"
+          className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white rounded-xl p-6 hover:from-cyan-600 hover:to-cyan-700 transition-all"
+        >
+          <CheckCircle className="w-8 h-8 mb-3" />
+          <h3 className="text-lg font-semibold mb-1">Xác nhận đặt cọc</h3>
+          <p className="text-sm text-cyan-100">
+            Kiểm tra thông tin đặt cọc
+          </p>
         </Link>
 
         <Link
@@ -126,8 +147,8 @@ export function ManagerDashboard() {
           className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 hover:from-green-600 hover:to-green-700 transition-all"
         >
           <FileCheck className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Contract Approval</h3>
-          <p className="text-sm text-green-100">Review contracts</p>
+          <h3 className="text-lg font-semibold mb-1">Xác nhận thuê phòng</h3>
+          <p className="text-sm text-green-100">Duyệt hợp đồng mới</p>
         </Link>
 
         <Link
@@ -135,8 +156,8 @@ export function ManagerDashboard() {
           className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 hover:from-purple-600 hover:to-purple-700 transition-all"
         >
           <Users className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Tenant Verification</h3>
-          <p className="text-sm text-purple-100">Verify tenants</p>
+          <h3 className="text-lg font-semibold mb-1">Ký hợp đồng thuê</h3>
+          <p className="text-sm text-purple-100">Xác minh hồ sơ khách</p>
         </Link>
 
         <Link
@@ -144,8 +165,8 @@ export function ManagerDashboard() {
           className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl p-6 hover:from-orange-600 hover:to-orange-700 transition-all"
         >
           <ClipboardCheck className="w-8 h-8 mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Liquidation</h3>
-          <p className="text-sm text-orange-100">End contracts</p>
+          <h3 className="text-lg font-semibold mb-1">Thanh lý hợp đồng thuê</h3>
+          <p className="text-sm text-orange-100">Chấm dứt thuê & đối chiếu</p>
         </Link>
       </div>
 
@@ -153,7 +174,7 @@ export function ManagerDashboard() {
         {/* Pending Approvals */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Pending Approvals</h2>
+            <h2 className="text-xl font-bold text-gray-900">Yêu cầu chờ duyệt</h2>
           </div>
           <div className="divide-y divide-gray-200">
             {pendingApprovals.map((approval) => (
@@ -164,7 +185,7 @@ export function ManagerDashboard() {
                     <p className="text-sm text-gray-600">{approval.customer}</p>
                   </div>
                   <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                    Pending
+                    Chờ duyệt
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -179,7 +200,7 @@ export function ManagerDashboard() {
               to="/manager/contract-approval"
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
-              View all approvals →
+              Xem tất cả yêu cầu duyệt →
             </Link>
           </div>
         </div>
@@ -187,7 +208,7 @@ export function ManagerDashboard() {
         {/* Room Statistics */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Room Statistics by Building</h2>
+            <h2 className="text-xl font-bold text-gray-900">Thống kê phòng theo Tòa</h2>
           </div>
           <div className="divide-y divide-gray-200">
             {roomStats.map((stat, index) => (
@@ -195,19 +216,19 @@ export function ManagerDashboard() {
                 <h3 className="font-semibold text-gray-900 mb-3">{stat.building}</h3>
                 <div className="grid grid-cols-4 gap-2 text-sm">
                   <div>
-                    <p className="text-gray-600">Total</p>
+                    <p className="text-gray-600">Tổng số</p>
                     <p className="text-lg font-bold text-gray-900">{stat.total}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Occupied</p>
+                    <p className="text-gray-600">Đang thuê</p>
                     <p className="text-lg font-bold text-blue-600">{stat.occupied}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Available</p>
+                    <p className="text-gray-600">Còn trống</p>
                     <p className="text-lg font-bold text-green-600">{stat.available}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Maintenance</p>
+                    <p className="text-gray-600">Bảo trì</p>
                     <p className="text-lg font-bold text-orange-600">{stat.maintenance}</p>
                   </div>
                 </div>
@@ -220,7 +241,7 @@ export function ManagerDashboard() {
       {/* Recent Activity */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
+          <h2 className="text-xl font-bold text-gray-900">Hoạt động gần đây</h2>
         </div>
         <div className="divide-y divide-gray-200">
           {recentActivity.map((activity) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClipboardCheck, Calendar, DollarSign, AlertCircle, CheckCircle } from "lucide-react";
+import { ClipboardCheck, Calendar, DollarSign, AlertCircle, CheckCircle, Building2 } from "lucide-react";
 
 export function ContractLiquidation() {
   const contractsToLiquidate = [
@@ -7,14 +7,14 @@ export function ContractLiquidation() {
       id: 1,
       contractId: "RC-2026-0008",
       customer: "Emma Wilson",
-      room: "Room 501 - Building C",
-      startDate: "Jan 1, 2026",
-      endDate: "May 31, 2026",
-      moveOutDate: "May 10, 2026",
+      room: "Phòng 501 - Tòa C",
+      startDate: "01/01/2026",
+      endDate: "31/05/2026",
+      moveOutDate: "10/05/2026",
       earlyTermination: true,
       monthlyRent: 500,
       deposit: 1000,
-      status: "Pending Liquidation",
+      status: "Chờ thanh lý",
       inspectionCompleted: true,
       reconciliationCompleted: false,
     },
@@ -22,43 +22,43 @@ export function ContractLiquidation() {
       id: 2,
       contractId: "RC-2026-0003",
       customer: "David Lee",
-      room: "Room 202 - Building A",
-      startDate: "Dec 1, 2025",
-      endDate: "May 31, 2026",
-      moveOutDate: "May 5, 2026",
+      room: "Phòng 202 - Tòa A",
+      startDate: "01/12/2025",
+      endDate: "31/05/2026",
+      moveOutDate: "05/05/2026",
       earlyTermination: false,
       monthlyRent: 400,
       deposit: 800,
-      status: "Pending Liquidation",
+      status: "Chờ thanh lý",
       inspectionCompleted: true,
       reconciliationCompleted: true,
     },
   ];
 
   const handleLiquidate = (id: number) => {
-    alert(`Contract ${id} liquidated successfully!`);
+    alert(`Thanh lý hợp đồng ${id} thành công!`);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Contract Liquidation</h1>
-        <p className="text-gray-600">End rental contracts and start reconciliation</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Thanh lý hợp đồng</h1>
+        <p className="text-gray-600">Kết thúc hợp đồng thuê và bắt đầu quá trình đối chiếu</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Pending Liquidation</p>
+          <p className="text-sm text-gray-600 mb-1">Đang chờ thanh lý</p>
           <p className="text-2xl font-bold text-gray-900">{contractsToLiquidate.length}</p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Liquidated This Month</p>
+          <p className="text-sm text-gray-600 mb-1">Đã thanh lý tháng này</p>
           <p className="text-2xl font-bold text-gray-900">5</p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Pending Inspection</p>
+          <p className="text-sm text-gray-600 mb-1">Đang chờ kiểm tra phòng</p>
           <p className="text-2xl font-bold text-gray-900">0</p>
         </div>
       </div>
@@ -71,6 +71,9 @@ export function ContractLiquidation() {
             className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
           >
             <div className="p-6 border-b border-gray-200 bg-gray-50">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-6 h-6 text-blue-600" />
+              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-1">
@@ -88,24 +91,24 @@ export function ContractLiquidation() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* Contract Period */}
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Contract Period</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Thời hạn hợp đồng</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Start Date:</span>
+                      <span className="text-gray-600">Ngày bắt đầu:</span>
                       <span className="font-medium text-gray-900">{contract.startDate}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">End Date:</span>
+                      <span className="text-gray-600">Ngày kết thúc:</span>
                       <span className="font-medium text-gray-900">{contract.endDate}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Move-out Date:</span>
+                      <span className="text-gray-600">Ngày dọn ra:</span>
                       <span className="font-medium text-gray-900">{contract.moveOutDate}</span>
                     </div>
                     {contract.earlyTermination && (
                       <div className="flex items-center gap-2 text-orange-600">
                         <AlertCircle className="w-4 h-4" />
-                        <span className="font-medium">Early Termination</span>
+                        <span className="font-medium">Chấm dứt trước thời hạn</span>
                       </div>
                     )}
                   </div>
@@ -113,14 +116,14 @@ export function ContractLiquidation() {
 
                 {/* Financial Details */}
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Financial Details</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Thông tin tài chính</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Monthly Rent:</span>
+                      <span className="text-gray-600">Tiền thuê hàng tháng:</span>
                       <span className="font-medium text-gray-900">${contract.monthlyRent}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Deposit:</span>
+                      <span className="text-gray-600">Tiền đặt cọc:</span>
                       <span className="font-medium text-gray-900">${contract.deposit}</span>
                     </div>
                   </div>
@@ -129,7 +132,7 @@ export function ContractLiquidation() {
 
               {/* Checklist */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-3">Liquidation Checklist</h4>
+                <h4 className="font-semibold text-gray-900 mb-3">Danh mục kiểm tra thanh lý</h4>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     {contract.inspectionCompleted ? (
@@ -142,7 +145,7 @@ export function ContractLiquidation() {
                         contract.inspectionCompleted ? "text-green-700" : "text-gray-600"
                       }`}
                     >
-                      Room Inspection Completed
+                      Đã hoàn thành kiểm tra phòng
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -156,7 +159,7 @@ export function ContractLiquidation() {
                         contract.reconciliationCompleted ? "text-green-700" : "text-gray-600"
                       }`}
                     >
-                      Reconciliation Completed
+                      Đã hoàn thành đối chiếu công nợ
                     </span>
                   </div>
                 </div>
@@ -167,10 +170,9 @@ export function ContractLiquidation() {
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-blue-900 mb-1">Action Required</p>
+                      <p className="text-sm font-medium text-blue-900 mb-1">Yêu cầu hành động</p>
                       <p className="text-sm text-blue-700">
-                        Please complete reconciliation in the Accountant section before liquidating
-                        this contract.
+                        Vui lòng hoàn thành đối chiếu công nợ tại mục Kế toán trước khi tiến hành thanh lý hợp đồng này.
                       </p>
                     </div>
                   </div>
@@ -184,18 +186,18 @@ export function ContractLiquidation() {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   <ClipboardCheck className="w-4 h-4" />
-                  Complete Liquidation
+                  Hoàn tất thanh lý
                 </button>
 
                 {!contract.inspectionCompleted && (
                   <button className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors">
-                    Go to Inspection
+                    Đi đến kiểm tra phòng
                   </button>
                 )}
 
                 {!contract.reconciliationCompleted && (
                   <button className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors">
-                    Go to Reconciliation
+                    Đi đến đối chiếu công nợ
                   </button>
                 )}
               </div>

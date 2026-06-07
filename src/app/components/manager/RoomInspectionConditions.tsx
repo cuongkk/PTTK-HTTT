@@ -1,37 +1,37 @@
 import { useState } from "react";
 import { ClipboardList, Building2, CheckCircle, AlertTriangle, Camera, Plus } from "lucide-react";
 
-export function RoomInspection() {
+export function RoomInspectionConditions() {
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [showInspectionForm, setShowInspectionForm] = useState(false);
 
   const rooms = [
     {
       id: 1,
-      name: "Room 501",
-      building: "Building C",
-      status: "Needs Inspection",
-      lastInspection: "None",
-      moveOutDate: "May 10, 2026",
+      name: "Phòng 501",
+      building: "Tòa C",
+      status: "Cần kiểm tra",
+      lastInspection: "Chưa có",
+      moveOutDate: "10/05/2026",
       tenant: "Emma Wilson",
     },
     {
       id: 2,
-      name: "Room 203",
-      building: "Building A",
-      status: "Good Condition",
-      lastInspection: "Jan 10, 2026",
-      condition: "Excellent",
+      name: "Phòng 203",
+      building: "Tòa A",
+      status: "Tình trạng tốt",
+      lastInspection: "10/01/2026",
+      condition: "Rất tốt",
       tenant: "John Smith",
     },
     {
       id: 3,
-      name: "Room 404",
-      building: "Building A",
-      status: "Needs Maintenance",
-      lastInspection: "May 8, 2026",
-      condition: "Minor Issues",
-      issues: "AC filter needs replacement",
+      name: "Phòng 404",
+      building: "Tòa A",
+      status: "Cần bảo trì",
+      lastInspection: "08/05/2026",
+      condition: "Lỗi nhỏ",
+      issues: "Cần thay tấm lọc điều hòa",
     },
   ];
 
@@ -39,22 +39,22 @@ export function RoomInspection() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Room Inspection</h1>
-        <p className="text-gray-600">Check room conditions and rental history</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra trạng thái phòng</h1>
+        <p className="text-gray-600">Kiểm tra trạng thái phòng và lịch sử thuê</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Needs Inspection</p>
+          <p className="text-sm text-gray-600 mb-1">Cần kiểm tra</p>
           <p className="text-2xl font-bold text-gray-900">1</p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Good Condition</p>
+          <p className="text-sm text-gray-600 mb-1">Tình trạng tốt</p>
           <p className="text-2xl font-bold text-gray-900">1</p>
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Needs Maintenance</p>
+          <p className="text-sm text-gray-600 mb-1">Cần bảo trì</p>
           <p className="text-2xl font-bold text-gray-900">1</p>
         </div>
       </div>
@@ -79,9 +79,9 @@ export function RoomInspection() {
                 </div>
                 <span
                   className={`px-3 py-1 text-sm font-medium rounded-full ${
-                    room.status === "Good Condition"
+                    room.status === "Tình trạng tốt"
                       ? "bg-green-100 text-green-700"
-                      : room.status === "Needs Maintenance"
+                      : room.status === "Cần bảo trì"
                       ? "bg-orange-100 text-orange-700"
                       : "bg-red-100 text-red-700"
                   }`}
@@ -93,26 +93,26 @@ export function RoomInspection() {
               <div className="space-y-3 mb-4">
                 {room.tenant && (
                   <div className="text-sm">
-                    <p className="text-gray-600">Current Tenant</p>
+                    <p className="text-gray-600">Khách thuê hiện tại</p>
                     <p className="font-medium text-gray-900">{room.tenant}</p>
                   </div>
                 )}
 
                 <div className="text-sm">
-                  <p className="text-gray-600">Last Inspection</p>
+                  <p className="text-gray-600">Lần kiểm tra cuối</p>
                   <p className="font-medium text-gray-900">{room.lastInspection}</p>
                 </div>
 
                 {room.condition && (
                   <div className="text-sm">
-                    <p className="text-gray-600">Condition</p>
+                    <p className="text-gray-600">Tình trạng vật lý</p>
                     <p className="font-medium text-gray-900">{room.condition}</p>
                   </div>
                 )}
 
                 {room.moveOutDate && (
                   <div className="text-sm">
-                    <p className="text-gray-600">Move-out Date</p>
+                    <p className="text-gray-600">Ngày dọn ra</p>
                     <p className="font-medium text-gray-900">{room.moveOutDate}</p>
                   </div>
                 )}
@@ -135,7 +135,7 @@ export function RoomInspection() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
                 <ClipboardList className="w-4 h-4" />
-                {room.status === "Needs Inspection" ? "Conduct Inspection" : "Update Inspection"}
+                {room.status === "Cần kiểm tra" ? "Tiến hành kiểm tra" : "Cập nhật kiểm tra"}
               </button>
             </div>
           </div>
@@ -146,46 +146,46 @@ export function RoomInspection() {
       {showInspectionForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 my-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Room Inspection Form</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Phiếu kiểm tra tình trạng phòng</h2>
 
             <form className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Overall Condition
+                  Tình trạng tổng thể
                 </label>
                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                  <option>Excellent</option>
-                  <option>Good</option>
-                  <option>Fair</option>
-                  <option>Poor</option>
+                  <option>Rất tốt (Excellent)</option>
+                  <option>Tốt (Good)</option>
+                  <option>Trung bình (Fair)</option>
+                  <option>Kém (Poor)</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cleanliness
+                  Mức độ sạch sẽ
                 </label>
                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                  <option>Clean</option>
-                  <option>Needs Cleaning</option>
-                  <option>Dirty</option>
+                  <option>Sạch sẽ</option>
+                  <option>Cần dọn dẹp</option>
+                  <option>Bẩn</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Damages Found
+                  Hư hại ghi nhận
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Describe any damages or issues..."
+                  placeholder="Mô tả các chi tiết bị hư hại hoặc có lỗi..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Repair Cost
+                  Chi phí sửa chữa dự kiến ($)
                 </label>
                 <input
                   type="number"
@@ -196,17 +196,17 @@ export function RoomInspection() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Photos (Optional)
+                  Hình ảnh minh chứng (Không bắt buộc)
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
                   <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Upload inspection photos</p>
+                  <p className="text-sm text-gray-600">Tải lên hình ảnh kiểm tra phòng</p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Maintenance Required
+                  Yêu cầu bảo trì
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -215,7 +215,7 @@ export function RoomInspection() {
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="maintenance" className="text-sm text-gray-700">
-                    Request maintenance before next tenant
+                    Yêu cầu sửa chữa/bảo trì trước khi cho khách mới dọn vào
                   </label>
                 </div>
               </div>
@@ -226,18 +226,18 @@ export function RoomInspection() {
                   onClick={() => setShowInspectionForm(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   onClick={(e) => {
                     e.preventDefault();
-                    alert("Inspection saved!");
+                    alert("Đã lưu kết quả kiểm tra!");
                     setShowInspectionForm(false);
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
-                  Save Inspection
+                  Lưu kết quả
                 </button>
               </div>
             </form>

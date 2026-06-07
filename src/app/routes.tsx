@@ -18,7 +18,9 @@ import { PaymentConfirmation } from "./components/accountant/PaymentConfirmation
 import { Reconciliation } from "./components/accountant/Reconciliation";
 import { CheckInCharges } from "./components/accountant/CheckInCharges";
 import { ManagerDashboard } from "./components/manager/ManagerDashboard";
-import { RoomInspection } from "./components/manager/RoomInspection";
+import { RoomInspectionStatus } from "./components/manager/RoomInpectionsStatus";
+import { RoomInspectionConditions } from "./components/manager/RoomInspectionConditions";
+import { DepositConfirmation } from "./components/manager/DepositConfirmation";
 import { ContractApproval } from "./components/manager/ContractApproval";
 import { TenantVerification } from "./components/manager/TenantVerification";
 import { ContractLiquidation } from "./components/manager/ContractLiquidation";
@@ -81,7 +83,9 @@ export const router = createBrowserRouter([
         path: "manager",
         children: [
           { index: true, Component: ManagerDashboard },
-          { path: "inspection", Component: RoomInspection },
+          { path: "inspection-status", Component: RoomInspectionStatus },
+          { path: "inspection-conditions", Component: RoomInspectionConditions },
+          { path: "deposit-confirmation", Component: DepositConfirmation },
           { path: "contract-approval", Component: ContractApproval },
           { path: "tenant-verification", Component: TenantVerification },
           { path: "liquidation", Component: ContractLiquidation },
