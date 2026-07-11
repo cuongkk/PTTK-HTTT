@@ -20,7 +20,6 @@ public class AppDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<SystemParameter> SystemParameters => Set<SystemParameter>();
     public DbSet<Service> Services => Set<Service>();
-    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -284,37 +283,6 @@ public class AppDbContext : DbContext
 
             e.HasIndex(x => x.ServiceName).IsUnique().HasDatabaseName("uq_dichvu_ten");
             e.HasIndex(x => new { x.ServiceType, x.IsActive }).HasDatabaseName("idx_dichvu_loai");
-        });
-
-        // ---------------- nhat_ky_quan_tri ----------------
-        modelBuilder.Entity<AdminAuditLog>(e =>
-        {
-            e.ToTable("nhat_ky_quan_tri");
-            e.HasKey(x => x.LogId).HasName("pk_nhat_ky_qt");
-            e.Property(x => x.LogId).HasColumnName("ma_nk").HasMaxLength(12);
-            e.Property(x => x.ActorAccountId).HasColumnName("ma_nguoi_thuc").HasMaxLength(12).IsRequired();
-            e.Property(x => x.TargetAccountId).HasColumnName("ma_doi_tuong").HasMaxLength(12);
-            e.Property(x => x.ActionType).HasColumnName("loai_hanh_dong").HasMaxLength(30).IsRequired();
-            e.Property(x => x.OldValue).HasColumnName("gia_tri_cu");
-            e.Property(x => x.NewValue).HasColumnName("gia_tri_moi");
-            e.Property(x => x.Timestamp).HasColumnName("thoi_diem").HasDefaultValueSql("SYSUTCDATETIME()");
-            e.Property(x => x.Note).HasColumnName("ghi_chu");
-
-            e.HasOne(x => x.ActorAccount)
-                .WithMany()
-                .HasForeignKey(x => x.ActorAccountId)
-                .HasConstraintName("fk_nkqt_nguoithuc")
-                .OnDelete(DeleteBehavior.Restrict);
-
-            e.HasOne(x => x.TargetAccount)
-                .WithMany()
-                .HasForeignKey(x => x.TargetAccountId)
-                .HasConstraintName("fk_nkqt_doituong")
-                .OnDelete(DeleteBehavior.SetNull);
-
-            e.HasIndex(x => new { x.ActorAccountId, x.Timestamp }).HasDatabaseName("idx_nkqt_nguoithuc");
-            e.HasIndex(x => new { x.TargetAccountId, x.Timestamp }).HasDatabaseName("idx_nkqt_doituong");
-            e.HasIndex(x => new { x.ActionType, x.Timestamp }).HasDatabaseName("idx_nkqt_hanhdong");
         });
     }
 }

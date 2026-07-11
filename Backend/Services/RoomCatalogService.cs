@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Backend.Common;
 using Backend.Dtos;
 using Backend.Models;
@@ -11,16 +10,11 @@ public class RoomCatalogService : IRoomCatalogService
 {
     private readonly IRoomRepository _roomRepository;
     private readonly IBranchRepository _branchRepository;
-    private readonly IAdminAuditLogRepository _auditLogRepository;
 
-    public RoomCatalogService(
-        IRoomRepository roomRepository,
-        IBranchRepository branchRepository,
-        IAdminAuditLogRepository auditLogRepository)
+    public RoomCatalogService(IRoomRepository roomRepository, IBranchRepository branchRepository)
     {
         _roomRepository = roomRepository;
         _branchRepository = branchRepository;
-        _auditLogRepository = auditLogRepository;
     }
 
     public async Task<List<RoomDto>> GetAllAsync()
@@ -60,19 +54,13 @@ public class RoomCatalogService : IRoomCatalogService
         await _roomRepository.SaveChangesAsync();
 
         var created = await _roomRepository.GetByIdWithDetailsAsync(room.RoomId);
-        var createdDto = ToDto(created!);
-        await LogAsync(actorAccountId, AdminActionType.UpdateRoom, null, createdDto);
-        await _roomRepository.SaveChangesAsync();
-
-        return createdDto;
+        return ToDto(created!);
     }
 
     public async Task<RoomDto> UpdateAsync(string roomId, UpdateRoomRequest request, string actorAccountId)
     {
         var room = await _roomRepository.GetByIdWithDetailsAsync(roomId)
             ?? throw new NotFoundException($"Không tìm thấy phòng '{roomId}'.");
-
-        var oldSnapshot = ToDto(room);
 
         room.RoomName = request.RoomName;
         room.RoomType = request.RoomType;
@@ -86,7 +74,6 @@ public class RoomCatalogService : IRoomCatalogService
         room.UpdatedByAccountId = actorAccountId;
 
         _roomRepository.Update(room);
-        await LogAsync(actorAccountId, AdminActionType.UpdateRoom, oldSnapshot, room);
         await _roomRepository.SaveChangesAsync();
 
         return ToDto(room);
@@ -102,22 +89,8 @@ public class RoomCatalogService : IRoomCatalogService
             throw new ConflictException("Không thể xóa phòng còn giường. Hãy xóa các giường trước.");
         }
 
-        var oldSnapshot = ToDto(room);
         _roomRepository.Remove(room);
-        await LogAsync(actorAccountId, AdminActionType.UpdateRoom, oldSnapshot, null);
         await _roomRepository.SaveChangesAsync();
-    }
-
-    private async Task LogAsync(string actorAccountId, string actionType, object? oldValue, object? newValue)
-    {
-        await _auditLogRepository.AddAsync(new AdminAuditLog
-        {
-            LogId = IdGenerator.Generate("NK", 12),
-            ActorAccountId = actorAccountId,
-            ActionType = actionType,
-            OldValue = oldValue is null ? null : JsonSerializer.Serialize(oldValue, AuditJsonOptions.Default),
-            NewValue = newValue is null ? null : JsonSerializer.Serialize(newValue, AuditJsonOptions.Default),
-        });
     }
 
     private static RoomDto ToDto(Room room) => new(

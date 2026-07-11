@@ -20,8 +20,10 @@ public class BedsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<BedDto>>> GetByRoom([FromQuery] string roomId) =>
-        Ok(await _bedCatalogService.GetByRoomIdAsync(roomId));
+    public async Task<ActionResult<List<BedDto>>> GetByRoom([FromQuery] string roomId)
+    {
+        return Ok(await _bedCatalogService.GetByRoomIdAsync(roomId));
+    }
 
     [HttpPost]
     public async Task<ActionResult<BedDto>> Create([FromBody] CreateBedRequest request)
@@ -31,8 +33,10 @@ public class BedsController : ControllerBase
     }
 
     [HttpPut("{bedId}")]
-    public async Task<ActionResult<BedDto>> Update(string bedId, [FromBody] UpdateBedRequest request) =>
-        Ok(await _bedCatalogService.UpdateAsync(bedId, request, User.GetAccountId()));
+    public async Task<ActionResult<BedDto>> Update(string bedId, [FromBody] UpdateBedRequest request)
+    {
+        return Ok(await _bedCatalogService.UpdateAsync(bedId, request, User.GetAccountId()));
+    }
 
     [HttpDelete("{bedId}")]
     public async Task<IActionResult> Delete(string bedId)

@@ -20,7 +20,10 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<UserListItemDto>>> GetAll() => Ok(await _userService.GetAllAsync());
+    public async Task<ActionResult<List<UserListItemDto>>> GetAll()
+    {
+        return Ok(await _userService.GetAllAsync());
+    } 
 
     [HttpPost]
     public async Task<ActionResult<CreateUserResponse>> Create([FromBody] CreateUserRequest request)
@@ -30,8 +33,10 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{accountId}")]
-    public async Task<ActionResult<UserListItemDto>> Update(string accountId, [FromBody] UpdateUserRequest request) =>
-        Ok(await _userService.UpdateAsync(accountId, request, User.GetAccountId()));
+    public async Task<ActionResult<UserListItemDto>> Update(string accountId, [FromBody] UpdateUserRequest request)
+    {
+        return Ok(await _userService.UpdateAsync(accountId, request, User.GetAccountId()));
+    }
 
     [HttpDelete("{accountId}")]
     public async Task<IActionResult> Delete(string accountId)

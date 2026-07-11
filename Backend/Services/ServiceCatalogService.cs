@@ -1,7 +1,5 @@
-using System.Text.Json;
 using Backend.Common;
 using Backend.Dtos;
-using Backend.Models;
 using Backend.Repositories;
 using Backend.Utilities;
 using ServiceEntity = Backend.Models.Service;
@@ -11,12 +9,10 @@ namespace Backend.Services;
 public class ServiceCatalogService : IServiceCatalogService
 {
     private readonly IServiceRepository _serviceRepository;
-    private readonly IAdminAuditLogRepository _auditLogRepository;
 
-    public ServiceCatalogService(IServiceRepository serviceRepository, IAdminAuditLogRepository auditLogRepository)
+    public ServiceCatalogService(IServiceRepository serviceRepository)
     {
         _serviceRepository = serviceRepository;
-        _auditLogRepository = auditLogRepository;
     }
 
     public async Task<List<ServiceDto>> GetAllAsync()
@@ -46,7 +42,6 @@ public class ServiceCatalogService : IServiceCatalogService
         };
 
         await _serviceRepository.AddAsync(service);
-        await LogAsync(actorAccountId, null, ToDto(service));
         await _serviceRepository.SaveChangesAsync();
 
         return ToDto(service);
@@ -62,8 +57,6 @@ public class ServiceCatalogService : IServiceCatalogService
             throw new ConflictException($"Dịch vụ '{request.ServiceName}' đã tồn tại.");
         }
 
-        var oldSnapshot = ToDto(service);
-
         service.ServiceName = request.ServiceName;
         service.ServiceType = request.ServiceType;
         service.Unit = request.Unit;
@@ -74,7 +67,6 @@ public class ServiceCatalogService : IServiceCatalogService
         service.UpdatedByAccountId = actorAccountId;
 
         _serviceRepository.Update(service);
-        await LogAsync(actorAccountId, oldSnapshot, service);
         await _serviceRepository.SaveChangesAsync();
 
         return ToDto(service);
@@ -85,22 +77,8 @@ public class ServiceCatalogService : IServiceCatalogService
         var service = await _serviceRepository.GetByIdAsync(serviceId)
             ?? throw new NotFoundException($"Không tìm thấy dịch vụ '{serviceId}'.");
 
-        var oldSnapshot = ToDto(service);
         _serviceRepository.Remove(service);
-        await LogAsync(actorAccountId, oldSnapshot, null);
         await _serviceRepository.SaveChangesAsync();
-    }
-
-    private async Task LogAsync(string actorAccountId, object? oldValue, object? newValue)
-    {
-        await _auditLogRepository.AddAsync(new AdminAuditLog
-        {
-            LogId = IdGenerator.Generate("NK", 12),
-            ActorAccountId = actorAccountId,
-            ActionType = AdminActionType.UpdateService,
-            OldValue = oldValue is null ? null : JsonSerializer.Serialize(oldValue, AuditJsonOptions.Default),
-            NewValue = newValue is null ? null : JsonSerializer.Serialize(newValue, AuditJsonOptions.Default),
-        });
     }
 
     private static ServiceDto ToDto(ServiceEntity service) => new(

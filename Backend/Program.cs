@@ -71,7 +71,6 @@ builder.Services.AddScoped<IRoomRepository, RoomRepository>();
 builder.Services.AddScoped<IBedRepository, BedRepository>();
 builder.Services.AddScoped<IServiceRepository, ServiceRepository>();
 builder.Services.AddScoped<ISystemParameterRepository, SystemParameterRepository>();
-builder.Services.AddScoped<IAdminAuditLogRepository, AdminAuditLogRepository>();
 
 // Services
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

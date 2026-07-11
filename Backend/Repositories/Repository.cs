@@ -15,7 +15,9 @@ public class Repository<T> : IRepository<T> where T : class
         DbSet = context.Set<T>();
     }
 
-    public virtual async Task<T?> GetByIdAsync(string id) => await DbSet.FindAsync(id);
+    public virtual async Task<T?> GetByIdAsync(string id) {
+        return await DbSet.FindAsync(id);
+    }
 
     public virtual async Task<List<T>> GetAllAsync() => await DbSet.ToListAsync();
 

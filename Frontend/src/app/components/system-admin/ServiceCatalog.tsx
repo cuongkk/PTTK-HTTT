@@ -109,6 +109,10 @@ export function ServiceCatalog() {
       toast.error("Vui lòng nhập đầy đủ tên, đơn vị và giá dịch vụ.");
       return;
     }
+    if (Number(newService.unitPrice) < 0) {
+      toast.error("Đơn giá không được âm.");
+      return;
+    }
     if (!window.confirm(`Xác nhận tạo dịch vụ "${newService.serviceName}"?`)) return;
 
     setIsSubmitting(true);
@@ -133,6 +137,10 @@ export function ServiceCatalog() {
 
   const handleUpdateSubmit = async () => {
     if (!currentService) return;
+    if (Number(editService.unitPrice) < 0) {
+      toast.error("Đơn giá không được âm.");
+      return;
+    }
     if (!window.confirm(`Xác nhận cập nhật dịch vụ "${currentService.serviceName}"?`)) return;
 
     setIsSubmitting(true);
@@ -243,6 +251,7 @@ export function ServiceCatalog() {
                 <Input
                   id="service-price"
                   type="number"
+                  min="0"
                   placeholder="100000"
                   value={newService.unitPrice}
                   onChange={(e) => setNewService((s) => ({ ...s, unitPrice: e.target.value }))}
@@ -410,6 +419,7 @@ export function ServiceCatalog() {
                 <Input
                   id="edit-service-price"
                   type="number"
+                  min="0"
                   value={editService.unitPrice}
                   onChange={(e) => setEditService((s) => ({ ...s, unitPrice: e.target.value }))}
                 />

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Backend.Common;
 using Backend.Dtos;
 using Backend.Models;
@@ -13,20 +12,17 @@ public class UserService : IUserService
     private readonly ISystemRoleRepository _roleRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ICustomerRepository _customerRepository;
-    private readonly IAdminAuditLogRepository _auditLogRepository;
 
     public UserService(
         IAccountRepository accountRepository,
         ISystemRoleRepository roleRepository,
         IEmployeeRepository employeeRepository,
-        ICustomerRepository customerRepository,
-        IAdminAuditLogRepository auditLogRepository)
+        ICustomerRepository customerRepository)
     {
         _accountRepository = accountRepository;
         _roleRepository = roleRepository;
         _employeeRepository = employeeRepository;
         _customerRepository = customerRepository;
-        _auditLogRepository = auditLogRepository;
     }
 
     public async Task<List<UserListItemDto>> GetAllAsync()
@@ -93,7 +89,6 @@ public class UserService : IUserService
         account.Role = role;
 
         var createdDto = ToDto(account);
-        await LogAsync(actorAccountId, account.AccountId, AdminActionType.CreateAccount, null, createdDto);
         await _accountRepository.SaveChangesAsync();
 
         return new CreateUserResponse(createdDto, temporaryPassword);
@@ -106,8 +101,6 @@ public class UserService : IUserService
 
         var role = await _roleRepository.GetByIdAsync(request.RoleId)
             ?? throw new ValidationException($"Vai trò '{request.RoleId}' không tồn tại.");
-
-        var oldSnapshot = ToDto(account);
 
         account.RoleId = request.RoleId;
         account.Role = role;
@@ -127,7 +120,6 @@ public class UserService : IUserService
         }
 
         _accountRepository.Update(account);
-        await LogAsync(actorAccountId, account.AccountId, AdminActionType.UpdateAccount, oldSnapshot, ToDto(account));
         await _accountRepository.SaveChangesAsync();
 
         return ToDto(account);
@@ -138,9 +130,7 @@ public class UserService : IUserService
         var account = await _accountRepository.GetByIdWithDetailsAsync(accountId)
             ?? throw new NotFoundException("Không tìm thấy tài khoản.");
 
-        var oldSnapshot = ToDto(account);
         _accountRepository.Remove(account);
-        await LogAsync(actorAccountId, accountId, AdminActionType.DeleteAccount, oldSnapshot, null);
         await _accountRepository.SaveChangesAsync();
     }
 
@@ -153,24 +143,9 @@ public class UserService : IUserService
         account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         account.UpdatedAt = DateTime.UtcNow;
         _accountRepository.Update(account);
-
-        await LogAsync(actorAccountId, accountId, AdminActionType.ChangePassword, null, null);
         await _accountRepository.SaveChangesAsync();
 
         return new ResetPasswordResponse(newPassword);
-    }
-
-    private async Task LogAsync(string actorAccountId, string? targetAccountId, string actionType, object? oldValue, object? newValue)
-    {
-        await _auditLogRepository.AddAsync(new AdminAuditLog
-        {
-            LogId = IdGenerator.Generate("NK", 12),
-            ActorAccountId = actorAccountId,
-            TargetAccountId = targetAccountId,
-            ActionType = actionType,
-            OldValue = oldValue is null ? null : JsonSerializer.Serialize(oldValue, AuditJsonOptions.Default),
-            NewValue = newValue is null ? null : JsonSerializer.Serialize(newValue, AuditJsonOptions.Default),
-        });
     }
 
     private static string GenerateUsername(string email) =>

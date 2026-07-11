@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Backend.Common;
 using Backend.Dtos;
 using Backend.Models;
@@ -11,16 +10,11 @@ public class BedCatalogService : IBedCatalogService
 {
     private readonly IBedRepository _bedRepository;
     private readonly IRoomRepository _roomRepository;
-    private readonly IAdminAuditLogRepository _auditLogRepository;
 
-    public BedCatalogService(
-        IBedRepository bedRepository,
-        IRoomRepository roomRepository,
-        IAdminAuditLogRepository auditLogRepository)
+    public BedCatalogService(IBedRepository bedRepository, IRoomRepository roomRepository)
     {
         _bedRepository = bedRepository;
         _roomRepository = roomRepository;
-        _auditLogRepository = auditLogRepository;
     }
 
     public async Task<List<BedDto>> GetByRoomIdAsync(string roomId)
@@ -52,7 +46,6 @@ public class BedCatalogService : IBedCatalogService
         };
 
         await _bedRepository.AddAsync(bed);
-        await LogAsync(actorAccountId, null, ToDto(bed));
         await _bedRepository.SaveChangesAsync();
 
         return ToDto(bed);
@@ -63,8 +56,6 @@ public class BedCatalogService : IBedCatalogService
         var bed = await _bedRepository.GetByIdAsync(bedId)
             ?? throw new NotFoundException($"Không tìm thấy giường '{bedId}'.");
 
-        var oldSnapshot = ToDto(bed);
-
         bed.BedNumber = request.BedNumber;
         bed.MonthlyRent = request.MonthlyRent;
         bed.Status = request.Status;
@@ -72,7 +63,6 @@ public class BedCatalogService : IBedCatalogService
         bed.UpdatedByAccountId = actorAccountId;
 
         _bedRepository.Update(bed);
-        await LogAsync(actorAccountId, oldSnapshot, bed);
         await _bedRepository.SaveChangesAsync();
 
         return ToDto(bed);
@@ -83,22 +73,8 @@ public class BedCatalogService : IBedCatalogService
         var bed = await _bedRepository.GetByIdAsync(bedId)
             ?? throw new NotFoundException($"Không tìm thấy giường '{bedId}'.");
 
-        var oldSnapshot = ToDto(bed);
         _bedRepository.Remove(bed);
-        await LogAsync(actorAccountId, oldSnapshot, null);
         await _bedRepository.SaveChangesAsync();
-    }
-
-    private async Task LogAsync(string actorAccountId, object? oldValue, object? newValue)
-    {
-        await _auditLogRepository.AddAsync(new AdminAuditLog
-        {
-            LogId = IdGenerator.Generate("NK", 12),
-            ActorAccountId = actorAccountId,
-            ActionType = AdminActionType.UpdateBed,
-            OldValue = oldValue is null ? null : JsonSerializer.Serialize(oldValue, AuditJsonOptions.Default),
-            NewValue = newValue is null ? null : JsonSerializer.Serialize(newValue, AuditJsonOptions.Default),
-        });
     }
 
     private static BedDto ToDto(Bed bed) => new(bed.BedId, bed.RoomId, bed.BedNumber, bed.MonthlyRent, bed.Status);

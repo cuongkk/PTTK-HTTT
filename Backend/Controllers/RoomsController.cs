@@ -20,10 +20,16 @@ public class RoomsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<RoomDto>>> GetAll() => Ok(await _roomCatalogService.GetAllAsync());
+    public async Task<ActionResult<List<RoomDto>>> GetAll()
+    {
+        return Ok(await _roomCatalogService.GetAllAsync());
+    } 
 
     [HttpGet("branches")]
-    public async Task<ActionResult<List<BranchDto>>> GetBranches() => Ok(await _roomCatalogService.GetBranchesAsync());
+    public async Task<ActionResult<List<BranchDto>>> GetBranches()
+    {
+        return Ok(await _roomCatalogService.GetBranchesAsync());
+    }
 
     [HttpPost]
     public async Task<ActionResult<RoomDto>> Create([FromBody] CreateRoomRequest request)
@@ -33,8 +39,10 @@ public class RoomsController : ControllerBase
     }
 
     [HttpPut("{roomId}")]
-    public async Task<ActionResult<RoomDto>> Update(string roomId, [FromBody] UpdateRoomRequest request) =>
-        Ok(await _roomCatalogService.UpdateAsync(roomId, request, User.GetAccountId()));
+    public async Task<ActionResult<RoomDto>> Update(string roomId, [FromBody] UpdateRoomRequest request)
+    {
+        return Ok(await _roomCatalogService.UpdateAsync(roomId, request, User.GetAccountId()));
+    }
 
     [HttpDelete("{roomId}")]
     public async Task<IActionResult> Delete(string roomId)

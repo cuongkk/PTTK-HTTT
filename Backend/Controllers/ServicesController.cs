@@ -20,7 +20,10 @@ public class ServicesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<ServiceDto>>> GetAll() => Ok(await _serviceCatalogService.GetAllAsync());
+    public async Task<ActionResult<List<ServiceDto>>> GetAll()
+    {
+        return Ok(await _serviceCatalogService.GetAllAsync());
+    }
 
     [HttpPost]
     public async Task<ActionResult<ServiceDto>> Create([FromBody] CreateServiceRequest request)
@@ -30,8 +33,10 @@ public class ServicesController : ControllerBase
     }
 
     [HttpPut("{serviceId}")]
-    public async Task<ActionResult<ServiceDto>> Update(string serviceId, [FromBody] UpdateServiceRequest request) =>
-        Ok(await _serviceCatalogService.UpdateAsync(serviceId, request, User.GetAccountId()));
+    public async Task<ActionResult<ServiceDto>> Update(string serviceId, [FromBody] UpdateServiceRequest request)
+    {
+        return Ok(await _serviceCatalogService.UpdateAsync(serviceId, request, User.GetAccountId()));
+    }
 
     [HttpDelete("{serviceId}")]
     public async Task<IActionResult> Delete(string serviceId)

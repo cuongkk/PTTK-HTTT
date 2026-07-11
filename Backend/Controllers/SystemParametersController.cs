@@ -20,10 +20,14 @@ public class SystemParametersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<SystemParameterDto>>> GetAll() =>
-        Ok(await _systemParameterService.GetAllAsync());
+    public async Task<ActionResult<List<SystemParameterDto>>> GetAll()
+    {
+        return Ok(await _systemParameterService.GetAllAsync());
+    }
 
     [HttpPut("{parameterId}")]
-    public async Task<ActionResult<SystemParameterDto>> Update(string parameterId, [FromBody] UpdateSystemParameterRequest request) =>
-        Ok(await _systemParameterService.UpdateAsync(parameterId, request, User.GetAccountId()));
+    public async Task<ActionResult<SystemParameterDto>> Update(string parameterId, [FromBody] UpdateSystemParameterRequest request)
+    {
+        return Ok(await _systemParameterService.UpdateAsync(parameterId, request, User.GetAccountId()));
+    }
 }
