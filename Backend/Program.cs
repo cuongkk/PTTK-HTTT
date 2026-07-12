@@ -83,6 +83,9 @@ builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
 builder.Services.AddScoped<ICustomerWorkflowService, CustomerWorkflowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+builder.Services.AddScoped<IRoomInspectionStatusService,RoomInspectionStatusService>();
+builder.Services.AddScoped<IDepositConfirmationService,DepositConfirmationService>();
+
 var app = builder.Build();
 
 // ---------------- Migrate + Seed ----------------

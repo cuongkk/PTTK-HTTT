@@ -96,6 +96,11 @@ export function DepositConfirmation() {
                 </p>
 
                 <p>
+                  <span className="text-gray-600">Ngày:</span>{" "}
+                  {deposit.date}
+                </p>
+
+                <p>
                   <span className="text-gray-600">Tiền cọc:</span>{" "}
                   {deposit.depositAmount}
                 </p>

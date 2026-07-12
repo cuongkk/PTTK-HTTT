@@ -31,7 +31,7 @@ export function RoomInspectionStatus() {
     }
 
     // 2. Gọi chính xác đường dẫn Route bạn cấu hình ở Backend
-    fetch("http://localhost:5157/api/room-inspections-status", {
+    fetch("http://localhost:5157/api/manager/room-inspections-status", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
