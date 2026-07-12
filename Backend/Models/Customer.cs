@@ -14,4 +14,6 @@ public class Customer
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Account? Account { get; set; }
+
+    public ICollection<RentalContract> RentalContracts { get; set; } = new List<RentalContract>();
 }

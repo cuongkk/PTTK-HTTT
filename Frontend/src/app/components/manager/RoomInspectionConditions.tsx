@@ -1,57 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClipboardList, Building2, Camera, Search, X } from "lucide-react";
 
-export function RoomInspectionConditions() {
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
-  const [showInspectionForm, setShowInspectionForm] = useState(false);
+interface RoomCondition {
+  roomID: number;
+  roomName: string;
+  building: string;
+  status: string;
+  tenant: string;
+}
 
-  // State phục vụ ô tìm kiếm bằng chữ
+export function RoomInspectionConditions() {
+   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [showInspectionForm, setShowInspectionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const rooms = [
-    {
-      id: 1,
-      name: "Phòng 501",
-      building: "Tòa C",
-      status: "Cần kiểm tra",
-      lastInspection: "10/01/2026",
-      rentalDay: "08/06/2026",
-      tenant: "Emma Wilson",
-    },
-    {
-      id: 2,
-      name: "Phòng 203",
-      building: "Tòa A",
-      status: "Cần kiểm tra",
-      lastInspection: "10/01/2026",
-      rentalDay: "08/06/2026",
-      tenant: "John Smith",
-    },
-    {
-      id: 3,
-      name: "Phòng 404",
-      building: "Tòa A",
-      status: "Cần kiểm tra",
-      lastInspection: "08/05/2026",
-      rentalDay: "08/06/2026",
-      tenant: "Tony Parker",
-    },
-  ];
+  // State dữ liệu từ backend
+  const [rooms, setRooms] = useState<RoomCondition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Logic lọc dữ liệu đa năng: Tìm theo Tên phòng, Tòa nhà, hoặc Tên khách thuê
+  // Gọi API khi load trang
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
+      setLoading(false);
+      return;
+    }
+
+    fetch("http://localhost:5157/api/room-inspection-condition", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Bạn không có quyền truy cập chức năng này!");
+        }
+        if (!res.ok) {
+          throw new Error("Không thể lấy dữ liệu từ hệ thống!");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setRooms(data); // giả sử backend trả về mảng trực tiếp
+        console.log(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // Lọc dữ liệu theo từ khóa
   const filteredRooms = rooms.filter((room) => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return true; 
-
+    if (!query) return true;
     return (
-      room.name.toLowerCase().includes(query) ||
+      room.roomName.toLowerCase().includes(query) ||
       room.building.toLowerCase().includes(query) ||
       (room.tenant && room.tenant.toLowerCase().includes(query))
     );
   });
 
-  // Tìm phòng đang được chọn để hiển thị thông tin lên Modal
-  const currentSelectedRoom = rooms.find((r) => r.id === selectedRoomId);
+  // Phòng đang chọn
+  const currentSelectedRoom = rooms.find((r) => r.roomID === selectedRoomId);
+
+  if (loading) return <div className="text-center py-10 text-gray-600">Đang tải dữ liệu...</div>;
+  if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
 
   return (
     <div className="space-y-6">
@@ -95,7 +114,7 @@ export function RoomInspectionConditions() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredRooms.map((room) => (
             <div
-              key={room.id}
+              key={room.roomID}
               className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
             >
               <div className="p-6">
@@ -105,7 +124,7 @@ export function RoomInspectionConditions() {
                       <Building2 className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-gray-900">{room.name}</h3>
+                      <h3 className="text-lg font-bold text-gray-900">{room.roomName}</h3>
                       <p className="text-sm text-gray-600">{room.building}</p>
                     </div>
                   </div>
@@ -129,21 +148,11 @@ export function RoomInspectionConditions() {
                       <p className="font-medium text-gray-900">{room.tenant}</p>
                     </div>
                   )}
-
-                  <div className="text-sm">
-                    <p className="text-gray-600">Lần kiểm tra cuối</p>
-                    <p className="font-medium text-gray-900">{room.lastInspection}</p>
-                  </div>
-
-                  <div className="text-sm">
-                    <p className="text-gray-600">Ngày thuê</p>
-                    <p className="font-medium text-gray-900">{room.rentalDay}</p>
-                  </div>
                 </div>
 
                 <button
                   onClick={() => {
-                    setSelectedRoomId(room.id);
+                    setSelectedRoomId(room.roomID);
                     setShowInspectionForm(true);
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
@@ -169,7 +178,7 @@ export function RoomInspectionConditions() {
               <h2 className="text-xl font-bold text-gray-900">Phiếu kiểm tra tình trạng phòng</h2>
               {currentSelectedRoom && (
                 <p className="text-sm text-blue-600 mt-1 font-medium">
-                  Đang thực hiện cho: {currentSelectedRoom.name} ({currentSelectedRoom.building})
+                  Đang thực hiện cho: {currentSelectedRoom.roomName} ({currentSelectedRoom.building})
                 </p>
               )}
             </div>
@@ -258,7 +267,7 @@ export function RoomInspectionConditions() {
                   type="submit"
                   onClick={(e) => {
                     e.preventDefault();
-                    alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom?.name}!`);
+                    alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom?.roomName}!`);
                     setShowInspectionForm(false);
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"

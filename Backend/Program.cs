@@ -81,6 +81,9 @@ builder.Services.AddScoped<IRoomCatalogService, RoomCatalogService>();
 builder.Services.AddScoped<IBedCatalogService, BedCatalogService>();
 builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
 
+builder.Services.AddScoped<IRoomInspectionStatusService, RoomInspectionStatusService>();
+builder.Services.AddScoped<IRoomInspectionConditionService,RoomInspectionConditionService>();
+
 var app = builder.Build();
 
 // ---------------- Migrate + Seed ----------------

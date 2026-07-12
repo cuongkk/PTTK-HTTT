@@ -1,0 +1,79 @@
+using Backend.Dtos;
+using Backend.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace Backend.Services;
+
+public class RoomInspectionStatusService : IRoomInspectionStatusService  
+{
+    private readonly AppDbContext _db;
+
+    public RoomInspectionStatusService(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
+    {
+        var query = _db.Rooms.AsQueryable();
+
+        if (!string.IsNullOrEmpty(filter.BranchId))
+            query = query.Where(p => p.BranchId == filter.BranchId);
+
+        var rooms = await query.ToListAsync();
+
+        var result = rooms.Select(p => new RoomStatusDto
+        {
+            Id = p.RoomId,
+            Name = p.RoomName,
+            Building = p.BranchId, 
+            Status = MapStatus(p.Status),
+            AvailableBedsCount = p.Beds.Count(b => b.Status.Trim().ToLower() == "trong")
+        }).ToList();
+
+        if (!string.IsNullOrEmpty(filter.Status))
+            result = result.Where(r => r.Status == filter.Status).ToList();
+
+        return result;
+    }
+
+
+    private static string MapStatus(string? status) 
+    {
+        // 1. Nếu trạng thái trong DB bị rỗng hoặc null, trả về mặc định luôn, không cho chạy xuống dưới
+        if (string.IsNullOrWhiteSpace(status)) 
+        {
+            return "Không xác định";
+        }
+
+        // 2. Chuyển hết về chữ thường và xóa khoảng trắng thừa để so khớp chính xác
+        return status.Trim().ToLower() switch
+        {
+            "trong" => "Trống",
+            "da_dat_coc" => "Đã được đặt cọc",
+            "dang_thue" => "Đã được giữ chỗ",
+            "bao_tri" => "Đang bảo trì", // <-- Cứu cánh cho lỗi 'bao_tri' hiện tại
+            _ => $"Khác ({status})"      // <-- Bắt buộc phải có dòng gạch dưới này để bọc lót tất cả các chữ lạ khác, không bao giờ lo sập nữa!
+        };
+    }
+
+    public async Task<bool> ConfirmRoomStatusAsync(string roomId)
+    {
+        // 1. Tìm phòng trong DB
+        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == roomId);
+            
+        // Nếu không tìm thấy hoặc phòng đã "Trống" sẵn rồi thì trả về false (thất bại)
+        if (room == null || room.Status == "Trống")
+        {
+            return false;
+        }
+
+        // 2. Cập nhật trạng thái
+        room.Status = "Trống";
+
+        // 3. Lưu xuống Database
+        var rowsAffected = await _db.SaveChangesAsync();
+            
+        return rowsAffected > 0;
+    }
+}
