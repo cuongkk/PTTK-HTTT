@@ -1,9 +1,9 @@
 import { CheckCircle2, Clock3, AlertCircle } from "lucide-react";
 
 const payments = [
-  { id: "TT001", type: "Tiền cọc", room: "P_Q5_201", amount: "9.000.000 đ", date: "11/07/2026", status: "Đã xác nhận" },
-  { id: "TT002", type: "Khoản nhận phòng", room: "P_Q5_201", amount: "4.850.000 đ", date: "01/08/2026", status: "Chờ thanh toán" },
-  { id: "TT003", type: "Tiền thuê tháng 7", room: "P_Q5_102", amount: "1.550.000 đ", date: "01/07/2026", status: "Đang đối chiếu" },
+  { id: "TT001", type: "Tiền cọc", room: "PHONG_10", amount: "6.000.000 đ", date: "11/07/2026", status: "Đã xác nhận" },
+  { id: "TT002", type: "Khoản nhận phòng", room: "PHONG_16", amount: "3.000.000 đ", date: "01/08/2026", status: "Chờ thanh toán" },
+  { id: "TT003", type: "Khoản phát sinh", room: "PHONG_38", amount: "500.000 đ", date: "01/07/2026", status: "Chờ thanh toán" },
 ];
 
 export function CustomerPayments() {
