@@ -64,7 +64,7 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                               && !_db.RentalContracts.Any(contract => contract.DepositId == deposit.DepositId)
                           select new { deposit, application, room, branch }).ToListAsync();
         return rows.Select(x => new CustomerRoomSummaryDto(x.room.RoomId, x.room.RoomName, null, null, x.branch.BranchName,
-            x.room.RoomPrice ?? 0, x.deposit.PaidAt ?? x.deposit.CreatedAt, x.deposit.DepositId, x.deposit.Status)).ToList();
+            x.room.RoomPrice ?? 0, x.deposit.PaidAt ?? x.deposit.CreatedAt, x.deposit.DepositId, x.deposit.Status, x.application.Status)).ToList();
     }
 
     public async Task<List<CustomerRoomSummaryDto>> GetRentingRoomsAsync(string accountId)
@@ -75,7 +75,7 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                       join branch in _db.Branches on room.BranchId equals branch.BranchId
                       where contract.CustomerId == customerId && contract.Status == "hieu_luc"
                       select new CustomerRoomSummaryDto(room.RoomId, room.RoomName, null, null, branch.BranchName,
-                          contract.MonthlyRent, contract.StartDate.ToDateTime(TimeOnly.MinValue), contract.ContractId, contract.Status)).ToListAsync();
+                          contract.MonthlyRent, contract.StartDate.ToDateTime(TimeOnly.MinValue), contract.ContractId, contract.Status, "dang_thue")).ToListAsync();
     }
 
     public async Task<DepositRequestDetailDto> GetDepositRequestDetailAsync(string accountId, string applicationId, string roomId)
@@ -108,8 +108,8 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                 throw new ValidationException("Giới tính người ở không phù hợp điều kiện của phòng.");
         }
 
-        customer.NationalId = request.PrimaryTenant.DocumentNumber;
         customer.Gender = request.PrimaryTenant.Gender;
+        customer.Nationality = request.PrimaryTenant.Nationality;
         application.Status = "cho_ra_soat_coc";
 
         var oldMembers = await _db.TenantMembers.Where(x => x.ApplicationId == applicationId && x.ContractId == null).ToListAsync();
@@ -120,18 +120,18 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             FullName = customer.FullName, IsPrimaryTenant = true
         };
         _db.TenantMembers.Add(member);
-        member.NationalId = request.PrimaryTenant.DocumentNumber;
+        member.NationalId = customer.NationalId;
         member.Gender = request.PrimaryTenant.Gender;
         member.DateOfBirth = customer.DateOfBirth;
-        member.Nationality = customer.Nationality;
+        member.Nationality = request.PrimaryTenant.Nationality;
         member.DocumentType = "CCCD";
-        member.DocumentImageUrl = request.PrimaryTenant.DocumentImageUrl;
+        member.DocumentImageUrl = null;
         member.PermanentAddress = customer.Address;
-        member.OccupationOrSchool = request.PrimaryTenant.OccupationOrSchool;
+        member.OccupationOrSchool = null;
         member.IsEligible = true;
         member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
         foreach (var person in request.AccompanyingTenants)
-            _db.TenantMembers.Add(new TenantMember { TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, FullName = person.FullName, Gender = person.Gender, NationalId = person.DocumentNumber, DocumentType = "CCCD", DocumentImageUrl = person.DocumentImageUrl, OccupationOrSchool = person.OccupationOrSchool, IsPrimaryTenant = false, IsEligible = true });
+            _db.TenantMembers.Add(new TenantMember { TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality, IsPrimaryTenant = false, IsEligible = true });
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");
     }
@@ -143,5 +143,5 @@ public class CustomerWorkflowService : ICustomerWorkflowService
     private static ViewedRoomDto ToViewedRoom(RentalApplication a, Customer c, RoomViewingSchedule s, Room r, Branch b, Bed? bed, decimal rent, TenantMember? primaryTenant) => new(
         a.ApplicationId, s.ScheduleId, r.RoomId, r.RoomName, bed?.BedId, bed?.BedNumber, b.BranchName, r.RoomType, rent,
         s.AppointmentAt, s.Status, a.Status,
-        new InitialRentalInformationDto(c.FullName, c.PhoneNumber, c.Email, primaryTenant?.Nationality ?? c.Nationality, primaryTenant?.DocumentType ?? "CCCD", primaryTenant?.NationalId ?? c.NationalId, primaryTenant?.DateOfBirth ?? c.DateOfBirth, primaryTenant?.PermanentAddress ?? c.Address, primaryTenant?.OccupationOrSchool, primaryTenant?.FinancialDocumentUrl, a.NumberOfPeople, a.Gender, a.DesiredArea, a.DesiredRoomType, a.MinimumPrice, a.MaximumPrice, a.ExpectedMoveInDate, a.ExpectedRentalMonths, a.LivingSchedule, a.RequiresQuietLifestyle, a.RequiresParking, a.RequiresAirConditioner, a.OtherRequirements));
+        new InitialRentalInformationDto(c.FullName, c.PhoneNumber, c.Email, primaryTenant?.Nationality ?? c.Nationality, primaryTenant?.DocumentType ?? "CCCD", primaryTenant?.NationalId ?? c.NationalId, primaryTenant?.DocumentImageUrl, primaryTenant?.DateOfBirth ?? c.DateOfBirth, primaryTenant?.PermanentAddress ?? c.Address, primaryTenant?.OccupationOrSchool, primaryTenant?.FinancialDocumentUrl, a.NumberOfPeople, a.Gender, a.DesiredArea, a.DesiredRoomType, a.MinimumPrice, a.MaximumPrice, a.ExpectedMoveInDate, a.ExpectedRentalMonths, a.LivingSchedule, a.RequiresQuietLifestyle, a.RequiresParking, a.RequiresAirConditioner, a.OtherRequirements));
 }

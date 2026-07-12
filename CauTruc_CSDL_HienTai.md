@@ -1,6 +1,6 @@
 # Cấu trúc cơ sở dữ liệu hiện tại
 
-Tài liệu mô tả schema SQL Server được Backend sử dụng sau migration `SynchronizeFullHomestaySchema`. Hiện có **31 bảng ứng dụng**, chưa tính bảng lịch sử migration `__EFMigrationsHistory` do EF Core tự quản lý.
+Tài liệu mô tả schema SQL Server được Backend sử dụng theo migration gộp `InitialSchema`. Hiện có **33 bảng ứng dụng**, chưa tính bảng lịch sử migration `__EFMigrationsHistory` do EF Core tự quản lý.
 
 ## Quy ước
 
@@ -49,7 +49,7 @@ Lưu danh mục và điều kiện của từng phòng.
 | `gio_gioi_nghiem` | `time` | NULL | Giờ giới nghiêm nếu áp dụng |
 | `co_dieu_hoa` | `bit` | NOT NULL, mặc định `0` | Phòng có điều hòa |
 | `co_gui_xe` | `bit` | NOT NULL, mặc định `0` | Có hỗ trợ gửi xe |
-| `trang_thai` | `nvarchar(20)` | NOT NULL | `trong`, `da_dat_coc`, `dang_thue`, `bao_tri` |
+| `trang_thai` | `nvarchar(20)` | NOT NULL | `trong`, `da_dat_coc`, `cho_hoan_coc`, `dang_thue` |
 | `ngay_cap_nhat` | `datetime2` | NULL | Thời điểm cập nhật gần nhất |
 | `ma_nguoi_sua` | `nvarchar(12)` | FK, NULL | Tài khoản cập nhật gần nhất |
 
@@ -72,7 +72,7 @@ Lưu từng giường thuộc một phòng ở ghép hoặc dùng để biểu d
 | `ma_phong` | `nvarchar(10)` | FK, NOT NULL | Phòng chứa giường |
 | `so_thu_tu` | `smallint` | NOT NULL | Số thứ tự giường trong phòng |
 | `gia_thue_thang` | `decimal(12,2)` | NOT NULL, `> 0` | Giá thuê giường/tháng |
-| `trang_thai` | `nvarchar(20)` | NOT NULL | `trong`, `da_dat_coc`, `dang_thue`, `bao_tri` |
+| `trang_thai` | `nvarchar(20)` | NOT NULL | `trong`, `da_dat_coc`, `cho_hoan_coc`, `dang_thue` |
 | `ngay_cap_nhat` | `datetime2` | NULL | Thời điểm cập nhật |
 | `ma_nguoi_sua` | `nvarchar(12)` | FK, NULL | Tài khoản cập nhật |
 
@@ -352,7 +352,27 @@ Biểu diễn quan hệ nhiều-nhiều: một lịch có thể xem nhiều phò
 | `ngay_lap` | `datetime2` | Mặc định UTC hiện tại |
 | `han_thanh_toan` | `datetime2` | Hạn thanh toán 24 giờ |
 | `ngay_thanh_toan` | `datetime2` | NULL |
-| `trang_thai` | `nvarchar(20)` | `cho_thanh_toan`, `hoan_thanh`, `het_han`, `huy` |
+| `trang_thai` | `nvarchar(40)` | Trạng thái thanh toán hoặc xử lý hoàn cọc |
+| `ly_do_hoan_coc` | `nvarchar(max)` | NULL, lý do khách không tiếp tục thuê trước hợp đồng |
+| `ngay_yeu_cau_hoan_coc` | `datetime2` | NULL |
+| `ty_le_hoan` | `decimal(5,2)` | NULL, tỷ lệ hoàn được Kế toán xác định |
+| `so_tien_hoan` | `decimal(12,2)` | NULL |
+| `ngay_hoan_tien` | `datetime2` | NULL |
+
+Các trạng thái gồm:
+
+```text
+cho_thanh_toan
+hoan_thanh
+het_han
+huy
+cho_tiep_nhan_hoan_coc
+dang_xac_nhan_hoan_coc
+cho_doi_soat_hoan_coc
+cho_khach_xac_nhan_hoan_coc
+cho_hoan_tien
+da_hoan_coc
+```
 
 # 20. `dat_coc_giuong`
 
@@ -376,7 +396,23 @@ Biểu diễn quan hệ nhiều-nhiều: một lịch có thể xem nhiều phò
 | `ngay_ky` | `date` | NOT NULL |
 | `ngay_bat_dau` | `date` | NOT NULL |
 | `ngay_ket_thuc` | `date` | NULL |
-| `trang_thai` | `nvarchar(20)` | `hieu_luc`, `het_han`, `thanh_ly` |
+| `trang_thai` | `nvarchar(40)` | Trạng thái ký, nhận phòng, trả phòng hoặc thanh lý |
+
+Các trạng thái gồm:
+
+```text
+cho_ky
+cho_thanh_toan_nhan_phong
+cho_xac_nhan_thanh_toan
+hieu_luc
+cho_tra_phong
+cho_kiem_tra_tra_phong
+cho_doi_soat
+cho_khach_xac_nhan
+cho_hoan_coc
+het_han
+thanh_ly
+```
 
 # 22. `thanh_vien_thue`
 
@@ -424,7 +460,7 @@ Biểu diễn quan hệ nhiều-nhiều: một lịch có thể xem nhiều phò
 | `ma_ke_toan` | `nvarchar(10)` | FK → `nhan_vien` |
 | `ma_quan_ly` | `nvarchar(10)` | FK → `nhan_vien`, NULL |
 | `ngay_lap` | `date` | NOT NULL |
-| `ty_le_hoan` | `decimal(5,2)` | 50, 70, 80 hoặc 100 |
+| `ty_le_hoan` | `decimal(5,2)` | 0, 50, 70, 80 hoặc 100 |
 | `so_tien_coc_goc` | `decimal(12,2)` | NOT NULL |
 | `so_tien_hoan_co_ban` | `decimal(12,2)` | NOT NULL |
 | `tong_khau_tru` | `decimal(12,2)` | Mặc định `0` |
@@ -518,7 +554,66 @@ Biểu diễn quan hệ nhiều-nhiều: một lịch có thể xem nhiều phò
 | `da_doc` | `bit` | Mặc định `0` |
 | `ngay_doc` | `datetime2` | NULL |
 
-# 32. Tổng quan quan hệ
+# 32. `noi_quy_luu_tru`
+
+Lưu nội quy đang áp dụng tại từng chi nhánh. Nội quy không gắn trực tiếp với phòng vì mọi phòng thuộc cùng một chi nhánh dùng chung bộ quy định của chi nhánh đó.
+
+| Trường | Kiểu | Ràng buộc/ý nghĩa |
+|---|---|---|
+| `ma_noi_quy` | `nvarchar(12)` | PK, NOT NULL |
+| `ma_chi_nhanh` | `nvarchar(10)` | FK → `chi_nhanh`, NOT NULL |
+| `tieu_de` | `nvarchar(200)` | NOT NULL, tên ngắn của nội quy |
+| `noi_dung` | `nvarchar(max)` | NOT NULL, nội dung chi tiết |
+| `loai_noi_quy` | `nvarchar(30)` | NOT NULL, ví dụ `gio_giac`, `trat_tu`, `luu_tru`, `tai_san` |
+| `muc_do_vi_pham` | `nvarchar(20)` | NOT NULL, mặc định `nhac_nho`; seed có `nhac_nho`, `khau_tru_coc`, `boi_thuong` |
+| `muc_phat_mac_dinh` | `decimal(12,2)` | NULL, mức phạt/khấu trừ tham khảo nếu nội quy có số tiền cố định |
+| `ngay_hieu_luc` | `date` | NOT NULL |
+| `ngay_het_hieu_luc` | `date` | NULL, để trống khi chưa xác định ngày hết hiệu lực |
+| `trang_thai` | `nvarchar(20)` | NOT NULL, mặc định `hieu_luc` |
+| `ngay_tao` | `datetime2` | NOT NULL, mặc định UTC hiện tại |
+| `ngay_cap_nhat` | `datetime2` | NULL |
+
+Quan hệ và index:
+
+- `ma_chi_nhanh` → `chi_nhanh.ma_chi_nhanh`; không cho xóa chi nhánh khi vẫn còn nội quy.
+- `idx_noiquy_chinhanh_hieuluc(ma_chi_nhanh, trang_thai, ngay_hieu_luc)` hỗ trợ lấy nhanh nội quy hiện hành theo chi nhánh.
+- Seed hiện có bộ nội quy riêng cho Chi nhánh Quận 5 và Chi nhánh Thủ Đức.
+
+# 33. `yeu_cau_tra_phong`
+
+Lưu yêu cầu và lịch kiểm tra trả phòng. Không có bảng yêu cầu hoàn cọc riêng; hoàn cọc trước hợp đồng được quản lý trực tiếp trên `phieu_dat_coc`.
+
+| Trường | Kiểu | Ràng buộc/ý nghĩa |
+|---|---|---|
+| `ma_yeu_cau` | `nvarchar(12)` | PK |
+| `ma_hop_dong` | `nvarchar(12)` | FK → `hop_dong_thue`, NOT NULL, UQ |
+| `ma_kh` | `nvarchar(12)` | FK → `khach_hang`, NOT NULL |
+| `ma_sale` | `nvarchar(10)` | FK → `nhan_vien`, NULL |
+| `ma_quan_ly` | `nvarchar(10)` | FK → `nhan_vien`, NULL |
+| `ma_doi_soat` | `nvarchar(12)` | FK → `bang_doi_soat`, NULL |
+| `ngay_gio_khach_de_xuat` | `datetime2` | Ngày/giờ khách muốn trả phòng |
+| `ngay_gio_kiem_tra_xac_nhan` | `datetime2` | NULL, lịch Sale xác nhận |
+| `ly_do` | `nvarchar(max)` | NOT NULL |
+| `trang_thai` | `nvarchar(30)` | Trạng thái xử lý yêu cầu |
+| `ngay_tao` | `datetime2` | Mặc định UTC hiện tại |
+| `ngay_cap_nhat` | `datetime2` | NULL |
+| `ghi_chu` | `nvarchar(max)` | NULL |
+
+Các trạng thái:
+
+```text
+cho_tiep_nhan
+da_xac_nhan_lich
+cho_kiem_tra
+da_kiem_tra
+cho_doi_soat
+cho_khach_xac_nhan
+cho_hoan_tien
+hoan_tat
+huy
+```
+
+# 34. Tổng quan quan hệ
 
 ```text
 chi_nhanh
@@ -527,13 +622,15 @@ chi_nhanh
 │   ├── tai_san
 │   ├── hinh_anh_phong
 │   └── phong_tien_nghi ── tien_nghi
-└── nhan_vien ── tai_khoan
+├── nhan_vien ── tai_khoan
+└── noi_quy_luu_tru
 
 khach_hang ── ho_so_dang_ky ── lich_xem_phong ── lich_xem_phong_phong ── phong
 ho_so_dang_ky ── phieu_dat_coc ── dat_coc_giuong ── giuong
 phieu_dat_coc ── hop_dong_thue ── thanh_vien_thue
 hop_dong_thue ── bien_ban_ban_giao ── chi_tiet_ban_giao ── tai_san
 hop_dong_thue ── bang_doi_soat ── chi_phi_phat_sinh
+hop_dong_thue ── yeu_cau_tra_phong ── bang_doi_soat
 bang_doi_soat ── bien_ban_tra_phong
 khach_hang ── hoa_don ── chi_tiet_hoa_don_dich_vu ── dich_vu
 khach_hang ── tai_khoan
@@ -544,16 +641,16 @@ tai_khoan ── nhat_ky_quan_tri
 tai_khoan ── thong_bao
 ```
 
-# 33. Nội dung thêm/chỉnh so với `homestay_dorm.sql`
+# 35. Nội dung thêm/chỉnh so với `homestay_dorm.sql`
 
-## 33.1. Giữ nguyên về nghiệp vụ
+## 35.1. Giữ nguyên về nghiệp vụ
 
 - Giữ đủ toàn bộ 28 bảng trong script PostgreSQL.
 - Giữ tên bảng và tên cột tiếng Việt không dấu.
 - Giữ khóa chính, khóa ngoại, unique, check constraint và trạng thái chính.
 - Giữ công thức nghiệp vụ cọc, tỷ lệ hoàn, loại hóa đơn và loại chi phí.
 
-## 33.2. Chuyển đổi kỹ thuật PostgreSQL → SQL Server
+## 35.2. Chuyển đổi kỹ thuật PostgreSQL → SQL Server
 
 - `CHAR/VARCHAR` → `nvarchar` để lưu Unicode ổn định.
 - `BOOLEAN` → `bit`.
@@ -564,15 +661,17 @@ tai_khoan ── thong_bao
 - Một số `ON DELETE SET NULL` được đổi thành `NO ACTION` tại quan hệ có nguy cơ multiple cascade path, đặc biệt hóa đơn và thông báo người gửi.
 - Index có điều kiện PostgreSQL được biểu diễn bằng filtered index của SQL Server khi phù hợp.
 
-## 33.3. Ba bảng bổ sung ngoài script
+## 35.3. Năm bảng bổ sung ngoài script
 
 - `hinh_anh_phong`.
 - `tien_nghi`.
 - `phong_tien_nghi`.
+- `noi_quy_luu_tru`.
+- `yeu_cau_tra_phong`.
 
-Ba bảng này phục vụ màn tra cứu/hiển thị phòng và không thay thế bảng nào trong script.
+Ba bảng đầu phục vụ màn tra cứu/hiển thị phòng. `noi_quy_luu_tru` lưu quy định chung theo chi nhánh. `yeu_cau_tra_phong` lưu ngày khách đề xuất và lịch kiểm tra được Sale xác nhận. Các bảng này không thay thế bảng nào trong script.
 
-## 33.4. Trường bổ sung vào `phong`
+## 35.4. Trường bổ sung vào `phong`
 
 - `tang`.
 - `dien_tich_m2`.
@@ -581,7 +680,7 @@ Ba bảng này phục vụ màn tra cứu/hiển thị phòng và không thay th
 - `yeu_cau_yen_tinh`.
 - `gio_gioi_nghiem`.
 
-## 33.5. Trường bổ sung vào `ho_so_dang_ky`
+## 35.5. Trường bổ sung vào `ho_so_dang_ky`
 
 Script gốc chỉ có số người, ngày dự kiến và yêu cầu khác. Để bám đề, bổ sung:
 
@@ -595,14 +694,14 @@ Script gốc chỉ có số người, ngày dự kiến và yêu cầu khác. Đ
 - `yeu_cau_gui_xe`.
 - `yeu_cau_dieu_hoa`.
 
-## 33.6. Trường bổ sung cho bàn giao/trả phòng
+## 35.6. Trường bổ sung cho bàn giao/trả phòng
 
 - `bien_ban_ban_giao`: `chi_so_dien_dau`, `chi_so_nuoc_dau`.
 - `bien_ban_tra_phong`: `chi_so_dien_cuoi`, `chi_so_nuoc_cuoi`.
 
 Các trường này phục vụ đối chiếu điện nước đầu/cuối kỳ.
 
-## 33.7. Trường bổ sung cho thông báo
+## 35.7. Trường bổ sung cho thông báo
 
 - `ngay_tao`.
 - `da_doc`.

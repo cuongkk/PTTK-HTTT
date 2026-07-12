@@ -33,6 +33,13 @@ public class RoomsController : ControllerBase
         return Ok(await _roomCatalogService.GetBranchesAsync());
     }
 
+    [HttpGet("{roomId}/residence-rules")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<ResidenceRuleDto>>> GetResidenceRules(string roomId)
+    {
+        return Ok(await _roomCatalogService.GetResidenceRulesAsync(roomId));
+    }
+
     [HttpPost]
     public async Task<ActionResult<RoomDto>> Create([FromBody] CreateRoomRequest request)
     {

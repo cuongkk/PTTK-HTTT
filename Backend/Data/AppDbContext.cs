@@ -30,12 +30,14 @@ public class AppDbContext : DbContext
     public DbSet<DepositSlip> DepositSlips => Set<DepositSlip>();
     public DbSet<DepositBed> DepositBeds => Set<DepositBed>();
     public DbSet<RentalContract> RentalContracts => Set<RentalContract>();
+    public DbSet<ResidenceRule> ResidenceRules => Set<ResidenceRule>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<HandoverReport> HandoverReports => Set<HandoverReport>();
     public DbSet<HandoverDetail> HandoverDetails => Set<HandoverDetail>();
     public DbSet<Reconciliation> Reconciliations => Set<Reconciliation>();
     public DbSet<AdditionalCost> AdditionalCosts => Set<AdditionalCost>();
     public DbSet<CheckoutReport> CheckoutReports => Set<CheckoutReport>();
+    public DbSet<CheckoutRequest> CheckoutRequests => Set<CheckoutRequest>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceServiceDetail> InvoiceServiceDetails => Set<InvoiceServiceDetail>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();

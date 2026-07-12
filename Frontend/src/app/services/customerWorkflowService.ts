@@ -7,6 +7,7 @@ export interface InitialRentalInformation {
   nationality: string | null;
   documentType: string | null;
   documentNumber: string | null;
+  documentImageUrl: string | null;
   dateOfBirth: string | null;
   permanentAddress: string | null;
   occupationOrSchool: string | null;
@@ -51,9 +52,9 @@ export interface DepositRequestDetail {
 
 export interface SubmitDepositRequest {
   primaryTenant: {
-    gender: string; documentNumber: string; occupationOrSchool: string; documentImageUrl?: string;
+    gender: string; nationality: string;
   };
-  accompanyingTenants: Array<{ fullName: string; gender: string; documentNumber: string; documentImageUrl?: string; occupationOrSchool: string }>;
+  accompanyingTenants: Array<{ fullName: string; gender: string; nationality: string }>;
 }
 
 export interface CustomerRoomSummary {
@@ -66,6 +67,7 @@ export interface CustomerRoomSummary {
   relevantAt: string;
   referenceId: string;
   status: string;
+  applicationStatus: string;
 }
 
 export const customerWorkflowService = {

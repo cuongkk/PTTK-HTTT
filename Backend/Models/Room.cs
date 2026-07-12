@@ -11,7 +11,6 @@ public static class RoomBedStatus
     public const string Empty = "trong";
     public const string Deposited = "da_dat_coc";
     public const string Rented = "dang_thue";
-    public const string Maintenance = "bao_tri";
 }
 
 public class Room

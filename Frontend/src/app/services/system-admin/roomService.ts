@@ -50,6 +50,16 @@ export interface Branch {
   email: string | null;
 }
 
+export interface ResidenceRule {
+  residenceRuleId: string;
+  title: string;
+  content: string;
+  ruleType: string;
+  violationLevel: string;
+  defaultPenaltyAmount: number | null;
+  effectiveFrom: string;
+}
+
 export interface CreateRoomRequest {
   branchId: string;
   roomName: string;
@@ -87,6 +97,7 @@ export interface UpdateRoomRequest {
 export const roomService = {
   getAll: () => apiClient.get<Room[]>("/rooms"),
   getBranches: () => apiClient.get<Branch[]>("/rooms/branches"),
+  getResidenceRules: (roomId: string) => apiClient.get<ResidenceRule[]>(`/rooms/${roomId}/residence-rules`),
   create: (request: CreateRoomRequest) => apiClient.post<Room>("/rooms", request),
   update: (roomId: string, request: UpdateRoomRequest) => apiClient.put<Room>(`/rooms/${roomId}`, request),
   remove: (roomId: string) => apiClient.delete<void>(`/rooms/${roomId}`),
