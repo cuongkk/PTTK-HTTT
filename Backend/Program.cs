@@ -80,6 +80,8 @@ builder.Services.AddScoped<ISystemParameterService, SystemParameterService>();
 builder.Services.AddScoped<IRoomCatalogService, RoomCatalogService>();
 builder.Services.AddScoped<IBedCatalogService, BedCatalogService>();
 builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
+builder.Services.AddScoped<ICustomerWorkflowService, CustomerWorkflowService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddScoped<IRoomInspectionStatusService, RoomInspectionStatusService>();
 builder.Services.AddScoped<IRoomInspectionConditionService,RoomInspectionConditionService>();
@@ -90,6 +92,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (builder.Configuration.GetValue<bool>("Database:ResetOnStartup"))
+    {
+        await db.Database.EnsureDeletedAsync();
+    }
     db.Database.Migrate();
     await DbSeeder.SeedAsync(db);
 }

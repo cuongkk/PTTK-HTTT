@@ -14,6 +14,8 @@ public class RoomRepository : Repository<Room>, IRoomRepository
         await DbSet
             .Include(r => r.Branch)
             .Include(r => r.Beds)
+            .Include(r => r.Images)
+            .Include(r => r.RoomAmenities).ThenInclude(ra => ra.Amenity)
             .OrderBy(r => r.RoomName)
             .ToListAsync();
 
@@ -21,5 +23,7 @@ public class RoomRepository : Repository<Room>, IRoomRepository
         await DbSet
             .Include(r => r.Branch)
             .Include(r => r.Beds)
+            .Include(r => r.Images)
+            .Include(r => r.RoomAmenities).ThenInclude(ra => ra.Amenity)
             .FirstOrDefaultAsync(r => r.RoomId == roomId);
 }

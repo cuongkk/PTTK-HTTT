@@ -20,6 +20,26 @@ public class AppDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<SystemParameter> SystemParameters => Set<SystemParameter>();
     public DbSet<Service> Services => Set<Service>();
+    public DbSet<RoomImage> RoomImages => Set<RoomImage>();
+    public DbSet<Amenity> Amenities => Set<Amenity>();
+    public DbSet<RoomAmenity> RoomAmenities => Set<RoomAmenity>();
+    public DbSet<Asset> Assets => Set<Asset>();
+    public DbSet<RentalApplication> RentalApplications => Set<RentalApplication>();
+    public DbSet<RoomViewingSchedule> RoomViewingSchedules => Set<RoomViewingSchedule>();
+    public DbSet<RoomViewingScheduleRoom> RoomViewingScheduleRooms => Set<RoomViewingScheduleRoom>();
+    public DbSet<DepositSlip> DepositSlips => Set<DepositSlip>();
+    public DbSet<DepositBed> DepositBeds => Set<DepositBed>();
+    public DbSet<RentalContract> RentalContracts => Set<RentalContract>();
+    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
+    public DbSet<HandoverReport> HandoverReports => Set<HandoverReport>();
+    public DbSet<HandoverDetail> HandoverDetails => Set<HandoverDetail>();
+    public DbSet<Reconciliation> Reconciliations => Set<Reconciliation>();
+    public DbSet<AdditionalCost> AdditionalCosts => Set<AdditionalCost>();
+    public DbSet<CheckoutReport> CheckoutReports => Set<CheckoutReport>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceServiceDetail> InvoiceServiceDetails => Set<InvoiceServiceDetail>();
+    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,6 +67,12 @@ public class AppDbContext : DbContext
             e.Property(x => x.Capacity).HasColumnName("suc_chua");
             e.Property(x => x.Area).HasColumnName("khu_vuc").HasMaxLength(50);
             e.Property(x => x.RoomPrice).HasColumnName("gia_phong").HasColumnType("decimal(12,2)");
+            e.Property(x => x.Floor).HasColumnName("tang");
+            e.Property(x => x.AreaSquareMeters).HasColumnName("dien_tich_m2").HasColumnType("decimal(6,2)");
+            e.Property(x => x.Description).HasColumnName("mo_ta");
+            e.Property(x => x.AllowedGender).HasColumnName("gioi_tinh_cho_phep").HasMaxLength(20);
+            e.Property(x => x.RequiresQuietLifestyle).HasColumnName("yeu_cau_yen_tinh").HasDefaultValue(false);
+            e.Property(x => x.CurfewTime).HasColumnName("gio_gioi_nghiem").HasColumnType("time");
             e.Property(x => x.HasAirConditioner).HasColumnName("co_dieu_hoa").HasDefaultValue(false);
             e.Property(x => x.HasParking).HasColumnName("co_gui_xe").HasDefaultValue(false);
             e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(20).HasDefaultValue(RoomBedStatus.Empty);
@@ -66,6 +92,49 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
 
             e.HasIndex(x => new { x.BranchId, x.Status }).HasDatabaseName("idx_phong_cn");
+        });
+
+        // ---------------- hinh_anh_phong ----------------
+        modelBuilder.Entity<RoomImage>(e =>
+        {
+            e.ToTable("hinh_anh_phong");
+            e.HasKey(x => x.RoomImageId).HasName("pk_hinh_anh_phong");
+            e.Property(x => x.RoomImageId).HasColumnName("ma_hinh_anh").HasMaxLength(12);
+            e.Property(x => x.RoomId).HasColumnName("ma_phong").HasMaxLength(10).IsRequired();
+            e.Property(x => x.ImageUrl).HasColumnName("duong_dan").HasMaxLength(500).IsRequired();
+            e.Property(x => x.Description).HasColumnName("mo_ta").HasMaxLength(200);
+            e.Property(x => x.DisplayOrder).HasColumnName("thu_tu_hien_thi");
+            e.Property(x => x.IsPrimary).HasColumnName("la_anh_dai_dien").HasDefaultValue(false);
+            e.HasOne(x => x.Room).WithMany(x => x.Images).HasForeignKey(x => x.RoomId)
+                .HasConstraintName("fk_hinhanh_phong").OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.RoomId, x.DisplayOrder }).HasDatabaseName("idx_hinhanh_phong_thutu");
+        });
+
+        // ---------------- tien_nghi ----------------
+        modelBuilder.Entity<Amenity>(e =>
+        {
+            e.ToTable("tien_nghi");
+            e.HasKey(x => x.AmenityId).HasName("pk_tien_nghi");
+            e.Property(x => x.AmenityId).HasColumnName("ma_tien_nghi").HasMaxLength(20);
+            e.Property(x => x.AmenityName).HasColumnName("ten_tien_nghi").HasMaxLength(100).IsRequired();
+            e.Property(x => x.Description).HasColumnName("mo_ta").HasMaxLength(300);
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.HasIndex(x => x.AmenityName).IsUnique().HasDatabaseName("uq_tiennghi_ten");
+        });
+
+        // ---------------- phong_tien_nghi ----------------
+        modelBuilder.Entity<RoomAmenity>(e =>
+        {
+            e.ToTable("phong_tien_nghi");
+            e.HasKey(x => new { x.RoomId, x.AmenityId }).HasName("pk_phong_tien_nghi");
+            e.Property(x => x.RoomId).HasColumnName("ma_phong").HasMaxLength(10);
+            e.Property(x => x.AmenityId).HasColumnName("ma_tien_nghi").HasMaxLength(20);
+            e.Property(x => x.Quantity).HasColumnName("so_luong").HasDefaultValue((short)1);
+            e.Property(x => x.Note).HasColumnName("ghi_chu").HasMaxLength(200);
+            e.HasOne(x => x.Room).WithMany(x => x.RoomAmenities).HasForeignKey(x => x.RoomId)
+                .HasConstraintName("fk_ptn_phong").OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Amenity).WithMany(x => x.RoomAmenities).HasForeignKey(x => x.AmenityId)
+                .HasConstraintName("fk_ptn_tiennghi").OnDelete(DeleteBehavior.Restrict);
         });
 
         // ---------------- giuong ----------------
@@ -284,5 +353,7 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.ServiceName).IsUnique().HasDatabaseName("uq_dichvu_ten");
             e.HasIndex(x => new { x.ServiceType, x.IsActive }).HasDatabaseName("idx_dichvu_loai");
         });
+
+        modelBuilder.ConfigureWorkflowModels();
     }
 }

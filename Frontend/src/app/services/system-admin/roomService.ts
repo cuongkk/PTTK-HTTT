@@ -17,10 +17,29 @@ export interface Room {
   capacity: number;
   area: string | null;
   roomPrice: number | null;
+  floor: number | null;
+  areaSquareMeters: number | null;
+  description: string | null;
+  allowedGender: string | null;
+  requiresQuietLifestyle: boolean;
+  curfewTime: string | null;
   hasAirConditioner: boolean;
   hasParking: boolean;
   status: string;
   beds: Bed[];
+  images: Array<{
+    roomImageId: string;
+    imageUrl: string;
+    description: string | null;
+    displayOrder: number;
+    isPrimary: boolean;
+  }>;
+  amenities: Array<{
+    amenityId: string;
+    amenityName: string;
+    quantity: number;
+    note: string | null;
+  }>;
 }
 
 export interface Branch {
@@ -38,6 +57,12 @@ export interface CreateRoomRequest {
   capacity: number;
   area?: string;
   roomPrice?: number;
+  floor?: number;
+  areaSquareMeters?: number;
+  description?: string;
+  allowedGender?: string;
+  requiresQuietLifestyle?: boolean;
+  curfewTime?: string;
   hasAirConditioner: boolean;
   hasParking: boolean;
 }
@@ -48,6 +73,12 @@ export interface UpdateRoomRequest {
   capacity: number;
   area?: string;
   roomPrice?: number;
+  floor?: number;
+  areaSquareMeters?: number;
+  description?: string;
+  allowedGender?: string;
+  requiresQuietLifestyle?: boolean;
+  curfewTime?: string;
   hasAirConditioner: boolean;
   hasParking: boolean;
   status: string;
