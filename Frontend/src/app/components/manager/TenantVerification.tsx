@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserCheck, CheckCircle, XCircle, FileText, AlertCircle, Building2, Users } from "lucide-react";
+import { UserCheck, CheckCircle, XCircle, FileText, AlertCircle, Building2, Users, ArrowUpRight } from "lucide-react";
 
 export function TenantVerification() {
   const [selectedContract, setSelectedContract] = useState<any>(null);
@@ -123,9 +123,9 @@ export function TenantVerification() {
                 setSelectedContract(contract);
                 setShowDetail(true);
               }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg"
+              className="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm hover:shadow transition-all group"
             >
-              Xem chi tiết
+              Xem chi tiết <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </button>
           </div>
         ))}

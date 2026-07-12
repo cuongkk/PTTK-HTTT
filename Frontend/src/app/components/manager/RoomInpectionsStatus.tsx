@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { ClipboardList, Building2, CheckCircle, AlertTriangle, Camera, Plus } from "lucide-react";
+// Đã thêm import icon Search từ lucide-react ở đây
+import { ClipboardList, Building2, CheckCircle, AlertTriangle, Camera, Plus, Search } from "lucide-react";
 
 export function RoomInspectionStatus() {
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [showInspectionForm, setShowInspectionForm] = useState(false);
+  
+  // 1. Tạo state lưu giá trị tìm kiếm
+  const [search, setSearch] = useState("");
 
   const rooms = [
     {
@@ -11,7 +15,7 @@ export function RoomInspectionStatus() {
       name: "Room 501",
       building: "Building C",
       status: "Available",
-      tenant: "Không có",
+      tenant: "Trống",
     },
     {
       id: 2,
@@ -29,12 +33,34 @@ export function RoomInspectionStatus() {
     },
   ];
 
+  // 2. Logic lọc phòng linh hoạt dựa trên từ khóa (tên phòng, tòa nhà, trạng thái)
+  const filteredRooms = rooms.filter((room) => {
+    const query = search.toLowerCase();
+    return (
+      room.name.toLowerCase().includes(query) ||
+      room.building.toLowerCase().includes(query) ||
+      room.tenant.toLowerCase().includes(query)
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra trạng thái phòng</h1>
         <p className="text-gray-600">Kiểm tra trạng thái và lịch sử thuê phòng</p>
+      </div>
+
+      {/* Search - Tích hợp y hệt đoạn code mẫu của bạn */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input 
+          type="text" 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="Tìm theo mã hợp đồng, tên khách, số phòng..." 
+          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" 
+        />
       </div>
 
       {/* Stats */}
@@ -53,62 +79,75 @@ export function RoomInspectionStatus() {
         </div>
       </div>
 
-      {/* Room List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {rooms.map((room) => (
-          <div
-            key={room.id}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-          >
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-blue-600" />
+      {/* Room List - Render từ danh sách đã lọc filteredRooms */}
+      {filteredRooms.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredRooms.map((room) => (
+            <div
+              key={room.id}
+              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">{room.name}</h3>
+                      <p className="text-sm text-gray-600">{room.building}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{room.name}</h3>
-                    <p className="text-sm text-gray-600">{room.building}</p>
-                  </div>
-                </div>
-                <span
-                  className={`px-3 py-1 text-sm font-medium rounded-full ${
-                    room.status === "Available"
-                      ? "bg-green-100 text-green-700"
+                  <span
+                    className={`px-3 py-1 text-sm font-medium rounded-full ${
+                      room.status === "Available"
+                        ? "bg-green-100 text-green-700"
+                        : room.status === "Reserved"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : room.status === "Deposited"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {room.status === "Available"
+                      ? "Còn khả năng nhận đặt cọc"
                       : room.status === "Reserved"
-                      ? "bg-yellow-100 text-yellow-700"
+                      ? "Đã được giữ chỗ"
                       : room.status === "Deposited"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {room.status === "Available"
-                    ? "Còn khả năng nhận đặt cọc"
-                    : room.status === "Reserved"
-                    ? "Đã được giữ chỗ"
-                    : room.status === "Deposited"
-                    ? "Đã được đặt cọc"
-                    : room.status}
-                </span>
-              </div>
+                      ? "Đã được đặt cọc"
+                      : room.status}
+                  </span>
+                </div>
 
-              <div className="flex gap-3">
-                <button
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Xác nhận
-                </button>
+                {/* Hiển thị thông tin khách thuê/ghi chú trạng thái */}
+                <div className="text-sm mb-4">
+                  <p className="text-gray-600">Trạng thái chi tiết</p>
+                  <p className="font-medium text-gray-900">{room.tenant}</p>
+                </div>
 
-                <button
-                  className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Từ chối
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Xác nhận
+                  </button>
+
+                  <button
+                    className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Từ chối
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        /* Giao diện hiển thị khi tìm kiếm không ra kết quả */
+        <div className="text-center py-8 text-gray-500 bg-white rounded-xl border border-gray-200">
+          Không tìm thấy kết quả nào phù hợp với từ khóa "{search}"
+        </div>
+      )}
 
       {/* Inspection Form Modal */}
       {showInspectionForm && (
