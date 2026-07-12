@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Backend.Controllers;
 
 [ApiController]
-[Route("api/room-inspection-condition")]
+[Route("api/manager/room-inspection-condition")]
 public class RoomInspectionConditionController : ControllerBase
 {
     private readonly IRoomInspectionConditionService _service;

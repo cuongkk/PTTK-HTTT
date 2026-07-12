@@ -8,7 +8,7 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Authorize(Roles = "quan_ly")] 
-[Route("api/room-inspections-status")]
+[Route("api/manager/room-inspections-status")]
 public class RoomInspectionsStatusController : ControllerBase
 {
     private readonly IRoomInspectionStatusService _roomInspectionStatusService;

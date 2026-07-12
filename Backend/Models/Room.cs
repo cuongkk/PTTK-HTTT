@@ -37,9 +37,7 @@ public class Room
 
     public Branch Branch { get; set; } = default!;
     public Account? UpdatedByAccount { get; set; }
-    
     public ICollection<Bed> Beds { get; set; } = new List<Bed>();
-    public ICollection<RentalContract> RentalContracts { get; set; } = new List<RentalContract>();
     public ICollection<RoomImage> Images { get; set; } = new List<RoomImage>();
     public ICollection<RoomAmenity> RoomAmenities { get; set; } = new List<RoomAmenity>();
 }
