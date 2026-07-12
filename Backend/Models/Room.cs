@@ -23,6 +23,12 @@ public class Room
     public short Capacity { get; set; }
     public string? Area { get; set; }
     public decimal? RoomPrice { get; set; }
+    public short? Floor { get; set; }
+    public decimal? AreaSquareMeters { get; set; }
+    public string? Description { get; set; }
+    public string? AllowedGender { get; set; }
+    public bool RequiresQuietLifestyle { get; set; }
+    public TimeOnly? CurfewTime { get; set; }
     public bool HasAirConditioner { get; set; }
     public bool HasParking { get; set; }
     public string Status { get; set; } = RoomBedStatus.Empty;
@@ -32,4 +38,6 @@ public class Room
     public Branch Branch { get; set; } = default!;
     public Account? UpdatedByAccount { get; set; }
     public ICollection<Bed> Beds { get; set; } = new List<Bed>();
+    public ICollection<RoomImage> Images { get; set; } = new List<RoomImage>();
+    public ICollection<RoomAmenity> RoomAmenities { get; set; } = new List<RoomAmenity>();
 }

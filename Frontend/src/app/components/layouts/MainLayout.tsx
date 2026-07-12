@@ -26,8 +26,9 @@ import {
   DoorOpen,
 } from "lucide-react";
 import { logout } from "../../services/system-admin/authService";
-import { getStoredUser } from "../../services/authStorage";
+import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
 import { getStoredToken } from "../../services/apiClient";
+import { notificationService } from "../../services/notificationService";
 
 type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
 
@@ -40,30 +41,68 @@ const getRoleFromPathname = (pathname: string): UserRole => {
   return "customer";
 };
 
+const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
+  if (itemPath === "/customer") return pathname === itemPath;
+  if (itemPath === "/customer/rooms") return pathname.startsWith("/customer/rooms");
+  if (itemPath === "/customer/my-rooms") {
+    return [
+      "/customer/my-rooms",
+      "/customer/deposit-requests",
+      "/customer/check-ins",
+      "/customer/handovers",
+      "/customer/checkouts",
+    ].some((prefix) => pathname.startsWith(prefix));
+  }
+  if (itemPath === "/customer/payments") {
+    return [
+      "/customer/payments",
+      "/customer/deposit-payments",
+      "/customer/check-in-payments",
+      "/customer/checkout-payments",
+    ].some((prefix) => pathname.startsWith(prefix));
+  }
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+};
+
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>(getRoleFromPathname(location.pathname));
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
     setCurrentRole(getRoleFromPathname(location.pathname));
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!location.pathname.startsWith("/system-admin")) return;
+    const token = getStoredToken();
     const user = getStoredUser();
-    if (!getStoredToken() || !user || user.roleId !== "system_admin") {
-      navigate("/login");
+    if (!token || !user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    const allowedRoot = `/${mapRoleIdToPath(user.roleId)}`;
+    const currentRoot = location.pathname === "/" ? "/customer" : `/${location.pathname.split("/")[1]}`;
+    if (currentRoot !== allowedRoot) {
+      navigate(allowedRoot, { replace: true });
     }
   }, [location.pathname, navigate]);
 
+  useEffect(() => {
+    const loadUnread = () => notificationService.getMine().then((data) => setUnreadNotifications(data.unreadCount)).catch(() => undefined);
+    loadUnread();
+    window.addEventListener("notifications-updated", loadUnread);
+    return () => window.removeEventListener("notifications-updated", loadUnread);
+  }, [location.pathname]);
+
   const roleNavigation = {
     customer: [
-      { name: "Dashboard", path: "/customer", icon: Home },
-      { name: "Search Rooms", path: "/customer/rooms", icon: Search },
-      { name: "Register Rental", path: "/customer/register", icon: FileText },
-      { name: "My Payments", path: "/customer/payments", icon: CreditCard },
+      { name: "Tổng quan", path: "/customer", icon: Home },
+      { name: "Tìm phòng", path: "/customer/rooms", icon: Search },
+      { name: "Phòng của tôi", path: "/customer/my-rooms", icon: Building2 },
+      { name: "Thanh toán", path: "/customer/payments", icon: CreditCard },
+      { name: "Thông báo", path: "/customer/notifications", icon: Bell },
     ],
     sales: [
       { name: "Trang chủ", path: "/sales", icon: Home },
@@ -99,12 +138,6 @@ export function MainLayout() {
 
   const navigation = roleNavigation[currentRole];
 
-  const handleRoleSwitch = (role: UserRole) => {
-    setCurrentRole(role);
-    navigate(`/${role}`);
-    setIsMobileMenuOpen(false);
-  };
-
   const handleLogout = async () => {
     if (!window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
     await logout();
@@ -128,7 +161,9 @@ export function MainLayout() {
             <nav className="hidden lg:flex items-center gap-1 xl:gap-3">
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = currentRole === "customer"
+                  ? isCustomerNavigationActive(item.path, location.pathname)
+                  : location.pathname === item.path;
                 return (
                   <Link
                     key={item.path}
@@ -147,23 +182,10 @@ export function MainLayout() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
-              {/* Role Switcher (Demo) */}
-              <select
-                value={currentRole}
-                onChange={(e) => handleRoleSwitch(e.target.value as UserRole)}
-                className="hidden md:block px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-              >
-                <option value="customer">Customer</option>
-                <option value="sales">Sales Staff</option>
-                <option value="accountant">Accountant</option>
-                <option value="manager">Manager</option>
-                <option value="system-admin">System Admin</option>
-              </select>
-
               {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 relative">
+              <button onClick={() => navigate(`/${currentRole}/notifications`)} aria-label="Mở thông báo" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 relative">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                {unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
               </button>
 
               {/* User Menu */}
@@ -177,7 +199,7 @@ export function MainLayout() {
                 className="hidden md:flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <span>Đăng xuất</span>
               </button>
 
               {/* Mobile Menu Button */}
@@ -195,26 +217,12 @@ export function MainLayout() {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 bg-white">
             <div className="px-4 py-3 space-y-1">
-              {/* Role Switcher Mobile */}
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Switch Role</label>
-                <select
-                  value={currentRole}
-                  onChange={(e) => handleRoleSwitch(e.target.value as UserRole)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="customer">Customer</option>
-                  <option value="sales">Sales Staff</option>
-                  <option value="accountant">Accountant</option>
-                  <option value="manager">Manager</option>
-                  <option value="system-admin">System Admin</option>
-                </select>
-              </div>
-
               {/* Navigation Links */}
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = currentRole === "customer"
+                  ? isCustomerNavigationActive(item.path, location.pathname)
+                  : location.pathname === item.path;
                 return (
                   <Link
                     key={item.path}
@@ -237,7 +245,7 @@ export function MainLayout() {
                 className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
               >
                 <LogOut className="w-5 h-5" />
-                <span>Logout</span>
+                <span>Đăng xuất</span>
               </button>
             </div>
           </div>

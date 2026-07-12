@@ -4,6 +4,7 @@ using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712060237_SynchronizeFullHomestaySchema")]
+    partial class SynchronizeFullHomestaySchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -951,14 +954,6 @@ namespace Backend.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("da_doc");
 
-                    b.Property<string>("NotificationType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasDefaultValue("he_thong")
-                        .HasColumnName("loai_thong_bao");
-
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("datetime2")
                         .HasColumnName("ngay_doc");
@@ -1200,7 +1195,7 @@ namespace Backend.Migrations
                         {
                             t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0");
 
-                            t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_ra_soat_coc','da_dat_coc','huy')");
+                            t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','da_dat_coc','huy')");
                         });
                 });
 
@@ -1716,11 +1711,6 @@ namespace Backend.Migrations
                         .HasColumnType("nvarchar(12)")
                         .HasColumnName("ma_tv");
 
-                    b.Property<string>("ApplicationId")
-                        .HasMaxLength(12)
-                        .HasColumnType("nvarchar(12)")
-                        .HasColumnName("ma_ho_so");
-
                     b.Property<string>("ContractId")
                         .HasMaxLength(12)
                         .HasColumnType("nvarchar(12)")
@@ -1734,21 +1724,6 @@ namespace Backend.Migrations
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date")
                         .HasColumnName("ngay_sinh");
-
-                    b.Property<string>("DocumentImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("anh_giay_to");
-
-                    b.Property<string>("DocumentType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("loai_giay_to");
-
-                    b.Property<string>("FinancialDocumentUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)")
-                        .HasColumnName("tai_lieu_tai_chinh");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -1767,45 +1742,17 @@ namespace Backend.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("dat_dieu_kien");
 
-                    b.Property<bool>("IsPrimaryTenant")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("la_nguoi_dung_ten");
-
                     b.Property<string>("NationalId")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("cccd");
 
-                    b.Property<string>("Nationality")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("quoc_tich");
-
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("ghi_chu");
 
-                    b.Property<string>("OccupationOrSchool")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)")
-                        .HasColumnName("nghe_nghiep_truong_hoc");
-
-                    b.Property<string>("PermanentAddress")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("dia_chi_thuong_tru");
-
-                    b.Property<string>("RelationshipToPrimary")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("quan_he_nguoi_dung_ten");
-
                     b.HasKey("TenantMemberId")
                         .HasName("pk_thanh_vien");
-
-                    b.HasIndex("ApplicationId");
 
                     b.HasIndex("ContractId");
 
@@ -2279,12 +2226,6 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.TenantMember", b =>
                 {
-                    b.HasOne("Backend.Models.RentalApplication", null)
-                        .WithMany()
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .HasConstraintName("fk_tv_hoso");
-
                     b.HasOne("Backend.Models.RentalContract", null)
                         .WithMany()
                         .HasForeignKey("ContractId")

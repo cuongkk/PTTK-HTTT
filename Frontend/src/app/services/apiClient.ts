@@ -44,6 +44,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const data = text ? JSON.parse(text) : undefined;
 
   if (!response.ok) {
+    if (response.status === 401 && path !== "/auth/login") {
+      clearStoredToken();
+      localStorage.removeItem("auth_user");
+      if (window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
+    }
     const message = data?.message ?? `Yêu cầu thất bại (${response.status})`;
     throw new ApiError(response.status, message);
   }

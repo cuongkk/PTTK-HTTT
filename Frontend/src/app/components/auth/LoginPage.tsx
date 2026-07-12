@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Building2, LogIn, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { login } from "../../services/system-admin/authService";
-import { ApiError } from "../../services/apiClient";
-import { mapRoleIdToPath } from "../../services/authStorage";
+import { ApiError, getStoredToken } from "../../services/apiClient";
+import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -11,6 +11,11 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const user = getStoredUser();
+    if (getStoredToken() && user) navigate(`/${mapRoleIdToPath(user.roleId)}`, { replace: true });
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

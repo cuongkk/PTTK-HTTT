@@ -43,6 +43,12 @@ public class RoomCatalogService : IRoomCatalogService
             Capacity = request.Capacity,
             Area = request.Area,
             RoomPrice = request.RoomPrice,
+            Floor = request.Floor,
+            AreaSquareMeters = request.AreaSquareMeters,
+            Description = request.Description,
+            AllowedGender = request.AllowedGender,
+            RequiresQuietLifestyle = request.RequiresQuietLifestyle,
+            CurfewTime = request.CurfewTime,
             HasAirConditioner = request.HasAirConditioner,
             HasParking = request.HasParking,
             Status = RoomBedStatus.Empty,
@@ -67,6 +73,12 @@ public class RoomCatalogService : IRoomCatalogService
         room.Capacity = request.Capacity;
         room.Area = request.Area;
         room.RoomPrice = request.RoomPrice;
+        room.Floor = request.Floor;
+        room.AreaSquareMeters = request.AreaSquareMeters;
+        room.Description = request.Description;
+        room.AllowedGender = request.AllowedGender;
+        room.RequiresQuietLifestyle = request.RequiresQuietLifestyle;
+        room.CurfewTime = request.CurfewTime;
         room.HasAirConditioner = request.HasAirConditioner;
         room.HasParking = request.HasParking;
         room.Status = request.Status;
@@ -102,9 +114,17 @@ public class RoomCatalogService : IRoomCatalogService
         room.Capacity,
         room.Area,
         room.RoomPrice,
+        room.Floor,
+        room.AreaSquareMeters,
+        room.Description,
+        room.AllowedGender,
+        room.RequiresQuietLifestyle,
+        room.CurfewTime,
         room.HasAirConditioner,
         room.HasParking,
         room.Status,
-        room.Beds.Select(b => new BedDto(b.BedId, b.RoomId, b.BedNumber, b.MonthlyRent, b.Status)).ToList()
+        room.Beds.Select(b => new BedDto(b.BedId, b.RoomId, b.BedNumber, b.MonthlyRent, b.Status)).ToList(),
+        room.Images.OrderBy(i => i.DisplayOrder).Select(i => new RoomImageDto(i.RoomImageId, i.ImageUrl, i.Description, i.DisplayOrder, i.IsPrimary)).ToList(),
+        room.RoomAmenities.Where(ra => ra.Amenity.IsActive).Select(ra => new RoomAmenityDto(ra.AmenityId, ra.Amenity.AmenityName, ra.Quantity, ra.Note)).ToList()
     );
 }

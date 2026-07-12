@@ -1,268 +1,224 @@
-import { useState } from "react";
-import {
-  Search,
-  MapPin,
-  DollarSign,
-  Users,
-  Wifi,
-  Wind,
-  Tv,
-  Droplet,
-  Home,
-  Filter,
-  X,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { BedDouble, MapPin, Users, Wind, ParkingCircle, Ruler, Clock3, Volume2 } from "lucide-react";
+import { roomService, type Branch, type Room } from "../../services/system-admin/roomService";
+
+const roomTypeLabel = (value: string) => (value === "ghep" ? "Ở ghép" : value === "nguyen_can" ? "Nguyên phòng" : value);
+const genderLabel = (value: string | null) => (value === "nam" ? "Nam" : value === "nu" ? "Nữ" : "Không giới hạn");
+
+const getAvailableBeds = (room: Room) => room.beds.filter((bed) => bed.status === "trong");
+const getDisplayPrice = (room: Room) => (room.roomType === "ghep" ? Math.min(...getAvailableBeds(room).map((bed) => bed.monthlyRent)) : (room.roomPrice ?? 0));
 
 export function RoomSearch() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedArea, setSelectedArea] = useState("all");
-  const [priceRange, setPriceRange] = useState("all");
+  const navigate = useNavigate();
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [branchId, setBranchId] = useState("all");
   const [roomType, setRoomType] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [gender, setGender] = useState("all");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [people, setPeople] = useState(1);
+  const [moveInDate, setMoveInDate] = useState("");
+  const [requiresAirConditioner, setRequiresAirConditioner] = useState(false);
+  const [requiresParking, setRequiresParking] = useState(false);
+  const [requiresQuiet, setRequiresQuiet] = useState(false);
 
-  const rooms = [
-    {
-      id: 1,
-      name: "Room 201",
-      building: "Building A",
-      area: "Downtown",
-      type: "Single Bed",
-      price: 400,
-      status: "Available",
-      amenities: ["WiFi", "AC", "TV", "Water"],
-      size: "20m²",
-      floor: "2nd Floor",
-    },
-    {
-      id: 2,
-      name: "Room 305",
-      building: "Building B",
-      area: "University District",
-      type: "Double Bed",
-      price: 300,
-      status: "Available",
-      amenities: ["WiFi", "AC", "Water"],
-      size: "25m²",
-      floor: "3rd Floor",
-    },
-    {
-      id: 3,
-      name: "Room 102",
-      building: "Building C",
-      area: "City Center",
-      type: "Single Bed",
-      price: 500,
-      status: "Reserved",
-      amenities: ["WiFi", "AC", "TV", "Water"],
-      size: "22m²",
-      floor: "1st Floor",
-    },
-    {
-      id: 4,
-      name: "Room 404",
-      building: "Building A",
-      area: "Downtown",
-      type: "Shared Room",
-      price: 250,
-      status: "Available",
-      amenities: ["WiFi", "Water"],
-      size: "30m²",
-      floor: "4th Floor",
-    },
-  ];
+  useEffect(() => {
+    Promise.all([roomService.getAll(), roomService.getBranches()])
+      .then(([roomData, branchData]) => {
+        setRooms(roomData);
+        setBranches(branchData);
+      })
+      .catch(() => setError("Không thể tải danh sách phòng/giường từ Backend."))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const amenityIcons: Record<string, any> = {
-    WiFi: Wifi,
-    AC: Wind,
-    TV: Tv,
-    Water: Droplet,
-  };
+  const roomTypes = useMemo(() => [...new Set(rooms.map((room) => room.roomType))], [rooms]);
+  const genders = useMemo(() => [...new Set(rooms.map((room) => room.allowedGender).filter(Boolean))] as string[], [rooms]);
 
-  const filteredRooms = rooms.filter((room) => {
-    const matchesSearch =
-      room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      room.building.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesArea = selectedArea === "all" || room.area === selectedArea;
-    const matchesPriceRange =
-      priceRange === "all" ||
-      (priceRange === "low" && room.price < 300) ||
-      (priceRange === "medium" && room.price >= 300 && room.price < 450) ||
-      (priceRange === "high" && room.price >= 450);
-    const matchesType = roomType === "all" || room.type === roomType;
+  const filtered = useMemo(
+    () =>
+      rooms.filter((room) => {
+        const availableBeds = getAvailableBeds(room);
+        const availablePlaces = room.roomType === "ghep" ? availableBeds.length : room.status === "trong" ? room.capacity : 0;
+        const price = getDisplayPrice(room);
+        return (
+          availablePlaces >= people &&
+          (branchId === "all" || room.branchId === branchId) &&
+          (roomType === "all" || room.roomType === roomType) &&
+          (gender === "all" || room.allowedGender === gender || room.allowedGender === "khong_gioi_han") &&
+          (!maxPrice || price <= Number(maxPrice)) &&
+          (!requiresAirConditioner || room.hasAirConditioner) &&
+          (!requiresParking || room.hasParking) &&
+          (!requiresQuiet || room.requiresQuietLifestyle)
+        );
+      }),
+    [rooms, people, branchId, roomType, gender, maxPrice, requiresAirConditioner, requiresParking, requiresQuiet],
+  );
 
-    return matchesSearch && matchesArea && matchesPriceRange && matchesType;
-  });
+  if (loading) return <p className="text-gray-600">Đang tải phòng/giường...</p>;
+  if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Search Rooms</h1>
-        <p className="text-gray-600">Find your perfect room or bed</p>
+        <h1 className="text-3xl font-bold text-gray-900">Tìm phòng/giường</h1>
       </div>
-
-      {/* Search & Filter Bar */}
-      <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <label className="text-sm font-medium">
+            Chi nhánh
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5">
+              <option value="all">Tất cả</option>
+              {branches.map((item) => (
+                <option key={item.branchId} value={item.branchId}>
+                  {item.branchName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium">
+            Hình thức thuê
+            <select value={roomType} onChange={(e) => setRoomType(e.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5">
+              <option value="all">Tất cả</option>
+              {roomTypes.map((item) => (
+                <option key={item} value={item}>
+                  {roomTypeLabel(item)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium">
+            Giới tính khu ở
+            <select value={gender} onChange={(e) => setGender(e.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5">
+              <option value="all">Tất cả</option>
+              {genders.map((item) => (
+                <option key={item} value={item}>
+                  {genderLabel(item)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium">
+            Ngày dự kiến vào
+            <input type="date" value={moveInDate} onChange={(e) => setMoveInDate(e.target.value)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" />
+          </label>
+          <label className="text-sm font-medium">
+            Số người
+            <input type="number" min="1" value={people} onChange={(e) => setPeople(Math.max(1, Number(e.target.value)))} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" />
+          </label>
+          <label className="text-sm font-medium">
+            Giá tối đa
             <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by room name or building..."
-              className="w-full pl-11 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              type="number"
+              min="0"
+              step="100000"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              placeholder="Nhập số tiền"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"
             />
-          </div>
-
-          {/* Filter Button */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-          >
-            <Filter className="w-5 h-5" />
-            <span>Filters</span>
-          </button>
+          </label>
         </div>
-
-        {/* Expandable Filters */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
-              <select
-                value={selectedArea}
-                onChange={(e) => setSelectedArea(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                <option value="all">All Areas</option>
-                <option value="Downtown">Downtown</option>
-                <option value="University District">University District</option>
-                <option value="City Center">City Center</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-              <select
-                value={priceRange}
-                onChange={(e) => setPriceRange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                <option value="all">All Prices</option>
-                <option value="low">Under $300</option>
-                <option value="medium">$300 - $450</option>
-                <option value="high">$450+</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Room Type</label>
-              <select
-                value={roomType}
-                onChange={(e) => setRoomType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              >
-                <option value="all">All Types</option>
-                <option value="Single Bed">Single Bed</option>
-                <option value="Double Bed">Double Bed</option>
-                <option value="Shared Room">Shared Room</option>
-              </select>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-600">
-          Found <span className="font-semibold text-gray-900">{filteredRooms.length}</span> rooms
-        </p>
-      </div>
-
-      {/* Room Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredRooms.map((room) => (
-          <div
-            key={room.id}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-          >
-            {/* Room Image Placeholder */}
-            <div className="h-48 bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
-              <Home className="w-16 h-16 text-blue-300" />
-            </div>
-
-            {/* Room Details */}
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{room.name}</h3>
-                  <p className="text-sm text-gray-600">{room.building}</p>
+        <div className="mt-4 flex flex-wrap gap-5 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={requiresAirConditioner} onChange={(e) => setRequiresAirConditioner(e.target.checked)} />
+            Có điều hòa
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={requiresParking} onChange={(e) => setRequiresParking(e.target.checked)} />
+            Có gửi xe
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={requiresQuiet} onChange={(e) => setRequiresQuiet(e.target.checked)} />
+            Ưu tiên yên tĩnh
+          </label>
+        </div>
+      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        {filtered.map((room) => {
+          const availablePlaces = room.roomType === "ghep" ? getAvailableBeds(room).length : room.capacity;
+          const price = getDisplayPrice(room);
+          return (
+            <article key={room.roomId} className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex gap-3">
+                  <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
+                    <BedDouble />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900">{room.roomName}</h2>
+                  </div>
                 </div>
-                <span
-                  className={`px-3 py-1 text-sm font-medium rounded-full ${
-                    room.status === "Available"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-orange-100 text-orange-700"
-                  }`}
-                >
-                  {room.status}
+                <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Còn {availablePlaces} chỗ</span>
+              </div>
+              {room.description && <p className="mt-4 text-sm text-gray-600">{room.description}</p>}
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-gray-600">
+                <span className="flex gap-2">
+                  <MapPin className="h-4 w-4" />
+                  {room.branchName}
                 </span>
+                <span className="flex gap-2">
+                  <Users className="h-4 w-4" />
+                  {availablePlaces}/{room.capacity} chỗ
+                </span>
+                <span>
+                  {roomTypeLabel(room.roomType)} · {room.area}
+                </span>
+                <span>Giới tính: {genderLabel(room.allowedGender)}</span>
+                {room.floor != null && (
+                  <span className="flex gap-2">
+                    <Ruler className="h-4 w-4" />
+                    Tầng {room.floor} · {room.areaSquareMeters ?? "-"} m²
+                  </span>
+                )}
+                {room.curfewTime && (
+                  <span className="flex gap-2">
+                    <Clock3 className="h-4 w-4" />
+                    Giới nghiêm {room.curfewTime.slice(0, 5)}
+                  </span>
+                )}
+                {room.requiresQuietLifestyle && (
+                  <span className="flex gap-2">
+                    <Volume2 className="h-4 w-4" />
+                    Ưu tiên yên tĩnh
+                  </span>
+                )}
+                {room.hasAirConditioner && (
+                  <span className="flex gap-2">
+                    <Wind className="h-4 w-4" />
+                    Điều hòa
+                  </span>
+                )}
+                {room.hasParking && (
+                  <span className="flex gap-2">
+                    <ParkingCircle className="h-4 w-4" />
+                    Gửi xe
+                  </span>
+                )}
               </div>
-
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>{room.area}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Users className="w-4 h-4" />
-                  <span>{room.type}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Home className="w-4 h-4" />
-                  <span>{room.size}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Home className="w-4 h-4" />
-                  <span>{room.floor}</span>
-                </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {room.amenities.map((item) => (
+                  <span key={item.amenityId} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">
+                    {item.quantity > 1 ? `${item.quantity} ` : ""}
+                    {item.amenityName}
+                  </span>
+                ))}
               </div>
-
-              {/* Amenities */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {room.amenities.map((amenity) => {
-                  const Icon = amenityIcons[amenity];
-                  return (
-                    <div
-                      key={amenity}
-                      className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                    >
-                      <Icon className="w-3 h-3" />
-                      <span>{amenity}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Price & Action */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">${room.price}</p>
-                  <p className="text-sm text-gray-600">per month</p>
-                </div>
+              <div className="mt-auto flex items-center justify-between border-t pt-4">
+                <strong className="text-blue-700">{price.toLocaleString("vi-VN")} đ/tháng</strong>
                 <button
-                  disabled={room.status !== "Available"}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  onClick={() => navigate(`/customer/rooms/${room.roomId}/register${moveInDate ? `?moveInDate=${moveInDate}` : ""}`)}
+                  className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white"
                 >
-                  {room.status === "Available" ? "Reserve Now" : "Not Available"}
+                  Đăng ký thuê
                 </button>
               </div>
-            </div>
-          </div>
-        ))}
+            </article>
+          );
+        })}
       </div>
     </div>
   );
