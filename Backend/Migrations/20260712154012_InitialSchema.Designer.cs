@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260712142813_InitialSchema")]
+    [Migration("20260712154012_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -450,6 +450,99 @@ namespace Backend.Migrations
                     b.ToTable("bien_ban_tra_phong", (string)null);
                 });
 
+            modelBuilder.Entity("Backend.Models.CheckoutRequest", b =>
+                {
+                    b.Property<string>("CheckoutRequestId")
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("ma_yeu_cau");
+
+                    b.Property<DateTime?>("ConfirmedInspectionAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_gio_kiem_tra_xac_nhan");
+
+                    b.Property<string>("ContractId")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("ma_hop_dong");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_tao")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("ma_kh");
+
+                    b.Property<string>("ManagerEmployeeId")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("ma_quan_ly");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ghi_chu");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ly_do");
+
+                    b.Property<string>("ReconciliationId")
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("ma_doi_soat");
+
+                    b.Property<DateTime>("RequestedCheckoutAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_gio_khach_de_xuat");
+
+                    b.Property<string>("SalesEmployeeId")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("ma_sale");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("cho_tiep_nhan")
+                        .HasColumnName("trang_thai");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_cap_nhat");
+
+                    b.HasKey("CheckoutRequestId")
+                        .HasName("pk_yeu_cau_tra_phong");
+
+                    b.HasIndex("ContractId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_yctp_hopdong");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ManagerEmployeeId");
+
+                    b.HasIndex("ReconciliationId");
+
+                    b.HasIndex("SalesEmployeeId");
+
+                    b.HasIndex("Status", "RequestedCheckoutAt")
+                        .HasDatabaseName("idx_yctp_trangthai");
+
+                    b.ToTable("yeu_cau_tra_phong", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_yctp_trangthai", "[trang_thai] IN ('cho_tiep_nhan','da_xac_nhan_lich','cho_kiem_tra','da_kiem_tra','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_tien','hoan_tat','huy')");
+                        });
+                });
+
             modelBuilder.Entity("Backend.Models.Customer", b =>
                 {
                     b.Property<string>("CustomerId")
@@ -574,6 +667,26 @@ namespace Backend.Migrations
                         .HasColumnType("datetime2")
                         .HasColumnName("han_thanh_toan");
 
+                    b.Property<decimal?>("RefundAmount")
+                        .HasColumnType("decimal(12,2)")
+                        .HasColumnName("so_tien_hoan");
+
+                    b.Property<decimal?>("RefundRate")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("ty_le_hoan");
+
+                    b.Property<string>("RefundReason")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ly_do_hoan_coc");
+
+                    b.Property<DateTime?>("RefundRequestedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_yeu_cau_hoan_coc");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("ngay_hoan_tien");
+
                     b.Property<string>("SalesEmployeeId")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -583,8 +696,8 @@ namespace Backend.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
                         .HasDefaultValue("cho_thanh_toan")
                         .HasColumnName("trang_thai");
 
@@ -601,7 +714,7 @@ namespace Backend.Migrations
                         {
                             t.HasCheckConstraint("chk_coc_sotien", "[so_tien_coc] > 0");
 
-                            t.HasCheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy')");
+                            t.HasCheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy','cho_tiep_nhan_hoan_coc','dang_xac_nhan_hoan_coc','cho_doi_soat_hoan_coc','cho_khach_xac_nhan_hoan_coc','cho_hoan_tien','da_hoan_coc')");
                         });
                 });
 
@@ -1094,7 +1207,7 @@ namespace Backend.Migrations
                         {
                             t.HasCheckConstraint("chk_ds_trangthai", "[trang_thai] IN ('cho_xac_nhan','da_xac_nhan','hoan_tat')");
 
-                            t.HasCheckConstraint("chk_ds_tyle", "[ty_le_hoan] IN (50,70,80,100)");
+                            t.HasCheckConstraint("chk_ds_tyle", "[ty_le_hoan] IN (0,50,70,80,100)");
                         });
                 });
 
@@ -1269,8 +1382,8 @@ namespace Backend.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
                         .HasDefaultValue("hieu_luc")
                         .HasColumnName("trang_thai");
 
@@ -1289,7 +1402,7 @@ namespace Backend.Migrations
 
                     b.ToTable("hop_dong_thue", null, t =>
                         {
-                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('hieu_luc','het_han','thanh_ly')");
+                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
                         });
                 });
 
@@ -2003,6 +2116,41 @@ namespace Backend.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_bbtra_doisoat");
+                });
+
+            modelBuilder.Entity("Backend.Models.CheckoutRequest", b =>
+                {
+                    b.HasOne("Backend.Models.RentalContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_yctp_hopdong");
+
+                    b.HasOne("Backend.Models.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_yctp_kh");
+
+                    b.HasOne("Backend.Models.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("ManagerEmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_yctp_quanly");
+
+                    b.HasOne("Backend.Models.Reconciliation", null)
+                        .WithMany()
+                        .HasForeignKey("ReconciliationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_yctp_doisoat");
+
+                    b.HasOne("Backend.Models.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("SalesEmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("fk_yctp_sale");
                 });
 
             modelBuilder.Entity("Backend.Models.DepositBed", b =>

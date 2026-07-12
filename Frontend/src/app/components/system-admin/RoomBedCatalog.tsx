@@ -46,7 +46,6 @@ const ROOM_STATUS_OPTIONS = [
   { value: "trong", label: "Còn phòng" },
   { value: "da_dat_coc", label: "Đã đặt cọc" },
   { value: "dang_thue", label: "Đang thuê" },
-  { value: "bao_tri", label: "Bảo trì" },
 ];
 
 function statusLabel(status: string) {

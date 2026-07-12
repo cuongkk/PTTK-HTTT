@@ -62,6 +62,11 @@ public class DepositSlip
     public DateTime PaymentDueAt { get; set; }
     public DateTime? PaidAt { get; set; }
     public string Status { get; set; } = "cho_thanh_toan";
+    public string? RefundReason { get; set; }
+    public DateTime? RefundRequestedAt { get; set; }
+    public decimal? RefundRate { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public DateTime? RefundedAt { get; set; }
     public RentalApplication Application { get; set; } = null!;
     public Employee SalesEmployee { get; set; } = null!;
     public Employee? ManagerEmployee { get; set; }
@@ -186,6 +191,23 @@ public class CheckoutReport
     public decimal? FinalElectricityReading { get; set; }
     public decimal? FinalWaterReading { get; set; }
     public bool KeysReturned { get; set; }
+    public string? Note { get; set; }
+}
+
+public class CheckoutRequest
+{
+    public string CheckoutRequestId { get; set; } = default!;
+    public string ContractId { get; set; } = default!;
+    public string CustomerId { get; set; } = default!;
+    public string? SalesEmployeeId { get; set; }
+    public string? ManagerEmployeeId { get; set; }
+    public string? ReconciliationId { get; set; }
+    public DateTime RequestedCheckoutAt { get; set; }
+    public DateTime? ConfirmedInspectionAt { get; set; }
+    public string Reason { get; set; } = default!;
+    public string Status { get; set; } = "cho_tiep_nhan";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
     public string? Note { get; set; }
 }
 

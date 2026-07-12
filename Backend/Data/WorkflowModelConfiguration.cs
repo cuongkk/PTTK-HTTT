@@ -45,8 +45,8 @@ public static class WorkflowModelConfiguration
 
         modelBuilder.Entity<DepositSlip>(e =>
         {
-            e.ToTable("phieu_dat_coc", t => { t.HasCheckConstraint("chk_coc_sotien", "[so_tien_coc] > 0"); t.HasCheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy')"); }); e.HasKey(x => x.DepositId).HasName("pk_phieu_coc");
-            e.Property(x => x.DepositId).HasColumnName("ma_coc").HasMaxLength(12); e.Property(x => x.ApplicationId).HasColumnName("ma_ho_so").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10).IsRequired(); e.Property(x => x.ManagerEmployeeId).HasColumnName("ma_quan_ly").HasMaxLength(10); e.Property(x => x.DepositAmount).HasColumnName("so_tien_coc").HasColumnType("decimal(12,2)"); e.Property(x => x.CreatedAt).HasColumnName("ngay_lap").HasDefaultValueSql("SYSUTCDATETIME()"); e.Property(x => x.PaymentDueAt).HasColumnName("han_thanh_toan"); e.Property(x => x.PaidAt).HasColumnName("ngay_thanh_toan"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(20).HasDefaultValue("cho_thanh_toan");
+            e.ToTable("phieu_dat_coc", t => { t.HasCheckConstraint("chk_coc_sotien", "[so_tien_coc] > 0"); t.HasCheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy','cho_tiep_nhan_hoan_coc','dang_xac_nhan_hoan_coc','cho_doi_soat_hoan_coc','cho_khach_xac_nhan_hoan_coc','cho_hoan_tien','da_hoan_coc')"); }); e.HasKey(x => x.DepositId).HasName("pk_phieu_coc");
+            e.Property(x => x.DepositId).HasColumnName("ma_coc").HasMaxLength(12); e.Property(x => x.ApplicationId).HasColumnName("ma_ho_so").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10).IsRequired(); e.Property(x => x.ManagerEmployeeId).HasColumnName("ma_quan_ly").HasMaxLength(10); e.Property(x => x.DepositAmount).HasColumnName("so_tien_coc").HasColumnType("decimal(12,2)"); e.Property(x => x.CreatedAt).HasColumnName("ngay_lap").HasDefaultValueSql("SYSUTCDATETIME()"); e.Property(x => x.PaymentDueAt).HasColumnName("han_thanh_toan"); e.Property(x => x.PaidAt).HasColumnName("ngay_thanh_toan"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(40).HasDefaultValue("cho_thanh_toan"); e.Property(x => x.RefundReason).HasColumnName("ly_do_hoan_coc"); e.Property(x => x.RefundRequestedAt).HasColumnName("ngay_yeu_cau_hoan_coc"); e.Property(x => x.RefundRate).HasColumnName("ty_le_hoan").HasColumnType("decimal(5,2)"); e.Property(x => x.RefundAmount).HasColumnName("so_tien_hoan").HasColumnType("decimal(12,2)"); e.Property(x => x.RefundedAt).HasColumnName("ngay_hoan_tien");
             e.HasOne(x => x.Application).WithMany(x => x.DepositSlips).HasForeignKey(x => x.ApplicationId).HasConstraintName("fk_coc_hoso").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.SalesEmployee).WithMany().HasForeignKey(x => x.SalesEmployeeId).HasConstraintName("fk_coc_sale").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.ManagerEmployee).WithMany().HasForeignKey(x => x.ManagerEmployeeId).HasConstraintName("fk_coc_quanly").OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -63,8 +63,8 @@ public static class WorkflowModelConfiguration
     {
         modelBuilder.Entity<RentalContract>(e =>
         {
-            e.ToTable("hop_dong_thue", t => t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('hieu_luc','het_han','thanh_ly')")); e.HasKey(x => x.ContractId).HasName("pk_hop_dong");
-            e.Property(x => x.ContractId).HasColumnName("ma_hop_dong").HasMaxLength(12); e.Property(x => x.DepositId).HasColumnName("ma_coc").HasMaxLength(12).IsRequired(); e.Property(x => x.CustomerId).HasColumnName("ma_kh").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10).IsRequired(); e.Property(x => x.RoomId).HasColumnName("ma_phong").HasMaxLength(10).IsRequired(); e.Property(x => x.NumberOfBeds).HasColumnName("so_giuong_thue"); e.Property(x => x.MonthlyRent).HasColumnName("gia_thue_thang").HasColumnType("decimal(12,2)"); e.Property(x => x.PaymentCycle).HasColumnName("ky_thanh_toan").HasMaxLength(20).HasDefaultValue("hang_thang"); e.Property(x => x.SignedDate).HasColumnName("ngay_ky").HasColumnType("date"); e.Property(x => x.StartDate).HasColumnName("ngay_bat_dau").HasColumnType("date"); e.Property(x => x.EndDate).HasColumnName("ngay_ket_thuc").HasColumnType("date"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(20).HasDefaultValue("hieu_luc"); e.HasIndex(x => x.DepositId).IsUnique().HasDatabaseName("uq_hopdong_coc");
+            e.ToTable("hop_dong_thue", t => t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')")); e.HasKey(x => x.ContractId).HasName("pk_hop_dong");
+            e.Property(x => x.ContractId).HasColumnName("ma_hop_dong").HasMaxLength(12); e.Property(x => x.DepositId).HasColumnName("ma_coc").HasMaxLength(12).IsRequired(); e.Property(x => x.CustomerId).HasColumnName("ma_kh").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10).IsRequired(); e.Property(x => x.RoomId).HasColumnName("ma_phong").HasMaxLength(10).IsRequired(); e.Property(x => x.NumberOfBeds).HasColumnName("so_giuong_thue"); e.Property(x => x.MonthlyRent).HasColumnName("gia_thue_thang").HasColumnType("decimal(12,2)"); e.Property(x => x.PaymentCycle).HasColumnName("ky_thanh_toan").HasMaxLength(20).HasDefaultValue("hang_thang"); e.Property(x => x.SignedDate).HasColumnName("ngay_ky").HasColumnType("date"); e.Property(x => x.StartDate).HasColumnName("ngay_bat_dau").HasColumnType("date"); e.Property(x => x.EndDate).HasColumnName("ngay_ket_thuc").HasColumnType("date"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(40).HasDefaultValue("hieu_luc"); e.HasIndex(x => x.DepositId).IsUnique().HasDatabaseName("uq_hopdong_coc");
             e.HasOne(x => x.Deposit).WithOne(x => x.Contract).HasForeignKey<RentalContract>(x => x.DepositId).HasConstraintName("fk_hd_coc").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).HasConstraintName("fk_hd_kh").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.SalesEmployee).WithMany().HasForeignKey(x => x.SalesEmployeeId).HasConstraintName("fk_hd_sale").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).HasConstraintName("fk_hd_phong").OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<ResidenceRule>(e =>
@@ -106,9 +106,37 @@ public static class WorkflowModelConfiguration
         {
             e.ToTable("chi_phi_phat_sinh", t => { t.HasCheckConstraint("chk_cpps_loai", "[loai_chi_phi] IN ('no_tien_thue','dien_nuoc','hu_hong','phat_vi_pham','khac')"); t.HasCheckConstraint("chk_cpps_sotien", "[so_tien] >= 0"); }); e.HasKey(x => x.AdditionalCostId).HasName("pk_cpps"); e.Property(x => x.AdditionalCostId).HasColumnName("ma_chi_phi").HasMaxLength(12); e.Property(x => x.ReconciliationId).HasColumnName("ma_doi_soat").HasMaxLength(12).IsRequired(); e.Property(x => x.CostType).HasColumnName("loai_chi_phi").HasMaxLength(30).IsRequired(); e.Property(x => x.Amount).HasColumnName("so_tien").HasColumnType("decimal(12,2)"); e.Property(x => x.Description).HasColumnName("mo_ta"); e.HasOne<Reconciliation>().WithMany().HasForeignKey(x => x.ReconciliationId).HasConstraintName("fk_cpps_doisoat").OnDelete(DeleteBehavior.Cascade);
         });
+        // 0% áp dụng khi khách không được hoàn cọc hoặc phải thanh toán thêm.
+        modelBuilder.Entity<Reconciliation>().ToTable("bang_doi_soat", t =>
+            t.HasCheckConstraint("chk_ds_tyle", "[ty_le_hoan] IN (0,50,70,80,100)"));
         modelBuilder.Entity<CheckoutReport>(e =>
         {
             e.ToTable("bien_ban_tra_phong"); e.HasKey(x => x.CheckoutReportId).HasName("pk_bbtra"); e.Property(x => x.CheckoutReportId).HasColumnName("ma_bb_tra").HasMaxLength(12); e.Property(x => x.ReconciliationId).HasColumnName("ma_doi_soat").HasMaxLength(12).IsRequired(); e.Property(x => x.ManagerEmployeeId).HasColumnName("ma_quan_ly").HasMaxLength(10).IsRequired(); e.Property(x => x.CheckoutDate).HasColumnName("ngay_tra").HasColumnType("date"); e.Property(x => x.RoomCondition).HasColumnName("tinh_trang_phong"); e.Property(x => x.FinalElectricityReading).HasColumnName("chi_so_dien_cuoi").HasColumnType("decimal(12,2)"); e.Property(x => x.FinalWaterReading).HasColumnName("chi_so_nuoc_cuoi").HasColumnType("decimal(12,2)"); e.Property(x => x.KeysReturned).HasColumnName("da_thu_khoa").HasDefaultValue(false); e.Property(x => x.Note).HasColumnName("ghi_chu"); e.HasIndex(x => x.ReconciliationId).IsUnique().HasDatabaseName("uq_bbtra_doisoat"); e.HasOne<Reconciliation>().WithMany().HasForeignKey(x => x.ReconciliationId).HasConstraintName("fk_bbtra_doisoat").OnDelete(DeleteBehavior.Restrict); e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ManagerEmployeeId).HasConstraintName("fk_bbtra_quanly").OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<CheckoutRequest>(e =>
+        {
+            e.ToTable("yeu_cau_tra_phong", t => t.HasCheckConstraint("chk_yctp_trangthai", "[trang_thai] IN ('cho_tiep_nhan','da_xac_nhan_lich','cho_kiem_tra','da_kiem_tra','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_tien','hoan_tat','huy')"));
+            e.HasKey(x => x.CheckoutRequestId).HasName("pk_yeu_cau_tra_phong");
+            e.Property(x => x.CheckoutRequestId).HasColumnName("ma_yeu_cau").HasMaxLength(12);
+            e.Property(x => x.ContractId).HasColumnName("ma_hop_dong").HasMaxLength(12).IsRequired();
+            e.Property(x => x.CustomerId).HasColumnName("ma_kh").HasMaxLength(12).IsRequired();
+            e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10);
+            e.Property(x => x.ManagerEmployeeId).HasColumnName("ma_quan_ly").HasMaxLength(10);
+            e.Property(x => x.ReconciliationId).HasColumnName("ma_doi_soat").HasMaxLength(12);
+            e.Property(x => x.RequestedCheckoutAt).HasColumnName("ngay_gio_khach_de_xuat");
+            e.Property(x => x.ConfirmedInspectionAt).HasColumnName("ngay_gio_kiem_tra_xac_nhan");
+            e.Property(x => x.Reason).HasColumnName("ly_do").IsRequired();
+            e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(30).HasDefaultValue("cho_tiep_nhan");
+            e.Property(x => x.CreatedAt).HasColumnName("ngay_tao").HasDefaultValueSql("SYSUTCDATETIME()");
+            e.Property(x => x.UpdatedAt).HasColumnName("ngay_cap_nhat");
+            e.Property(x => x.Note).HasColumnName("ghi_chu");
+            e.HasIndex(x => x.ContractId).IsUnique().HasDatabaseName("uq_yctp_hopdong");
+            e.HasIndex(x => new { x.Status, x.RequestedCheckoutAt }).HasDatabaseName("idx_yctp_trangthai");
+            e.HasOne<RentalContract>().WithMany().HasForeignKey(x => x.ContractId).HasConstraintName("fk_yctp_hopdong").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).HasConstraintName("fk_yctp_kh").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.SalesEmployeeId).HasConstraintName("fk_yctp_sale").OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ManagerEmployeeId).HasConstraintName("fk_yctp_quanly").OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<Reconciliation>().WithMany().HasForeignKey(x => x.ReconciliationId).HasConstraintName("fk_yctp_doisoat").OnDelete(DeleteBehavior.NoAction);
         });
     }
 

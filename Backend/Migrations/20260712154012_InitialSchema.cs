@@ -293,13 +293,18 @@ namespace Backend.Migrations
                     ngay_lap = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
                     han_thanh_toan = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ngay_thanh_toan = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    trang_thai = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "cho_thanh_toan")
+                    trang_thai = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false, defaultValue: "cho_thanh_toan"),
+                    ly_do_hoan_coc = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ngay_yeu_cau_hoan_coc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ty_le_hoan = table.Column<decimal>(type: "decimal(5,2)", nullable: true),
+                    so_tien_hoan = table.Column<decimal>(type: "decimal(12,2)", nullable: true),
+                    ngay_hoan_tien = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_phieu_coc", x => x.ma_coc);
                     table.CheckConstraint("chk_coc_sotien", "[so_tien_coc] > 0");
-                    table.CheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy')");
+                    table.CheckConstraint("chk_coc_trangthai", "[trang_thai] IN ('cho_thanh_toan','hoan_thanh','het_han','huy','cho_tiep_nhan_hoan_coc','dang_xac_nhan_hoan_coc','cho_doi_soat_hoan_coc','cho_khach_xac_nhan_hoan_coc','cho_hoan_tien','da_hoan_coc')");
                     table.ForeignKey(
                         name: "fk_coc_hoso",
                         column: x => x.ma_ho_so,
@@ -539,12 +544,12 @@ namespace Backend.Migrations
                     ngay_ky = table.Column<DateOnly>(type: "date", nullable: false),
                     ngay_bat_dau = table.Column<DateOnly>(type: "date", nullable: false),
                     ngay_ket_thuc = table.Column<DateOnly>(type: "date", nullable: true),
-                    trang_thai = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "hieu_luc")
+                    trang_thai = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false, defaultValue: "hieu_luc")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_hop_dong", x => x.ma_hop_dong);
-                    table.CheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('hieu_luc','het_han','thanh_ly')");
+                    table.CheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
                     table.ForeignKey(
                         name: "fk_hd_coc",
                         column: x => x.ma_coc,
@@ -687,7 +692,7 @@ namespace Backend.Migrations
                 {
                     table.PrimaryKey("pk_doi_soat", x => x.ma_doi_soat);
                     table.CheckConstraint("chk_ds_trangthai", "[trang_thai] IN ('cho_xac_nhan','da_xac_nhan','hoan_tat')");
-                    table.CheckConstraint("chk_ds_tyle", "[ty_le_hoan] IN (50,70,80,100)");
+                    table.CheckConstraint("chk_ds_tyle", "[ty_le_hoan] IN (0,50,70,80,100)");
                     table.ForeignKey(
                         name: "fk_ds_hopdong",
                         column: x => x.ma_hop_dong,
@@ -898,6 +903,57 @@ namespace Backend.Migrations
                         principalTable: "khach_hang",
                         principalColumn: "ma_kh",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "yeu_cau_tra_phong",
+                columns: table => new
+                {
+                    ma_yeu_cau = table.Column<string>(type: "nvarchar(12)", maxLength: 12, nullable: false),
+                    ma_hop_dong = table.Column<string>(type: "nvarchar(12)", maxLength: 12, nullable: false),
+                    ma_kh = table.Column<string>(type: "nvarchar(12)", maxLength: 12, nullable: false),
+                    ma_sale = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
+                    ma_quan_ly = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
+                    ma_doi_soat = table.Column<string>(type: "nvarchar(12)", maxLength: 12, nullable: true),
+                    ngay_gio_khach_de_xuat = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ngay_gio_kiem_tra_xac_nhan = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ly_do = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    trang_thai = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false, defaultValue: "cho_tiep_nhan"),
+                    ngay_tao = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "SYSUTCDATETIME()"),
+                    ngay_cap_nhat = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ghi_chu = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_yeu_cau_tra_phong", x => x.ma_yeu_cau);
+                    table.CheckConstraint("chk_yctp_trangthai", "[trang_thai] IN ('cho_tiep_nhan','da_xac_nhan_lich','cho_kiem_tra','da_kiem_tra','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_tien','hoan_tat','huy')");
+                    table.ForeignKey(
+                        name: "fk_yctp_doisoat",
+                        column: x => x.ma_doi_soat,
+                        principalTable: "bang_doi_soat",
+                        principalColumn: "ma_doi_soat");
+                    table.ForeignKey(
+                        name: "fk_yctp_hopdong",
+                        column: x => x.ma_hop_dong,
+                        principalTable: "hop_dong_thue",
+                        principalColumn: "ma_hop_dong",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "fk_yctp_kh",
+                        column: x => x.ma_kh,
+                        principalTable: "khach_hang",
+                        principalColumn: "ma_kh",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "fk_yctp_quanly",
+                        column: x => x.ma_quan_ly,
+                        principalTable: "nhan_vien",
+                        principalColumn: "ma_nv");
+                    table.ForeignKey(
+                        name: "fk_yctp_sale",
+                        column: x => x.ma_sale,
+                        principalTable: "nhan_vien",
+                        principalColumn: "ma_nv");
                 });
 
             migrationBuilder.CreateTable(
@@ -1282,6 +1338,37 @@ namespace Backend.Migrations
                 name: "IX_vai_tro_quyen_ma_quyen",
                 table: "vai_tro_quyen",
                 column: "ma_quyen");
+
+            migrationBuilder.CreateIndex(
+                name: "idx_yctp_trangthai",
+                table: "yeu_cau_tra_phong",
+                columns: new[] { "trang_thai", "ngay_gio_khach_de_xuat" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_yeu_cau_tra_phong_ma_doi_soat",
+                table: "yeu_cau_tra_phong",
+                column: "ma_doi_soat");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_yeu_cau_tra_phong_ma_kh",
+                table: "yeu_cau_tra_phong",
+                column: "ma_kh");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_yeu_cau_tra_phong_ma_quan_ly",
+                table: "yeu_cau_tra_phong",
+                column: "ma_quan_ly");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_yeu_cau_tra_phong_ma_sale",
+                table: "yeu_cau_tra_phong",
+                column: "ma_sale");
+
+            migrationBuilder.CreateIndex(
+                name: "uq_yctp_hopdong",
+                table: "yeu_cau_tra_phong",
+                column: "ma_hop_dong",
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -1328,6 +1415,9 @@ namespace Backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "vai_tro_quyen");
+
+            migrationBuilder.DropTable(
+                name: "yeu_cau_tra_phong");
 
             migrationBuilder.DropTable(
                 name: "bien_ban_ban_giao");

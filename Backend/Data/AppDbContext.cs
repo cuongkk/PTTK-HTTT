@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<Reconciliation> Reconciliations => Set<Reconciliation>();
     public DbSet<AdditionalCost> AdditionalCosts => Set<AdditionalCost>();
     public DbSet<CheckoutReport> CheckoutReports => Set<CheckoutReport>();
+    public DbSet<CheckoutRequest> CheckoutRequests => Set<CheckoutRequest>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceServiceDetail> InvoiceServiceDetails => Set<InvoiceServiceDetail>();
     public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
