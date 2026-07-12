@@ -4,6 +4,7 @@ using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260712133948_AddCheckInProfileReviewStatuses")]
+    partial class AddCheckInProfileReviewStatuses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1290,83 +1293,6 @@ namespace Backend.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Backend.Models.ResidenceRule", b =>
-                {
-                    b.Property<string>("ResidenceRuleId")
-                        .HasMaxLength(12)
-                        .HasColumnType("nvarchar(12)")
-                        .HasColumnName("ma_noi_quy");
-
-                    b.Property<string>("BranchId")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
-                        .HasColumnName("ma_chi_nhanh");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("noi_dung");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasColumnName("ngay_tao")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<decimal?>("DefaultPenaltyAmount")
-                        .HasColumnType("decimal(12,2)")
-                        .HasColumnName("muc_phat_mac_dinh");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date")
-                        .HasColumnName("ngay_hieu_luc");
-
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date")
-                        .HasColumnName("ngay_het_hieu_luc");
-
-                    b.Property<string>("RuleType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)")
-                        .HasColumnName("loai_noi_quy");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("hieu_luc")
-                        .HasColumnName("trang_thai");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("tieu_de");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("ngay_cap_nhat");
-
-                    b.Property<string>("ViolationLevel")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("nhac_nho")
-                        .HasColumnName("muc_do_vi_pham");
-
-                    b.HasKey("ResidenceRuleId")
-                        .HasName("pk_noi_quy_luu_tru");
-
-                    b.HasIndex("BranchId", "Status", "EffectiveFrom")
-                        .HasDatabaseName("idx_noiquy_chinhanh_hieuluc");
-
-                    b.ToTable("noi_quy_luu_tru", (string)null);
-                });
-
             modelBuilder.Entity("Backend.Models.RolePermission", b =>
                 {
                     b.Property<string>("RoleId")
@@ -2012,7 +1938,7 @@ namespace Backend.Migrations
                         .HasConstraintName("fk_dcg_giuong");
 
                     b.HasOne("Backend.Models.DepositSlip", null)
-                        .WithMany("Beds")
+                        .WithMany()
                         .HasForeignKey("DepositId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -2021,31 +1947,25 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.DepositSlip", b =>
                 {
-                    b.HasOne("Backend.Models.RentalApplication", "Application")
-                        .WithMany("DepositSlips")
+                    b.HasOne("Backend.Models.RentalApplication", null)
+                        .WithMany()
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_coc_hoso");
 
-                    b.HasOne("Backend.Models.Employee", "ManagerEmployee")
+                    b.HasOne("Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("ManagerEmployeeId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_coc_quanly");
 
-                    b.HasOne("Backend.Models.Employee", "SalesEmployee")
+                    b.HasOne("Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("SalesEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_coc_sale");
-
-                    b.Navigation("Application");
-
-                    b.Navigation("ManagerEmployee");
-
-                    b.Navigation("SalesEmployee");
                 });
 
             modelBuilder.Entity("Backend.Models.Employee", b =>
@@ -2185,71 +2105,49 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.RentalApplication", b =>
                 {
-                    b.HasOne("Backend.Models.Customer", "Customer")
+                    b.HasOne("Backend.Models.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hoso_kh");
 
-                    b.HasOne("Backend.Models.Employee", "SalesEmployee")
+                    b.HasOne("Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("SalesEmployeeId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_hoso_sale");
-
-                    b.Navigation("Customer");
-
-                    b.Navigation("SalesEmployee");
                 });
 
             modelBuilder.Entity("Backend.Models.RentalContract", b =>
                 {
-                    b.HasOne("Backend.Models.Customer", "Customer")
+                    b.HasOne("Backend.Models.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hd_kh");
 
-                    b.HasOne("Backend.Models.DepositSlip", "Deposit")
-                        .WithOne("Contract")
-                        .HasForeignKey("Backend.Models.RentalContract", "DepositId")
+                    b.HasOne("Backend.Models.DepositSlip", null)
+                        .WithMany()
+                        .HasForeignKey("DepositId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hd_coc");
 
-                    b.HasOne("Backend.Models.Room", "Room")
+                    b.HasOne("Backend.Models.Room", null)
                         .WithMany()
                         .HasForeignKey("RoomId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hd_phong");
 
-                    b.HasOne("Backend.Models.Employee", "SalesEmployee")
+                    b.HasOne("Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("SalesEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_hd_sale");
-
-                    b.Navigation("Customer");
-
-                    b.Navigation("Deposit");
-
-                    b.Navigation("Room");
-
-                    b.Navigation("SalesEmployee");
-                });
-
-            modelBuilder.Entity("Backend.Models.ResidenceRule", b =>
-                {
-                    b.HasOne("Backend.Models.Branch", null)
-                        .WithMany()
-                        .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_noiquy_chinhanh");
                 });
 
             modelBuilder.Entity("Backend.Models.RolePermission", b =>
@@ -2328,23 +2226,19 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Backend.Models.RoomViewingSchedule", b =>
                 {
-                    b.HasOne("Backend.Models.RentalApplication", "Application")
-                        .WithMany("RoomViewingSchedules")
+                    b.HasOne("Backend.Models.RentalApplication", null)
+                        .WithMany()
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_lichxem_hoso");
 
-                    b.HasOne("Backend.Models.Employee", "SalesEmployee")
+                    b.HasOne("Backend.Models.Employee", null)
                         .WithMany()
                         .HasForeignKey("SalesEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_lichxem_sale");
-
-                    b.Navigation("Application");
-
-                    b.Navigation("SalesEmployee");
                 });
 
             modelBuilder.Entity("Backend.Models.RoomViewingScheduleRoom", b =>
@@ -2357,7 +2251,7 @@ namespace Backend.Migrations
                         .HasConstraintName("fk_lxp_phong");
 
                     b.HasOne("Backend.Models.RoomViewingSchedule", null)
-                        .WithMany("Rooms")
+                        .WithMany()
                         .HasForeignKey("ScheduleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
@@ -2389,13 +2283,13 @@ namespace Backend.Migrations
             modelBuilder.Entity("Backend.Models.TenantMember", b =>
                 {
                     b.HasOne("Backend.Models.RentalApplication", null)
-                        .WithMany("TenantMembers")
+                        .WithMany()
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .HasConstraintName("fk_tv_hoso");
 
                     b.HasOne("Backend.Models.RentalContract", null)
-                        .WithMany("TenantMembers")
+                        .WithMany()
                         .HasForeignKey("ContractId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_tv_hopdong");
@@ -2424,13 +2318,6 @@ namespace Backend.Migrations
                     b.Navigation("Account");
                 });
 
-            modelBuilder.Entity("Backend.Models.DepositSlip", b =>
-                {
-                    b.Navigation("Beds");
-
-                    b.Navigation("Contract");
-                });
-
             modelBuilder.Entity("Backend.Models.Employee", b =>
                 {
                     b.Navigation("Account");
@@ -2441,20 +2328,6 @@ namespace Backend.Migrations
                     b.Navigation("RolePermissions");
                 });
 
-            modelBuilder.Entity("Backend.Models.RentalApplication", b =>
-                {
-                    b.Navigation("DepositSlips");
-
-                    b.Navigation("RoomViewingSchedules");
-
-                    b.Navigation("TenantMembers");
-                });
-
-            modelBuilder.Entity("Backend.Models.RentalContract", b =>
-                {
-                    b.Navigation("TenantMembers");
-                });
-
             modelBuilder.Entity("Backend.Models.Room", b =>
                 {
                     b.Navigation("Beds");
@@ -2462,11 +2335,6 @@ namespace Backend.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("RoomAmenities");
-                });
-
-            modelBuilder.Entity("Backend.Models.RoomViewingSchedule", b =>
-                {
-                    b.Navigation("Rooms");
                 });
 
             modelBuilder.Entity("Backend.Models.SystemRole", b =>

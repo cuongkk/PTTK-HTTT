@@ -3,6 +3,8 @@ using Backend.Dtos;
 using Backend.Models;
 using Backend.Repositories;
 using Backend.Utilities;
+using Backend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Services;
 
@@ -10,11 +12,25 @@ public class RoomCatalogService : IRoomCatalogService
 {
     private readonly IRoomRepository _roomRepository;
     private readonly IBranchRepository _branchRepository;
+    private readonly AppDbContext _db;
 
-    public RoomCatalogService(IRoomRepository roomRepository, IBranchRepository branchRepository)
+    public RoomCatalogService(IRoomRepository roomRepository, IBranchRepository branchRepository, AppDbContext db)
     {
         _roomRepository = roomRepository;
         _branchRepository = branchRepository;
+        _db = db;
+    }
+
+    public async Task<List<ResidenceRuleDto>> GetResidenceRulesAsync(string roomId)
+    {
+        var branchId = await _db.Rooms.Where(x => x.RoomId == roomId).Select(x => x.BranchId).SingleOrDefaultAsync()
+            ?? throw new NotFoundException($"Không tìm thấy phòng '{roomId}'.");
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        return await _db.ResidenceRules.AsNoTracking()
+            .Where(x => x.BranchId == branchId && x.Status == "hieu_luc" && x.EffectiveFrom <= today && (x.EffectiveTo == null || x.EffectiveTo >= today))
+            .OrderBy(x => x.RuleType).ThenBy(x => x.ResidenceRuleId)
+            .Select(x => new ResidenceRuleDto(x.ResidenceRuleId, x.Title, x.Content, x.RuleType, x.ViolationLevel, x.DefaultPenaltyAmount, x.EffectiveFrom))
+            .ToListAsync();
     }
 
     public async Task<List<RoomDto>> GetAllAsync()

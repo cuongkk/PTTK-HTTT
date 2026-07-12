@@ -7,6 +7,7 @@ public record InitialRentalInformationDto(
     string? Nationality,
     string? DocumentType,
     string? DocumentNumber,
+    string? DocumentImageUrl,
     DateOnly? DateOfBirth,
     string? PermanentAddress,
     string? OccupationOrSchool,
@@ -46,13 +47,9 @@ public record DepositRequestDetailDto(
     string DepositFormula,
     string PaymentDueDescription);
 
-public record PrimaryTenantRequest(
-    string Gender,
-    string DocumentNumber,
-    string OccupationOrSchool,
-    string? DocumentImageUrl);
+public record PrimaryTenantRequest(string Gender, string Nationality);
 
-public record AccompanyingTenantRequest(string FullName, string Gender, string DocumentNumber, string? DocumentImageUrl, string OccupationOrSchool);
+public record AccompanyingTenantRequest(string FullName, string Gender, string Nationality);
 
 public record SubmitDepositRequest(
     PrimaryTenantRequest PrimaryTenant,
@@ -69,4 +66,5 @@ public record CustomerRoomSummaryDto(
     decimal MonthlyRent,
     DateTime RelevantAt,
     string ReferenceId,
-    string Status);
+    string Status,
+    string ApplicationStatus);

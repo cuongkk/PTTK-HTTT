@@ -1,6 +1,6 @@
 # Cấu trúc cơ sở dữ liệu hiện tại
 
-Tài liệu mô tả schema SQL Server được Backend sử dụng sau migration `SynchronizeFullHomestaySchema`. Hiện có **31 bảng ứng dụng**, chưa tính bảng lịch sử migration `__EFMigrationsHistory` do EF Core tự quản lý.
+Tài liệu mô tả schema SQL Server được Backend sử dụng đến migration `AddResidenceRulesByBranch`. Hiện có **32 bảng ứng dụng**, chưa tính bảng lịch sử migration `__EFMigrationsHistory` do EF Core tự quản lý.
 
 ## Quy ước
 
@@ -518,7 +518,32 @@ Biểu diễn quan hệ nhiều-nhiều: một lịch có thể xem nhiều phò
 | `da_doc` | `bit` | Mặc định `0` |
 | `ngay_doc` | `datetime2` | NULL |
 
-# 32. Tổng quan quan hệ
+# 32. `noi_quy_luu_tru`
+
+Lưu nội quy đang áp dụng tại từng chi nhánh. Nội quy không gắn trực tiếp với phòng vì mọi phòng thuộc cùng một chi nhánh dùng chung bộ quy định của chi nhánh đó.
+
+| Trường | Kiểu | Ràng buộc/ý nghĩa |
+|---|---|---|
+| `ma_noi_quy` | `nvarchar(12)` | PK, NOT NULL |
+| `ma_chi_nhanh` | `nvarchar(10)` | FK → `chi_nhanh`, NOT NULL |
+| `tieu_de` | `nvarchar(200)` | NOT NULL, tên ngắn của nội quy |
+| `noi_dung` | `nvarchar(max)` | NOT NULL, nội dung chi tiết |
+| `loai_noi_quy` | `nvarchar(30)` | NOT NULL, ví dụ `gio_giac`, `trat_tu`, `luu_tru`, `tai_san` |
+| `muc_do_vi_pham` | `nvarchar(20)` | NOT NULL, mặc định `nhac_nho`; seed có `nhac_nho`, `khau_tru_coc`, `boi_thuong` |
+| `muc_phat_mac_dinh` | `decimal(12,2)` | NULL, mức phạt/khấu trừ tham khảo nếu nội quy có số tiền cố định |
+| `ngay_hieu_luc` | `date` | NOT NULL |
+| `ngay_het_hieu_luc` | `date` | NULL, để trống khi chưa xác định ngày hết hiệu lực |
+| `trang_thai` | `nvarchar(20)` | NOT NULL, mặc định `hieu_luc` |
+| `ngay_tao` | `datetime2` | NOT NULL, mặc định UTC hiện tại |
+| `ngay_cap_nhat` | `datetime2` | NULL |
+
+Quan hệ và index:
+
+- `ma_chi_nhanh` → `chi_nhanh.ma_chi_nhanh`; không cho xóa chi nhánh khi vẫn còn nội quy.
+- `idx_noiquy_chinhanh_hieuluc(ma_chi_nhanh, trang_thai, ngay_hieu_luc)` hỗ trợ lấy nhanh nội quy hiện hành theo chi nhánh.
+- Seed hiện có bộ nội quy riêng cho Chi nhánh Quận 5 và Chi nhánh Thủ Đức.
+
+# 33. Tổng quan quan hệ
 
 ```text
 chi_nhanh
@@ -527,7 +552,8 @@ chi_nhanh
 │   ├── tai_san
 │   ├── hinh_anh_phong
 │   └── phong_tien_nghi ── tien_nghi
-└── nhan_vien ── tai_khoan
+├── nhan_vien ── tai_khoan
+└── noi_quy_luu_tru
 
 khach_hang ── ho_so_dang_ky ── lich_xem_phong ── lich_xem_phong_phong ── phong
 ho_so_dang_ky ── phieu_dat_coc ── dat_coc_giuong ── giuong
@@ -544,16 +570,16 @@ tai_khoan ── nhat_ky_quan_tri
 tai_khoan ── thong_bao
 ```
 
-# 33. Nội dung thêm/chỉnh so với `homestay_dorm.sql`
+# 34. Nội dung thêm/chỉnh so với `homestay_dorm.sql`
 
-## 33.1. Giữ nguyên về nghiệp vụ
+## 34.1. Giữ nguyên về nghiệp vụ
 
 - Giữ đủ toàn bộ 28 bảng trong script PostgreSQL.
 - Giữ tên bảng và tên cột tiếng Việt không dấu.
 - Giữ khóa chính, khóa ngoại, unique, check constraint và trạng thái chính.
 - Giữ công thức nghiệp vụ cọc, tỷ lệ hoàn, loại hóa đơn và loại chi phí.
 
-## 33.2. Chuyển đổi kỹ thuật PostgreSQL → SQL Server
+## 34.2. Chuyển đổi kỹ thuật PostgreSQL → SQL Server
 
 - `CHAR/VARCHAR` → `nvarchar` để lưu Unicode ổn định.
 - `BOOLEAN` → `bit`.
@@ -564,15 +590,16 @@ tai_khoan ── thong_bao
 - Một số `ON DELETE SET NULL` được đổi thành `NO ACTION` tại quan hệ có nguy cơ multiple cascade path, đặc biệt hóa đơn và thông báo người gửi.
 - Index có điều kiện PostgreSQL được biểu diễn bằng filtered index của SQL Server khi phù hợp.
 
-## 33.3. Ba bảng bổ sung ngoài script
+## 34.3. Bốn bảng bổ sung ngoài script
 
 - `hinh_anh_phong`.
 - `tien_nghi`.
 - `phong_tien_nghi`.
+- `noi_quy_luu_tru`.
 
-Ba bảng này phục vụ màn tra cứu/hiển thị phòng và không thay thế bảng nào trong script.
+Ba bảng đầu phục vụ màn tra cứu/hiển thị phòng. `noi_quy_luu_tru` lưu quy định chung theo chi nhánh; hợp đồng xác định bộ nội quy áp dụng thông qua phòng và chi nhánh của phòng. Các bảng này không thay thế bảng nào trong script.
 
-## 33.4. Trường bổ sung vào `phong`
+## 34.4. Trường bổ sung vào `phong`
 
 - `tang`.
 - `dien_tich_m2`.
@@ -581,7 +608,7 @@ Ba bảng này phục vụ màn tra cứu/hiển thị phòng và không thay th
 - `yeu_cau_yen_tinh`.
 - `gio_gioi_nghiem`.
 
-## 33.5. Trường bổ sung vào `ho_so_dang_ky`
+## 34.5. Trường bổ sung vào `ho_so_dang_ky`
 
 Script gốc chỉ có số người, ngày dự kiến và yêu cầu khác. Để bám đề, bổ sung:
 
@@ -595,14 +622,14 @@ Script gốc chỉ có số người, ngày dự kiến và yêu cầu khác. Đ
 - `yeu_cau_gui_xe`.
 - `yeu_cau_dieu_hoa`.
 
-## 33.6. Trường bổ sung cho bàn giao/trả phòng
+## 34.6. Trường bổ sung cho bàn giao/trả phòng
 
 - `bien_ban_ban_giao`: `chi_so_dien_dau`, `chi_so_nuoc_dau`.
 - `bien_ban_tra_phong`: `chi_so_dien_cuoi`, `chi_so_nuoc_cuoi`.
 
 Các trường này phục vụ đối chiếu điện nước đầu/cuối kỳ.
 
-## 33.7. Trường bổ sung cho thông báo
+## 34.7. Trường bổ sung cho thông báo
 
 - `ngay_tao`.
 - `da_doc`.

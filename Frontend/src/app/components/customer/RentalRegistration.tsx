@@ -34,6 +34,8 @@ export function RentalRegistration() {
       <label className="text-sm font-medium">Giới tính<select className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option>Nam</option><option>Nữ</option><option>Nhóm hỗn hợp</option></select></label>
       <label className="text-sm font-medium">Quốc tịch<input required defaultValue="Việt Nam" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Loại giấy tờ<select required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option>CCCD</option><option>Hộ chiếu</option></select></label>
+      <label className="text-sm font-medium">Số CCCD<input required inputMode="numeric" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+      <label className="text-sm font-medium">Ảnh CCCD<input required type="file" accept="image/*" className="mt-2 block w-full text-sm" /></label>
       <label className="text-sm font-medium">Ngày sinh<input required type="date" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Địa chỉ thường trú<input required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium md:col-span-2">Tài liệu tài chính (nếu áp dụng)<input type="file" className="mt-2 block w-full text-sm" /></label>

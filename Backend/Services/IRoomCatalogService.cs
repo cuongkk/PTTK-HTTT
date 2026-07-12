@@ -9,4 +9,5 @@ public interface IRoomCatalogService
     Task<RoomDto> UpdateAsync(string roomId, UpdateRoomRequest request, string actorAccountId);
     Task DeleteAsync(string roomId, string actorAccountId);
     Task<List<BranchDto>> GetBranchesAsync();
+    Task<List<ResidenceRuleDto>> GetResidenceRulesAsync(string roomId);
 }

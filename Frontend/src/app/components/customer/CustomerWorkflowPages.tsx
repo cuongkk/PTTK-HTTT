@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { roomService, type ResidenceRule } from "../../services/system-admin/roomService";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   AlertCircle,
@@ -31,13 +32,12 @@ const roomTabs: Array<{ value: RoomTab; label: string }> = [
   { value: "renting", label: "Đang thuê" },
 ];
 
-function PageHeader({ title, description, backTo }: { title: string; description: string; backTo?: string }) {
+function PageHeader({ title, backTo }: { title: string; backTo?: string }) {
   const navigate = useNavigate();
   return (
     <div className="flex w-full items-start gap-4">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-        <p className="mt-1 text-gray-600">{description}</p>
       </div>
       {backTo && (
         <button onClick={() => navigate(backTo)} className="ml-auto flex shrink-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-600 hover:bg-gray-50">
@@ -98,28 +98,28 @@ export function CustomerRooms() {
     tab === "viewed"
       ? viewedRooms.map((room) => ({
           id: room.roomId,
+          name: room.roomName,
           bed: room.bedNumber ? `Giường ${room.bedNumber.toString().padStart(2, "0")}` : "Nguyên phòng",
           branch: room.branchName,
           price: `${room.monthlyRent.toLocaleString("vi-VN")} đ/tháng`,
           date: `Đã xem ${new Date(room.viewedAt).toLocaleDateString("vi-VN")}`,
-          reference: `Hồ sơ ${room.applicationId}`,
           applicationId: room.applicationId,
           applicationStatus: room.applicationStatus,
         }))
       : summaryRooms.map((room) => ({
           id: room.roomId,
+          name: room.roomName,
           bed: room.bedNumber ? `Giường ${room.bedNumber.toString().padStart(2, "0")}` : "Nguyên phòng",
           branch: room.branchName,
           price: `${room.monthlyRent.toLocaleString("vi-VN")} đ/tháng`,
           date: `${tab === "deposited" ? "Đã cọc" : "Từ"} ${new Date(room.relevantAt).toLocaleDateString("vi-VN")}`,
-          reference: `${tab === "deposited" ? "Phiếu cọc" : "Hợp đồng"} ${room.referenceId}`,
           applicationId: "",
-          applicationStatus: "",
+          applicationStatus: room.applicationStatus,
         }));
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Phòng/giường của tôi" description="Theo dõi những chỗ ở đã xem, đã đặt cọc và đang thuê." />
+      <PageHeader title="Phòng/giường của tôi" />
       <div className="flex gap-2 rounded-xl border border-gray-200 bg-white p-2">
         {roomTabs.map((item) => (
           <button
@@ -137,13 +137,13 @@ export function CustomerRooms() {
         {rooms.map((room) => (
           <article key={room.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-              <div className="flex gap-4">
-                <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center self-center rounded-xl bg-blue-50 text-blue-600">
                   <BedDouble className="h-7 w-7" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-bold text-gray-900">{room.id}</h2>
+                    <h2 className="text-lg font-bold text-gray-900">{room.name}</h2>
                     <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">{room.bed}</span>
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
@@ -151,9 +151,7 @@ export function CustomerRooms() {
                     {room.branch}
                   </p>
                   <p className="mt-2 font-semibold text-blue-700">{room.price}</p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {room.date} · {room.reference}
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">{room.date}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -170,8 +168,11 @@ export function CustomerRooms() {
                 )}
                 {tab === "deposited" && (
                   <>
-                    <button onClick={() => navigate(`/customer/check-ins/NP-${room.id}`)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                      Xác nhận thuê/nhận phòng
+                    <button
+                      onClick={() => navigate(`/customer/check-ins/NP-${room.id}${room.applicationStatus === "du_dieu_kien_nhan_phong" ? "?profileApproved=true" : ""}`)}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      {room.applicationStatus === "du_dieu_kien_nhan_phong" ? "Xem và ký hợp đồng" : "Bổ sung thông tin"}
                     </button>
                     <button
                       onClick={() => navigate(`/customer/checkouts/TP-${room.id}/reconciliation`)}
@@ -230,16 +231,12 @@ export function DepositRequest() {
       await customerWorkflowService.submitDepositRequest(applicationId, roomId, {
         primaryTenant: {
           gender: String(form.get("gender")),
-          documentNumber: String(form.get("documentNumber")),
-          occupationOrSchool: String(form.get("occupationOrSchool")),
-          documentImageUrl: (form.get("documentImage") as File)?.name || undefined,
+          nationality: String(form.get("nationality")),
         },
         accompanyingTenants: Array.from({ length: detail.viewedRoom.applicant.numberOfPeople - 1 }, (_, index) => ({
           fullName: String(form.get(`member-${index}-fullName`)),
           gender: String(form.get(`member-${index}-gender`)),
-          documentNumber: String(form.get(`member-${index}-documentNumber`)),
-          documentImageUrl: (form.get(`member-${index}-documentImage`) as File)?.name || undefined,
-          occupationOrSchool: String(form.get(`member-${index}-occupation`)),
+          nationality: String(form.get(`member-${index}-nationality`)),
         })),
       });
       setSubmitted(true);
@@ -254,7 +251,7 @@ export function DepositRequest() {
   if (!detail)
     return (
       <div className="space-y-6">
-        <PageHeader title="Yêu cầu đặt cọc" description="Không thể tạo yêu cầu đặt cọc." backTo="/customer/my-rooms?tab=viewed" />
+        <PageHeader title="Yêu cầu đặt cọc" backTo="/customer/my-rooms?tab=viewed" />
         <StatusBanner tone="amber">{error || "Không tìm thấy hồ sơ đã xem phòng."}</StatusBanner>
       </div>
     );
@@ -263,7 +260,7 @@ export function DepositRequest() {
   if (submitted) {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
-        <PageHeader title="Yêu cầu đặt cọc" description={`Hồ sơ ${applicationId}`} backTo="/customer/my-rooms?tab=viewed" />
+        <PageHeader title="Yêu cầu đặt cọc" backTo="/customer/my-rooms?tab=viewed" />
         <Section title="Yêu cầu đã được gửi">
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-14 w-14 text-green-500" />
@@ -277,7 +274,7 @@ export function DepositRequest() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Yêu cầu đặt cọc" description="" backTo="/customer/my-rooms?tab=viewed" />
+      <PageHeader title="Yêu cầu đặt cọc" backTo="/customer/my-rooms?tab=viewed" />
       {error && <StatusBanner tone="amber">{error}</StatusBanner>}
       <form onSubmit={submitDeposit} className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -289,6 +286,7 @@ export function DepositRequest() {
               <InfoRow label="Quốc tịch" value={viewedRoom.applicant.nationality || "-"} />
               <InfoRow label="Loại giấy tờ" value={viewedRoom.applicant.documentType || "-"} />
               <InfoRow label="Số giấy tờ" value={viewedRoom.applicant.documentNumber || "-"} />
+              <InfoRow label="Ảnh giấy tờ" value={viewedRoom.applicant.documentImageUrl || "-"} />
               <InfoRow label="Ngày sinh" value={viewedRoom.applicant.dateOfBirth ? new Date(viewedRoom.applicant.dateOfBirth).toLocaleDateString("vi-VN") : "-"} />
               <InfoRow label="Địa chỉ thường trú" value={viewedRoom.applicant.permanentAddress || "-"} />
               <InfoRow label="Tài liệu tài chính" value={viewedRoom.applicant.financialDocumentUrl || "Không có"} />
@@ -311,14 +309,12 @@ export function DepositRequest() {
           </Section>
           <Section title="Thông tin cần bổ sung để đặt cọc">
             <div className="mb-6 overflow-x-auto rounded-xl border border-gray-200">
-              <table className="w-full min-w-[850px] text-sm">
+              <table className="w-full min-w-[600px] text-sm">
                 <thead className="bg-gray-50 text-left text-gray-600">
                   <tr>
                     <th className="px-3 py-3">Họ và tên</th>
                     <th className="px-3 py-3">Giới tính</th>
-                    <th className="px-3 py-3">Số CCCD</th>
-                    <th className="px-3 py-3">Ảnh minh chứng</th>
-                    <th className="px-3 py-3">Nghề nghiệp</th>
+                    <th className="px-3 py-3">Quốc tịch</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -333,14 +329,7 @@ export function DepositRequest() {
                       </select>
                     </td>
                     <td className="p-3">
-                      <input name="documentNumber" required defaultValue={viewedRoom.applicant.documentNumber ?? ""} className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
-                    </td>
-                    <td className="p-3">
-                      <input name="documentImage" type="file" accept="image/*" className="block w-full text-xs" />
-                      <span className="mt-1 block text-xs text-gray-500">Đã có hồ sơ ban đầu; chỉ tải lại khi muốn thay đổi.</span>
-                    </td>
-                    <td className="p-3">
-                      <input name="occupationOrSchool" required defaultValue={viewedRoom.applicant.occupationOrSchool ?? ""} className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
+                      <input name="nationality" required defaultValue={viewedRoom.applicant.nationality ?? "Việt Nam"} className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
                     </td>
                   </tr>
                   {Array.from({ length: viewedRoom.applicant.numberOfPeople - 1 }, (_, index) => (
@@ -355,13 +344,7 @@ export function DepositRequest() {
                         </select>
                       </td>
                       <td className="p-3">
-                        <input name={`member-${index}-documentNumber`} required className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
-                      </td>
-                      <td className="p-3">
-                        <input name={`member-${index}-documentImage`} required type="file" accept="image/*" className="block w-full text-xs" />
-                      </td>
-                      <td className="p-3">
-                        <input name={`member-${index}-occupation`} required className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
+                        <input name={`member-${index}-nationality`} required defaultValue="Việt Nam" className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
                       </td>
                     </tr>
                   ))}
@@ -396,11 +379,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
   const amount = isDeposit ? "3.000.000 đ" : "1.850.000 đ";
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader
-        title={isDeposit ? "Thanh toán tiền cọc" : "Thanh toán khoản nhận phòng"}
-        description="Kiểm tra số tiền và thực hiện giao dịch."
-        backTo={isDeposit ? "/customer/my-rooms?tab=viewed" : "/customer/my-rooms?tab=deposited"}
-      />
+      <PageHeader title={isDeposit ? "Thanh toán tiền cọc" : "Thanh toán khoản nhận phòng"} backTo={isDeposit ? "/customer/my-rooms?tab=viewed" : "/customer/my-rooms?tab=deposited"} />
       {paid ? (
         <Section title="Đã ghi nhận giao dịch">
           <div className="text-center">
@@ -454,53 +433,197 @@ export function CheckInPayment() {
 }
 
 export function CustomerCheckIn() {
-  const navigate = useNavigate();
-  const { checkInId } = useParams();
-  const [accepted, setAccepted] = useState(false);
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Xác nhận thuê và nhận phòng" description={`Hồ sơ ${checkInId}`} backTo="/customer/my-rooms?tab=deposited" />
-      <StatusBanner tone="green">
-        <span className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5" />
-          Hồ sơ người thuê đã đạt điều kiện ký hợp đồng.
-        </span>
-      </StatusBanner>
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Section title="Hợp đồng thuê">
-            <div className="max-h-[440px] space-y-4 overflow-y-auto rounded-lg bg-gray-50 p-5 text-sm leading-6 text-gray-700">
-              <h3 className="text-center text-lg font-bold text-gray-900">HỢP ĐỒNG THUÊ CHỖ Ở</h3>
+  const [submitted, setSubmitted] = useState(false);
+  const [params] = useSearchParams();
+  const profileApproved = params.get("profileApproved") === "true";
+  const [showContract, setShowContract] = useState(profileApproved);
+  const [signatureName, setSignatureName] = useState("");
+  const [residenceRules, setResidenceRules] = useState<ResidenceRule[]>([]);
+  useEffect(() => {
+    roomService.getResidenceRules("P_Q5_201").then(setResidenceRules).catch(() => setResidenceRules([]));
+  }, []);
+  if (showContract)
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Xem và ký hợp đồng" backTo="/customer/my-rooms?tab=deposited" />
+        <Section title="Hợp đồng thuê">
+          <div className="space-y-5 rounded-lg bg-gray-50 p-5 text-sm leading-6 text-gray-700">
+            <h3 className="text-center text-lg font-bold">HỢP ĐỒNG THUÊ CHỖ Ở</h3>
+            <div>
+              <h4 className="font-bold text-gray-900">1. Thông tin các bên</h4>
               <p>Bên cho thuê: HomeStay Dorm - Chi nhánh Quận 5.</p>
-              <p>Bên thuê: Nguyễn Gia Bảo và các thành viên có tên trong hồ sơ đã duyệt.</p>
-              <p>Đối tượng thuê: Phòng P_Q5_201, hình thức thuê nguyên phòng, sức chứa 2 người.</p>
-              <p>Thời hạn thuê: 12 tháng, từ ngày 01/08/2026.</p>
-              <p>Giá thuê: 4.500.000 đồng/tháng. Thanh toán vào ngày 01 hàng tháng.</p>
-              <p>Dịch vụ gồm điện, nước, WiFi và gửi xe theo bảng giá hiện hành.</p>
-              <p>Tiền cọc, khấu trừ, nội quy và xử lý vi phạm được áp dụng theo chính sách đã công bố.</p>
+              <p>Bên thuê: Nguyễn Gia Bảo. Danh sách người ở kèm theo lấy từ hồ sơ đã được Quản lý xác nhận.</p>
             </div>
-            <label className="mt-4 flex gap-3 text-sm">
-              <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
-              <span>Tôi đã đọc và đồng ý toàn bộ nội dung hợp đồng.</span>
-            </label>
-          </Section>
-        </div>
-        <div className="space-y-6">
-          <Section title="Thông tin thuê">
-            <InfoRow label="Phòng" value="P_Q5_201" />
-            <InfoRow label="Hình thức" value="Nguyên phòng" />
-            <InfoRow label="Thời hạn" value="12 tháng" />
-            <InfoRow label="Ngày nhận" value="01/08/2026" />
-          </Section>
-          <button
-            disabled={!accepted}
-            onClick={() => navigate(`/customer/check-in-payments/TT-${checkInId}`)}
-            className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white disabled:bg-gray-300"
-          >
+            <div>
+              <h4 className="font-bold text-gray-900">2. Phòng/giường và thời hạn thuê</h4>
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                <p>
+                  Phòng thuê: <strong>Phòng 201</strong>
+                </p>
+                <p>
+                  Hình thức: <strong>Thuê nguyên phòng</strong>
+                </p>
+                <p>
+                  Số người đăng ký: <strong>2 người</strong>
+                </p>
+                <p>
+                  Số giường sử dụng: <strong>Toàn bộ giường trong phòng</strong>
+                </p>
+                <p>
+                  Ngày bắt đầu: <strong>01/08/2026</strong>
+                </p>
+                <p>
+                  Thời hạn: <strong>12 tháng</strong>
+                </p>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">3. Giá thuê và kỳ thanh toán</h4>
+              <p>
+                Giá thuê nguyên phòng: <strong>4.500.000 đồng/tháng</strong>.
+              </p>
+              <p>Kỳ thanh toán: hàng tháng, thanh toán trước ngày 01 của mỗi tháng. Khoản thu nhận phòng gồm tiền thuê kỳ đầu và các dịch vụ phát sinh theo yêu cầu.</p>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">4. Phí dịch vụ</h4>
+              <div className="mt-2 overflow-hidden rounded-lg border bg-white">
+                <div className="grid grid-cols-3 border-b bg-gray-100 px-3 py-2 font-semibold">
+                  <span>Dịch vụ</span>
+                  <span>Đơn giá</span>
+                  <span>Cách tính</span>
+                </div>
+                {[
+                  ["Điện", "4.000 đ/kWh", "Theo công tơ"],
+                  ["Nước", "20.000 đ/m³", "Theo đồng hồ"],
+                  ["WiFi", "150.000 đ/phòng/tháng", "Theo tháng"],
+                  ["Gửi xe", "100.000 đ/xe/tháng", "Theo số xe"],
+                ].map((row) => (
+                  <div key={row[0]} className="grid grid-cols-3 border-b px-3 py-2 last:border-0">
+                    <span>{row[0]}</span>
+                    <span>{row[1]}</span>
+                    <span>{row[2]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">5. Tiền cọc và hoàn/khấu trừ cọc</h4>
+              <p>
+                Tiền cọc: <strong>9.000.000 đồng</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">6. Nội quy lưu trú</h4>
+              {residenceRules.length === 0 ? <p className="text-gray-500">Đang tải nội quy của chi nhánh...</p> : (
+                <ul className="space-y-2">
+                  {residenceRules.map((rule) => <li key={rule.residenceRuleId}><strong>{rule.title}:</strong> {rule.content}</li>)}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">7. Xử lý vi phạm</h4>
+              <ul className="space-y-1">
+                {residenceRules.map((rule) => <li key={rule.residenceRuleId}>{rule.title}: {rule.violationLevel === "nhac_nho" ? "Nhắc nhở" : rule.violationLevel === "boi_thuong" ? "Bồi thường theo thiệt hại thực tế" : `Khấu trừ cọc${rule.defaultPenaltyAmount ? ` ${rule.defaultPenaltyAmount.toLocaleString("vi-VN")} đồng` : ""}`}.</li>)}
+              </ul>
+            </div>
+          </div>
+          <label className="mt-5 block text-sm font-medium text-gray-700">
+            Nhập họ và tên người ký
+            <input
+              required
+              value={signatureName}
+              onChange={(event) => setSignatureName(event.target.value)}
+              placeholder="Ví dụ: Nguyễn Gia Bảo"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"
+            />
+          </label>
+          <button disabled={!signatureName.trim()} className="mt-5 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:bg-gray-300">
             Ký hợp đồng
           </button>
-        </div>
+        </Section>
       </div>
+    );
+  if (submitted)
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Bổ sung hồ sơ nhận phòng" backTo="/customer/my-rooms?tab=deposited" />
+        <StatusBanner tone="amber">Hồ sơ đã được gửi và đang chờ Quản lý kiểm tra. Hợp đồng chỉ hiển thị sau khi toàn bộ người ở được xác nhận đủ điều kiện.</StatusBanner>
+      </div>
+    );
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Bổ sung hồ sơ nhận phòng" backTo="/customer/my-rooms?tab=deposited" />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmitted(true);
+        }}
+      >
+        <Section title="Danh sách người ở chính thức">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead className="bg-gray-50 text-left">
+                <tr>
+                  <th className="p-3">Họ và tên</th>
+                  <th className="p-3">Giới tính</th>
+                  <th className="p-3">Quốc tịch</th>
+                  <th className="p-3">Ngày sinh</th>
+                  <th className="p-3">Số CCCD/Hộ chiếu</th>
+                  <th className="p-3">Ảnh minh chứng</th>
+                  <th className="p-3">Địa chỉ cư trú</th>
+                  <th className="p-3">Nghề nghiệp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {["Nguyễn Gia Bảo", ""].map((name, index) => (
+                  <tr key={index} className="border-t align-top">
+                    <td className="p-2">
+                      <input required defaultValue={name} className="w-full rounded border px-2 py-2" />
+                    </td>
+                    <td className="p-2">
+                      <select required className="w-full rounded border px-2 py-2">
+                        <option>Nữ</option>
+                        <option>Nam</option>
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <input required defaultValue="Việt Nam" className="w-full rounded border px-2 py-2" />
+                    </td>
+                    <td className="p-2">
+                      <input required type="date" defaultValue={index === 0 ? "2003-05-12" : ""} className="w-full rounded border px-2 py-2" />
+                    </td>
+                    <td className="p-2">
+                      <input required defaultValue={index === 0 ? "079203000001" : ""} className="w-full rounded border px-2 py-2" />
+                    </td>
+                    <td className="p-2">
+                      {index === 0 && <span className="mb-1 block text-xs text-gray-500">Đã có: cccd-nguyen-gia-bao.jpg</span>}
+                      <input required={index !== 0} type="file" accept="image/*" className="w-full text-xs" />
+                    </td>
+                    <td className="p-2">
+                      <input required defaultValue={index === 0 ? "25 Nguyễn Trãi, Quận 5, TP.HCM" : ""} className="w-full rounded border px-2 py-2" />
+                    </td>
+                    <td className="p-2">
+                      <input required defaultValue={index === 0 ? "Sinh viên Đại học Công nghệ" : ""} className="w-full rounded border px-2 py-2" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-5 flex justify-end gap-3">
+            {!profileApproved && (
+              <button type="submit" className="rounded-lg border border-blue-600 px-5 py-2.5 font-semibold text-blue-600">
+                Gửi hồ sơ để Quản lý kiểm tra
+              </button>
+            )}
+            {profileApproved && (
+              <button type="button" onClick={() => setShowContract(true)} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white">
+                Thuê
+              </button>
+            )}
+          </div>
+        </Section>
+      </form>
     </div>
   );
 }
@@ -510,7 +633,7 @@ export function HandoverConfirmation() {
   const [confirmed, setConfirmed] = useState(false);
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Biên bản bàn giao" description="Kiểm tra hiện trạng và tài sản trước khi nhận phòng." backTo="/customer/my-rooms?tab=deposited" />
+      <PageHeader title="Biên bản bàn giao" backTo="/customer/my-rooms?tab=deposited" />
       <Section title="Thông tin bàn giao">
         <InfoRow label="Phòng" value="P_Q5_201" />
         <InfoRow label="Ngày bàn giao" value="01/08/2026" />
@@ -548,7 +671,7 @@ export function CheckoutReconciliation() {
   const [agreed, setAgreed] = useState(false);
   return (
     <div className="space-y-6">
-      <PageHeader title="Xác nhận hiện trạng, đối soát và hoàn cọc" description={`Hồ sơ ${checkoutId}`} backTo="/customer/my-rooms?tab=renting" />
+      <PageHeader title="Xác nhận hiện trạng, đối soát và hoàn cọc" backTo="/customer/my-rooms?tab=renting" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Biên bản hiện trạng">
           <InfoRow label="Tình trạng phòng" value="Tốt" />
@@ -593,7 +716,7 @@ export function CheckoutSettlement() {
   const [method, setMethod] = useState("bank");
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="Nhận hoàn cọc" description={`Kết quả giao dịch ${settlementId}`} backTo="/customer/my-rooms?tab=renting" />
+      <PageHeader title="Nhận hoàn cọc" backTo="/customer/my-rooms?tab=renting" />
       <StatusBanner tone="green">
         Bạn được hoàn lại <strong>5.880.000 đ</strong> sau đối soát.
       </StatusBanner>
@@ -637,7 +760,7 @@ export function LiquidationConfirmation() {
   const [confirmed, setConfirmed] = useState(false);
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Biên bản trả phòng và thanh lý" description="Kiểm tra lần cuối trước khi kết thúc lưu trú." backTo="/customer/my-rooms?tab=renting" />
+      <PageHeader title="Biên bản trả phòng và thanh lý" backTo="/customer/my-rooms?tab=renting" />
       <Section title="Nội dung thanh lý">
         <InfoRow label="Hợp đồng" value="HĐT-P_Q5_102-2026" />
         <InfoRow label="Phòng/giường" value="P_Q5_102 - Giường 01" />
@@ -666,7 +789,7 @@ export function CustomerNotifications() {
   ];
   return (
     <div className="space-y-6">
-      <PageHeader title="Thông báo" description="Theo dõi thông tin từ hệ thống. Thông báo không điều hướng sang chức năng khác." />
+      <PageHeader title="Thông báo" />
       <div className="space-y-3">
         {notifications.map((item) => {
           const Icon = item.icon;

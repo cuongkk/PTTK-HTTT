@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<DepositSlip> DepositSlips => Set<DepositSlip>();
     public DbSet<DepositBed> DepositBeds => Set<DepositBed>();
     public DbSet<RentalContract> RentalContracts => Set<RentalContract>();
+    public DbSet<ResidenceRule> ResidenceRules => Set<ResidenceRule>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<HandoverReport> HandoverReports => Set<HandoverReport>();
     public DbSet<HandoverDetail> HandoverDetails => Set<HandoverDetail>();

@@ -29,6 +29,11 @@ public class RentalApplication
     public string? OtherRequirements { get; set; }
     public string Status { get; set; } = "moi";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Customer Customer { get; set; } = null!;
+    public Employee? SalesEmployee { get; set; }
+    public ICollection<RoomViewingSchedule> RoomViewingSchedules { get; set; } = new List<RoomViewingSchedule>();
+    public ICollection<DepositSlip> DepositSlips { get; set; } = new List<DepositSlip>();
+    public ICollection<TenantMember> TenantMembers { get; set; } = new List<TenantMember>();
 }
 
 public class RoomViewingSchedule
@@ -39,6 +44,9 @@ public class RoomViewingSchedule
     public DateTime AppointmentAt { get; set; }
     public string Status { get; set; } = "sap_den";
     public string? Note { get; set; }
+    public RentalApplication Application { get; set; } = null!;
+    public Employee SalesEmployee { get; set; } = null!;
+    public ICollection<RoomViewingScheduleRoom> Rooms { get; set; } = new List<RoomViewingScheduleRoom>();
 }
 
 public class RoomViewingScheduleRoom { public string ScheduleId { get; set; } = default!; public string RoomId { get; set; } = default!; }
@@ -54,6 +62,11 @@ public class DepositSlip
     public DateTime PaymentDueAt { get; set; }
     public DateTime? PaidAt { get; set; }
     public string Status { get; set; } = "cho_thanh_toan";
+    public RentalApplication Application { get; set; } = null!;
+    public Employee SalesEmployee { get; set; } = null!;
+    public Employee? ManagerEmployee { get; set; }
+    public ICollection<DepositBed> Beds { get; set; } = new List<DepositBed>();
+    public RentalContract? Contract { get; set; }
 }
 
 public class DepositBed { public string DepositId { get; set; } = default!; public string BedId { get; set; } = default!; }
@@ -72,6 +85,27 @@ public class RentalContract
     public DateOnly StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
     public string Status { get; set; } = "hieu_luc";
+    public DepositSlip Deposit { get; set; } = null!;
+    public Customer Customer { get; set; } = null!;
+    public Employee SalesEmployee { get; set; } = null!;
+    public Room Room { get; set; } = null!;
+    public ICollection<TenantMember> TenantMembers { get; set; } = new List<TenantMember>();
+}
+
+public class ResidenceRule
+{
+    public string ResidenceRuleId { get; set; } = default!;
+    public string BranchId { get; set; } = default!;
+    public string Title { get; set; } = default!;
+    public string Content { get; set; } = default!;
+    public string RuleType { get; set; } = default!;
+    public string ViolationLevel { get; set; } = "nhac_nho";
+    public decimal? DefaultPenaltyAmount { get; set; }
+    public DateOnly EffectiveFrom { get; set; }
+    public DateOnly? EffectiveTo { get; set; }
+    public string Status { get; set; } = "hieu_luc";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public class TenantMember
