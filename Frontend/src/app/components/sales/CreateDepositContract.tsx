@@ -1,45 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { FileText, ArrowLeft, CheckCircle, AlertCircle, Sparkles, Search } from "lucide-react";
-
-interface DepositContract {
-  id: number;
-  contractId: string;
-  type: "deposit";
-  customer: string;
-  phone: string;
-  room: string;
-  area: string;
-  depositAmount: number;
-  holdUntil: string;
-  status: "Chờ thanh toán cọc" | "Đã đặt cọc" | "Hủy";
-  createdDate: string;
-}
-
-interface Registration {
-  id: number;
-  regId: string;
-  name: string;
-  phone: string;
-  email: string;
-  gender: string;
-  area: string;
-  capacity: number;
-  priceRange: string;
-  room: string;
-  status: string;
-  submittedDate: string;
-}
-
-const INITIAL_REGS: Registration[] = [
-  { id: 1, regId: "DK-2026-0514-001", name: "Nguyễn Văn B", phone: "0901234567", email: "nguyenb@email.com", gender: "Nam", area: "Khu A", capacity: 1, priceRange: "1.5 – 2 triệu", room: "Phòng 201 – Tòa A", status: "Đã gửi lịch hẹn", submittedDate: "14/05/2026" },
-  { id: 2, regId: "DK-2026-0513-002", name: "Trần Thị C", phone: "0912345678", email: "tranc@email.com", gender: "Nữ", area: "Khu B", capacity: 2, priceRange: "Trên 2 triệu", room: "Chưa phân phòng", status: "Chờ xác nhận lịch", submittedDate: "13/05/2026" },
-];
-
-const INITIAL_DEPOSITS: DepositContract[] = [
-  { id: 1, contractId: "HDC-2026-001", type: "deposit", customer: "Nguyễn Văn B", phone: "0901234567", room: "Phòng 201 – Tòa A", area: "Khu A", depositAmount: 1800000, holdUntil: "30/05/2026", status: "Đã đặt cọc", createdDate: "14/05/2026" },
-  { id: 2, contractId: "HDC-2026-002", type: "deposit", customer: "Trần Thị C", phone: "0912345678", room: "Phòng 305 – Tòa B", area: "Khu B", depositAmount: 2400000, holdUntil: "01/06/2026", status: "Chờ thanh toán cọc", createdDate: "15/05/2026" },
-];
+import { salesApi, type SalesApplication } from "../../services/sales/salesApi";
+import { toast } from "sonner";
 
 export function CreateDepositContract() {
   const navigate = useNavigate();
@@ -49,6 +12,7 @@ export function CreateDepositContract() {
     customer: "",
     phone: "",
     room: "",
+    roomId: "",
     area: "Khu A",
     depositAmount: "",
     holdUntil: "",
@@ -63,82 +27,81 @@ export function CreateDepositContract() {
     const regRef = params.get("regRef");
     if (regRef) {
       df("regRef", regRef);
-      const saved = localStorage.getItem("roommanager_registrations");
-      const currentRegs: Registration[] = saved ? JSON.parse(saved) : INITIAL_REGS;
-      const found = currentRegs.find(
-        (r) => r.regId.toLowerCase() === regRef.toLowerCase()
-      );
-      if (found) {
-        setDepositForm((prev) => ({
-          ...prev,
-          regRef: found.regId,
-          customer: found.name,
-          phone: found.phone,
-          area: found.area,
-          room: found.room !== "Chưa phân phòng" ? found.room : "",
-          depositAmount: found.priceRange === "Dưới 1.5 triệu" ? "1200000" : found.priceRange === "1.5 – 2 triệu" ? "1800000" : "2400000",
-        }));
-      }
+      salesApi.getApplications()
+        .then((applications) => {
+          const found = applications.find(
+            (r) => r.applicationId.toLowerCase() === regRef.toLowerCase()
+          );
+          if (found) {
+            setDepositForm((prev) => ({
+              ...prev,
+              regRef: found.applicationId,
+              customer: found.customerName,
+              phone: found.phoneNumber,
+              area: found.area,
+              room: found.roomName !== "Chưa phân phòng" ? found.roomName : "",
+              roomId: found.roomId ?? "",
+              depositAmount: found.priceRange === "Dưới 1.5 triệu" ? "1200000" : found.priceRange === "1.5 – 2 triệu" ? "1800000" : "2400000",
+              holdUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0] // default 24h
+            }));
+          }
+        })
+        .catch(console.error);
     }
   }, [location.search]);
 
   // Search registration manually
-  const handleSearchReg = () => {
+  const handleSearchReg = async () => {
     if (!depositForm.regRef.trim()) {
-      alert("Vui lòng nhập mã yêu cầu đăng ký để tra cứu.");
+      toast.warning("Vui lòng nhập mã yêu cầu đăng ký để tra cứu.");
       return;
     }
-    const saved = localStorage.getItem("roommanager_registrations");
-    const currentRegs: Registration[] = saved ? JSON.parse(saved) : INITIAL_REGS;
-    const found = currentRegs.find(
-      (r) => r.regId.toLowerCase() === depositForm.regRef.trim().toLowerCase()
-    );
+    try {
+      const applications = await salesApi.getApplications();
+      const found = applications.find(
+        (r) => r.applicationId.toLowerCase() === depositForm.regRef.trim().toLowerCase()
+      );
 
-    if (found) {
-      setDepositForm((prev) => ({
-        ...prev,
-        customer: found.name,
-        phone: found.phone,
-        area: found.area,
-        room: found.room !== "Chưa phân phòng" ? found.room : "",
-        depositAmount: found.priceRange === "Dưới 1.5 triệu" ? "1200000" : found.priceRange === "1.5 – 2 triệu" ? "1800000" : "2400000",
-      }));
-      alert(`Đã tìm thấy đăng ký ${found.regId} và tự động điền thông tin khách hàng!`);
-    } else {
-      alert("Không tìm thấy yêu cầu đăng ký thuê tương ứng. Vui lòng kiểm tra lại mã.");
+      if (found) {
+        setDepositForm((prev) => ({
+          ...prev,
+          customer: found.customerName,
+          phone: found.phoneNumber,
+          area: found.area,
+          room: found.roomName !== "Chưa phân phòng" ? found.roomName : "",
+          roomId: found.roomId ?? "",
+          depositAmount: found.priceRange === "Dưới 1.5 triệu" ? "1200000" : found.priceRange === "1.5 – 2 triệu" ? "1800000" : "2400000",
+          holdUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        }));
+        toast.success(`Đã tìm thấy đăng ký ${found.applicationId} và tự động điền thông tin!`);
+      } else {
+        toast.error("Không tìm thấy yêu cầu đăng ký thuê tương ứng. Vui lòng kiểm tra lại mã.");
+      }
+    } catch (err) {
+      toast.error("Lỗi khi tra cứu đăng ký.");
     }
   };
 
-  const handleCreateDeposit = () => {
-    const { customer, phone, room, depositAmount, holdUntil, regRef } = depositForm;
-    if (!customer || !phone || !room || !depositAmount || !holdUntil) {
-      alert("Vui lòng điền đủ thông tin bắt buộc.");
+  const handleCreateDeposit = async () => {
+    const { regRef, roomId, depositAmount, holdUntil } = depositForm;
+    if (!regRef || !roomId || !depositAmount || !holdUntil) {
+      toast.warning("Vui lòng điền đủ thông tin bắt buộc.");
       return;
     }
 
-    // Load existing contracts from localStorage
-    const saved = localStorage.getItem("roommanager_deposits");
-    const currentDeposits: DepositContract[] = saved ? JSON.parse(saved) : INITIAL_DEPOSITS;
+    try {
+      const result = await salesApi.createDepositSlip({
+        applicationId: regRef,
+        roomId: roomId,
+        depositAmount: parseInt(depositAmount),
+        holdUntil: new Date(holdUntil).toISOString(),
+      });
 
-    const newContract: DepositContract = {
-      id: currentDeposits.length + 1,
-      contractId: `HDC-2026-${String(currentDeposits.length + 1).padStart(3, "0")}`,
-      type: "deposit",
-      customer,
-      phone,
-      room,
-      area: depositForm.area,
-      depositAmount: parseInt(depositAmount),
-      holdUntil: new Date(holdUntil).toLocaleDateString("vi-VN"),
-      status: "Chờ thanh toán cọc",
-      createdDate: new Date().toLocaleDateString("vi-VN"),
-    };
-
-    const updated = [newContract, ...currentDeposits];
-    localStorage.setItem("roommanager_deposits", JSON.stringify(updated));
-
-    alert(`Đã lập hợp đồng đặt cọc thành công!\nMã hợp đồng: ${newContract.contractId}\nTrạng thái phòng/giường cập nhật: "Chờ thanh toán cọc" / "Đang giữ chỗ".`);
-    navigate("/sales/contracts");
+      toast.success(`Đã lập hợp đồng đặt cọc thành công!\nMã hợp đồng cọc: ${result.depositId}\nTrạng thái phòng/giường cập nhật: "Chờ thanh toán cọc" / "Đang giữ chỗ".`);
+      navigate("/sales/contracts");
+    } catch (err) {
+      toast.error("Lập hợp đồng đặt cọc thất bại.");
+    }
   };
 
   return (
@@ -196,7 +159,7 @@ export function CreateDepositContract() {
               </button>
               <button
                 onClick={handleCreateDeposit}
-                className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 animate-pulse"
+                className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-4 h-4" /> Xác nhận lưu hợp đồng
               </button>
@@ -215,7 +178,7 @@ export function CreateDepositContract() {
                 <input
                   value={depositForm.regRef}
                   onChange={(e) => df("regRef", e.target.value)}
-                  placeholder="Nhập mã đăng ký (Vd: DK-2026-0514-001)"
+                  placeholder="Nhập mã đăng ký (Vd: HSxxxxxxxxxx)"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <button
@@ -284,6 +247,7 @@ export function CreateDepositContract() {
                   onChange={(e) => df("room", e.target.value)}
                   placeholder="Vd: Phòng 201 – Tòa A"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  disabled
                 />
               </div>
               <div>
@@ -332,7 +296,7 @@ export function CreateDepositContract() {
                 onClick={() => {
                   const { customer, phone, room, depositAmount, holdUntil } = depositForm;
                   if (!customer || !phone || !room || !depositAmount || !holdUntil) {
-                    alert("Vui lòng điền đủ thông tin bắt buộc.");
+                    toast.warning("Vui lòng điền đủ thông tin bắt buộc.");
                     return;
                   }
                   setShowPreview(true);

@@ -9,6 +9,7 @@ import { Slider } from "../ui/slider";
 import { Settings, Clock3, Percent, ShieldCheck, BellRing, Save, Loader2 } from "lucide-react";
 import { ApiError } from "../../services/apiClient";
 import { systemParameterService, type SystemParameter } from "../../services/system-admin/systemParameterService";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const OPERATIONAL_SWITCH_IDS = ["canh_bao_qua_han", "audit_trail_phong", "khoa_bao_tri"];
 
@@ -17,6 +18,7 @@ export function SystemSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
 
   const load = async () => {
     setIsLoading(true);
@@ -55,7 +57,7 @@ export function SystemSettings() {
           ? true
           : false;
 
-  const handleSaveChanges = async () => {
+  const handleSaveChanges = () => {
     const changed = [depositRateParam, paymentGraceParam, slaParam].filter(
       (p): p is SystemParameter => !!p && draft[p.parameterId] !== p.value
     );
@@ -63,33 +65,45 @@ export function SystemSettings() {
       toast.info("Không có thay đổi nào để lưu.");
       return;
     }
-    if (!window.confirm(`Xác nhận lưu ${changed.length} thay đổi chính sách?`)) return;
-
-    setIsSaving(true);
-    try {
-      for (const p of changed) {
-        await systemParameterService.update(p.parameterId, draft[p.parameterId]);
+    setConfirmDialog({
+      open: true,
+      title: "Lưu chính sách",
+      message: `Xác nhận lưu ${changed.length} thay đổi chính sách?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSaving(true);
+        try {
+          for (const p of changed) {
+            await systemParameterService.update(p.parameterId, draft[p.parameterId]);
+          }
+          toast.success("Đã lưu thay đổi chính sách.");
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Lưu thay đổi thất bại.");
+        } finally {
+          setIsSaving(false);
+        }
       }
-      toast.success("Đã lưu thay đổi chính sách.");
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Lưu thay đổi thất bại.");
-    } finally {
-      setIsSaving(false);
-    }
+    });
   };
 
-  const handleToggle = async (param: SystemParameter) => {
+  const handleToggle = (param: SystemParameter) => {
     const nextValue = param.value === "true" ? "false" : "true";
-    if (!window.confirm(`Xác nhận ${nextValue === "true" ? "bật" : "tắt"} "${param.parameterName}"?`)) return;
-
-    try {
-      await systemParameterService.update(param.parameterId, nextValue);
-      toast.success(`Đã cập nhật "${param.parameterName}".`);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Cập nhật thất bại.");
-    }
+    setConfirmDialog({
+      open: true,
+      title: nextValue === "true" ? "Bật tính năng" : "Tắt tính năng",
+      message: `Xác nhận ${nextValue === "true" ? "bật" : "tắt"} "${param.parameterName}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        try {
+          await systemParameterService.update(param.parameterId, nextValue);
+          toast.success(`Đã cập nhật "${param.parameterName}".`);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Cập nhật thất bại.");
+        }
+      }
+    });
   };
 
   if (isLoading) {
@@ -235,6 +249,15 @@ export function SystemSettings() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="warning"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }
