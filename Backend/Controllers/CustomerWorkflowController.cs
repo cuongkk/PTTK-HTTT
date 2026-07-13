@@ -37,6 +37,16 @@ public class CustomerWorkflowController : ControllerBase
     [HttpGet("rooms/{roomId}/contract")]
     public async Task<ActionResult<CustomerContractDetailDto>> GetContract(string roomId) => Ok(await _service.GetContractDetailAsync(User.GetAccountId(), roomId));
 
+    [HttpGet("rooms/{roomId}/handover")]
+    public async Task<ActionResult<CustomerHandoverDetailDto>> GetHandover(string roomId) => Ok(await _service.GetHandoverDetailAsync(User.GetAccountId(), roomId));
+
+    [HttpPost("rooms/{roomId}/handover/confirm")]
+    public async Task<IActionResult> ConfirmHandover(string roomId)
+    {
+        await _service.ConfirmHandoverAsync(User.GetAccountId(), roomId);
+        return NoContent();
+    }
+
     [HttpGet("rooms/{roomId}/checkout")]
     public async Task<ActionResult<CustomerCheckoutDetailDto>> GetCheckout(string roomId) => Ok(await _service.GetCheckoutDetailAsync(User.GetAccountId(), roomId));
 

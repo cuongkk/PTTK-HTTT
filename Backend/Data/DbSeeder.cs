@@ -24,7 +24,11 @@ public static class DbSeeder
     {
         var today = new DateOnly(2026, 7, 12);
         var rooms = new List<Room>();
-        void AddRoom(string id, string name, string status) => rooms.Add(new Room { RoomId = id, BranchId = "CN0000001", RoomName = name, RoomType = RoomType.Whole, Capacity = 1, Area = "Khu Demo trạng thái", RoomPrice = 3000000, Floor = 4, AreaSquareMeters = 20, Description = $"Dữ liệu demo: {name}", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = status });
+        void AddRoom(string id, string _, string status)
+        {
+            var roomNumber = id.Replace("PHONG_", "");
+            rooms.Add(new Room { RoomId = id, BranchId = "CN0000001", RoomName = $"Phòng {roomNumber}", RoomType = RoomType.Whole, Capacity = 1, Area = "Khu Demo trạng thái", RoomPrice = 3000000, Floor = 4, AreaSquareMeters = 20, Description = $"Phòng demo số {roomNumber}", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = status });
+        }
 
         AddRoom("PHONG_1", "Phòng 1 - chưa đăng ký", RoomBedStatus.Empty);
         AddRoom("PHONG_2", "Phòng 2 - hồ sơ mới", RoomBedStatus.Empty);
@@ -35,7 +39,8 @@ public static class DbSeeder
         for (var i = 0; i < depositStates.Length; i++) AddRoom($"PHONG_{i + 5}", $"Phòng {i + 5} - {depositStates[i]}", i == 5 ? RoomBedStatus.Deposited : RoomBedStatus.Empty);
 
         var checkInStates = new[] { "chua_bo_sung", "cho_sale_doi_chieu", "cho_quan_ly_duyet", "cho_sale_lap_hop_dong", "cho_khach_ky", "cho_khach_thanh_toan", "cho_ke_toan_xac_nhan", "dang_thue" };
-        for (var i = 0; i < checkInStates.Length; i++) AddRoom($"PHONG_{i + 11}", $"Phòng {i + 11} - {checkInStates[i]}", i == 7 ? RoomBedStatus.Rented : RoomBedStatus.Deposited);
+        for (var i = 0; i < checkInStates.Length; i++) AddRoom($"PHONG_{i + 11}", $"Phòng {i + 11} - {checkInStates[i]}", RoomBedStatus.Deposited);
+        AddRoom("PHONG_41", "Phòng 41 - đã xác nhận bàn giao, đang thuê", RoomBedStatus.Rented);
 
         var refundStates = new[] { "hoan_thanh", "cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc", "cho_doi_soat_hoan_coc", "cho_khach_xac_nhan_hoan_coc", "cho_hoan_tien", "da_hoan_coc", "huy" };
         for (var i = 0; i < refundStates.Length; i++) AddRoom($"PHONG_{i + 19}", $"Phòng {i + 19} - {refundStates[i]}", refundStates[i] == "da_hoan_coc" ? RoomBedStatus.Empty : refundStates[i] is "hoan_thanh" or "huy" ? RoomBedStatus.Deposited : "cho_hoan_coc");
@@ -49,7 +54,13 @@ public static class DbSeeder
 
         foreach (var room in rooms)
         {
-            if (!await db.Rooms.AnyAsync(x => x.RoomId == room.RoomId)) db.Rooms.Add(room);
+            var existingRoom = await db.Rooms.FirstOrDefaultAsync(x => x.RoomId == room.RoomId);
+            if (existingRoom is null) db.Rooms.Add(room);
+            else
+            {
+                existingRoom.RoomName = room.RoomName;
+                existingRoom.Description = room.Description;
+            }
             var bedId = $"G{room.RoomId.Replace("_", "")}1";
             if (!await db.Beds.AnyAsync(x => x.BedId == bedId)) db.Beds.Add(new Bed { BedId = bedId, RoomId = room.RoomId, BedNumber = 1, MonthlyRent = room.RoomPrice!.Value, Status = room.Status });
         }
@@ -118,11 +129,52 @@ public static class DbSeeder
             if (i >= 4)
             {
                 var contractId = $"HDNHAN{i:000000}";
-                var status = i == 4 ? "cho_ky" : i == 5 ? "cho_thanh_toan_nhan_phong" : i == 6 ? "cho_xac_nhan_thanh_toan" : "hieu_luc";
+                var status = i == 4 ? "cho_ky" : i == 5 ? "cho_thanh_toan_nhan_phong" : i == 6 ? "cho_xac_nhan_thanh_toan" : "cho_xac_nhan_ban_giao";
                 if (!await db.RentalContracts.AnyAsync(x => x.ContractId == contractId)) db.RentalContracts.Add(new RentalContract { ContractId = contractId, DepositId = depositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = $"PHONG_{i + 11}", NumberOfBeds = 1, MonthlyRent = 3000000, PaymentCycle = "hang_thang", SignedDate = today, StartDate = today.AddDays(15), EndDate = today.AddYears(1), Status = status });
                 if (i >= 5 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDNNHAN{i:00000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDNNHAN{i:00000}", CustomerId = "KH0000000001", ContractId = contractId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 3000000, ProofImageUrl = i >= 6 ? "/demo/demo-document.png" : null, Status = i == 7 ? "da_thanh_toan" : "cho_thanh_toan" });
             }
         }
+        await db.SaveChangesAsync();
+
+        // PHONG_18: đã ký hợp đồng và được Kế toán xác nhận thanh toán; Quản lý lập biên bản để khách xác nhận nhận phòng.
+        var handoverAssets = new[]
+        {
+            new Asset { AssetId = "TS18GIUONG01", RoomId = "PHONG_18", AssetName = "Giường", Description = "Giường ngủ được cấp khi nhận phòng", Condition = "tot" },
+            new Asset { AssetId = "TS18NEM00001", RoomId = "PHONG_18", AssetName = "Nệm", Description = "Nệm theo vị trí giường", Condition = "tot" },
+            new Asset { AssetId = "TS18TU000001", RoomId = "PHONG_18", AssetName = "Tủ cá nhân", Description = "Tủ có khóa riêng", Condition = "tot" },
+            new Asset { AssetId = "TS18KHOA0001", RoomId = "PHONG_18", AssetName = "Chìa khóa", Description = "Chìa khóa phòng", Condition = "tot" },
+            new Asset { AssetId = "TS18THETU001", RoomId = "PHONG_18", AssetName = "Thẻ từ", Description = "Thẻ ra vào khu lưu trú", Condition = "tot" },
+            new Asset { AssetId = "TS18DIEUHOA1", RoomId = "PHONG_18", AssetName = "Máy điều hòa", Description = "Thiết bị dùng chung trong phòng", Condition = "tot" },
+        };
+        foreach (var asset in handoverAssets)
+            if (!await db.Assets.AnyAsync(x => x.AssetId == asset.AssetId)) db.Assets.Add(asset);
+        await db.SaveChangesAsync();
+        const string handoverId = "BBGPHONG0018";
+        if (!await db.HandoverReports.AnyAsync(x => x.HandoverId == handoverId))
+            db.HandoverReports.Add(new HandoverReport { HandoverId = handoverId, ContractId = "HDNHAN000007", ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 8, 1), RoomCondition = "Phòng sạch, hệ thống điện nước và thiết bị hoạt động bình thường", InitialElectricityReading = 1245, InitialWaterReading = 382, Note = "Đã hướng dẫn sử dụng tiện ích chung, lối thoát hiểm, phòng cháy chữa cháy và quy định an toàn." });
+        await db.SaveChangesAsync();
+        foreach (var asset in handoverAssets)
+            if (!await db.HandoverDetails.AnyAsync(x => x.HandoverId == handoverId && x.AssetId == asset.AssetId))
+                db.HandoverDetails.Add(new HandoverDetail { HandoverId = handoverId, AssetId = asset.AssetId, Quantity = 1, Condition = "tot", Note = "Đã kiểm tra khi bàn giao" });
+        await db.SaveChangesAsync();
+
+        // PHONG_41: ảnh chụp trạng thái kế tiếp sau khi khách đã ký biên bản của PHONG_18.
+        const string completedAppId = "HSDNHAN00008", completedDepositId = "DCDNHAN00008", completedScheduleId = "LXDNHAN00008", completedContractId = "HDNHAN000008";
+        if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == completedAppId))
+            db.RentalApplications.Add(new RentalApplication { ApplicationId = completedAppId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today, ExpectedRentalMonths = 12, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = "du_dieu_kien_nhan_phong" });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == completedScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = completedScheduleId, ApplicationId = completedAppId, SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 5, 9, 0, 0), Status = "hoan_thanh" });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == completedScheduleId && x.RoomId == "PHONG_41"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = completedScheduleId, RoomId = "PHONG_41" });
+        if (!await db.DepositSlips.AnyAsync(x => x.DepositId == completedDepositId))
+            db.DepositSlips.Add(new DepositSlip { DepositId = completedDepositId, ApplicationId = completedAppId, SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 6000000, PaymentDueAt = new DateTime(2026, 7, 10, 8, 0, 0), PaidAt = new DateTime(2026, 7, 9, 9, 0, 0), Status = "hoan_thanh" });
+        await db.SaveChangesAsync();
+        if (!await db.RentalContracts.AnyAsync(x => x.ContractId == completedContractId))
+            db.RentalContracts.Add(new RentalContract { ContractId = completedContractId, DepositId = completedDepositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = "PHONG_41", NumberOfBeds = 1, MonthlyRent = 3000000, PaymentCycle = "hang_thang", SignedDate = today, StartDate = today, EndDate = today.AddYears(1), Status = "hieu_luc" });
+        if (!await db.Invoices.AnyAsync(x => x.InvoiceId == "HDNNHAN00008"))
+            db.Invoices.Add(new Invoice { InvoiceId = "HDNNHAN00008", CustomerId = "KH0000000001", ContractId = completedContractId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 3000000, ProofImageUrl = "/demo/demo-document.png", PaidAt = new DateTime(2026, 7, 12, 10, 0, 0), Status = "da_thanh_toan" });
         await db.SaveChangesAsync();
 
         // Mỗi trạng thái hoàn cọc có một phòng, hồ sơ và phiếu cọc riêng; chưa có hợp đồng.
@@ -173,6 +225,10 @@ public static class DbSeeder
             var reconciliationId = i >= 4 ? $"DSDTRA{i:000000}" : null;
             if (reconciliationId is not null && !await db.Reconciliations.AnyAsync(x => x.ReconciliationId == reconciliationId)) db.Reconciliations.Add(new Reconciliation { ReconciliationId = reconciliationId, ContractId = contractId, AccountantEmployeeId = "NV00000004", ManagerEmployeeId = "NV00000002", CreatedDate = today, RefundRate = 80, OriginalDeposit = 6000000, BaseRefund = 4800000, TotalDeductions = 200000, RefundAmount = 4600000, AdditionalPaymentAmount = 0, Status = i >= 6 ? "da_xac_nhan" : "cho_xac_nhan" });
             await db.SaveChangesAsync();
+            if (reconciliationId is not null && !await db.AdditionalCosts.AnyAsync(x => x.AdditionalCostId == $"CPDTR{i:000000}A"))
+                db.AdditionalCosts.Add(new AdditionalCost { AdditionalCostId = $"CPDTR{i:000000}A", ReconciliationId = reconciliationId, CostType = "dien_nuoc", Amount = 80000, Description = "Điện, nước và dịch vụ sử dụng đến ngày trả phòng" });
+            if (reconciliationId is not null && !await db.AdditionalCosts.AnyAsync(x => x.AdditionalCostId == $"CPDTR{i:000000}B"))
+                db.AdditionalCosts.Add(new AdditionalCost { AdditionalCostId = $"CPDTR{i:000000}B", ReconciliationId = reconciliationId, CostType = "khac", Amount = 120000, Description = "Phí vệ sinh cuối kỳ theo biên bản hiện trạng" });
             if (reconciliationId is not null && !await db.CheckoutReports.AnyAsync(x => x.CheckoutReportId == $"BTDTRA{i:000000}")) db.CheckoutReports.Add(new CheckoutReport { CheckoutReportId = $"BTDTRA{i:000000}", ReconciliationId = reconciliationId, ManagerEmployeeId = "NV00000002", CheckoutDate = today, RoomCondition = "Phòng sạch, có một khoản vệ sinh cuối kỳ", FinalElectricityReading = 1500 + i, FinalWaterReading = 400 + i, KeysReturned = i >= 4, Note = "Biên bản demo theo trạng thái trả phòng" });
             if (i > 0 && !await db.CheckoutRequests.AnyAsync(x => x.CheckoutRequestId == $"YTPD{i:0000000}")) db.CheckoutRequests.Add(new CheckoutRequest { CheckoutRequestId = $"YTPD{i:0000000}", ContractId = contractId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", ManagerEmployeeId = i >= 2 ? "NV00000002" : null, ReconciliationId = reconciliationId, RequestedCheckoutAt = new DateTime(2026, 8, 10 + i, 9, 0, 0), ConfirmedInspectionAt = i >= 2 ? new DateTime(2026, 8, 10 + i, 10, 0, 0) : null, Reason = "Dữ liệu demo theo trạng thái", Status = checkoutStates[i], CreatedAt = new DateTime(2026, 7, 12, 8 + i, 0, 0, DateTimeKind.Utc) });
             if (i >= 7 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDDTRA{i:000000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDDTRA{i:000000}", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = contractId, ReconciliationId = reconciliationId, InvoiceType = "hoan_coc", DocumentType = "chi", TotalAmount = 4600000, PaymentMethod = "chuyen_khoan", BankName = "Vietcombank", BankAccountNumber = "0123456789", BankAccountHolder = "NGUYEN GIA BAO", CreatedAt = new DateTime(2026, 8, 20, 8, 0, 0, DateTimeKind.Utc), PaidAt = i == 8 ? new DateTime(2026, 8, 20, 10, 0, 0, DateTimeKind.Utc) : null, Status = i == 8 ? "da_thanh_toan" : "cho_thanh_toan", Note = "Hóa đơn hoàn cọc demo theo trạng thái" });

@@ -1411,7 +1411,7 @@ namespace Backend.Migrations
 
                     b.ToTable("hop_dong_thue", null, t =>
                         {
-                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
+                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','cho_xac_nhan_ban_giao','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
                         });
                 });
 
