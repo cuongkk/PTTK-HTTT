@@ -43,7 +43,9 @@ public class AccountantService : IAccountantService
             if (!hasActiveInvoice)
             {
                 var roomName = "Chưa xếp phòng";
-                var firstBed = dep.Beds.FirstOrDefault();
+                decimal monthlyRent = 0;
+                int bedCount = dep.Beds?.Count ?? 0;
+                var firstBed = dep.Beds?.FirstOrDefault();
                 if (firstBed != null)
                 {
                     var bed = await _dbContext.Beds.Include(b => b.Room)
@@ -51,6 +53,7 @@ public class AccountantService : IAccountantService
                     if (bed != null)
                     {
                         roomName = bed.Room.RoomName;
+                        monthlyRent = bed.Room.RoomType == "nguyen_can" ? (bed.Room.RoomPrice ?? 0) : bed.MonthlyRent;
                     }
                 }
 
@@ -60,7 +63,9 @@ public class AccountantService : IAccountantService
                     ContractId = dep.DepositId,
                     CustomerId = dep.Application.CustomerId,
                     CustomerName = dep.Application.Customer.FullName,
-                    RoomName = roomName
+                    RoomName = roomName,
+                    MonthlyRent = monthlyRent,
+                    BedCount = bedCount
                 });
             }
         }
@@ -85,7 +90,9 @@ public class AccountantService : IAccountantService
                     ContractId = c.ContractId,
                     CustomerId = c.CustomerId,
                     CustomerName = c.Customer.FullName,
-                    RoomName = c.Room.RoomName
+                    RoomName = c.Room.RoomName,
+                    MonthlyRent = c.MonthlyRent,
+                    BedCount = c.NumberOfBeds
                 });
             }
         }
@@ -100,6 +107,9 @@ public class AccountantService : IAccountantService
 
         var employeeId = await GetEmployeeIdFromAccountIdAsync(accountantId);
 
+        var now = DateTime.UtcNow;
+        var dueDate = request.DueDate ?? now.AddHours(24);
+
         var invoice = new Invoice
         {
             InvoiceId = IdGenerator.Generate("HD", 12),
@@ -113,19 +123,9 @@ public class AccountantService : IAccountantService
             TotalAmount = request.TotalAmount,
             Status = "cho_thanh_toan",
             BillingPeriod = request.BillingCycle,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             Note = request.Notes
         };
-
-        // Nếu là hóa đơn tiền cọc, tự động cập nhật hạn thanh toán cọc (ngay_lap + 24h)
-        if (request.InvoiceType == "tien_coc" && !string.IsNullOrEmpty(request.DepositId))
-        {
-            var deposit = await _dbContext.DepositSlips.FindAsync(request.DepositId);
-            if (deposit != null)
-            {
-                invoice.Note = (invoice.Note ?? "") + $"\nHạn thanh toán cọc: {deposit.PaymentDueAt:dd/MM/yyyy HH:mm}";
-            }
-        }
 
         await _dbContext.Invoices.AddAsync(invoice);
 
@@ -150,6 +150,9 @@ public class AccountantService : IAccountantService
 
     public async Task<List<InvoiceDto>> GetSentRequestsAsync()
     {
+        // On-demand: kiểm tra và tự động hủy hóa đơn quá hạn 24h
+        await CancelExpiredInvoicesAsync();
+
         var invoices = await _dbContext.Invoices
             .Join(_dbContext.Customers,
                 i => i.CustomerId,
@@ -211,12 +214,76 @@ public class AccountantService : IAccountantService
                 CreatedAt = invoice.CreatedAt,
                 PaidAt = invoice.PaidAt,
                 Status = invoice.Status,
+                DueDate = invoice.CreatedAt.AddHours(24), // Tính toán hạn thanh toán = thời điểm tạo + 24h
                 Notes = invoice.Note,
                 BillingCycle = invoice.BillingPeriod
             });
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Kiểm tra on-demand: tự động hủy các hóa đơn tiền cọc quá hạn 24h và giải phóng giường.
+    /// Chạy mỗi khi Kế toán mở danh sách yêu cầu thanh toán.
+    /// </summary>
+    private async Task CancelExpiredInvoicesAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        var expiredInvoices = await _dbContext.Invoices
+            .Where(i => i.Status == "cho_thanh_toan"
+                     && i.InvoiceType == "tien_coc"
+                     && i.CreatedAt.AddHours(24) < now)
+            .ToListAsync();
+
+        if (expiredInvoices.Count == 0) return;
+
+        foreach (var invoice in expiredInvoices)
+        {
+            invoice.Status = "huy";
+            invoice.Note = (invoice.Note ?? "") + $"\n[Hệ thống] Tự động hủy do quá hạn thanh toán 24h ({now:dd/MM/yyyy HH:mm} UTC).";
+
+            // Giải phóng giường đã cọc
+            if (!string.IsNullOrEmpty(invoice.DepositId))
+            {
+                var deposit = await _dbContext.DepositSlips
+                    .Include(d => d.Beds)
+                    .FirstOrDefaultAsync(d => d.DepositId == invoice.DepositId);
+
+                if (deposit != null)
+                {
+                    deposit.Status = "huy";
+
+                    foreach (var depositBed in deposit.Beds)
+                    {
+                        var bed = await _dbContext.Beds.FindAsync(depositBed.BedId);
+                        if (bed != null && bed.Status == "da_coc")
+                        {
+                            bed.Status = "trong";
+                        }
+                    }
+                }
+            }
+
+            // Gửi thông báo cho khách hàng
+            var customerAccount = await _dbContext.Accounts
+                .FirstOrDefaultAsync(a => a.CustomerId == invoice.CustomerId);
+            if (customerAccount != null)
+            {
+                var notification = new Notification
+                {
+                    NotificationId = IdGenerator.Generate("TB", 12),
+                    SenderAccountId = null,
+                    RecipientAccountId = customerAccount.AccountId,
+                    Title = "Yêu cầu thanh toán đã bị hủy",
+                    Content = $"Yêu cầu thanh toán {invoice.InvoiceId} đã bị tự động hủy do quá hạn 24 giờ. Vui lòng liên hệ kế toán nếu cần hỗ trợ."
+                };
+                await _dbContext.Notifications.AddAsync(notification);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
     }
 
     // ==========================================

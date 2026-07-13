@@ -9,6 +9,8 @@ public class ContractInvoiceInfoDto
     public string CustomerId { get; set; } = default!;
     public string CustomerName { get; set; } = default!;
     public string RoomName { get; set; } = default!;
+    public decimal MonthlyRent { get; set; }
+    public int BedCount { get; set; }
 }
 
 public class CreateInvoiceRequest

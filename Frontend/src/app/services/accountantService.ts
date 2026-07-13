@@ -5,6 +5,8 @@ export interface ContractInvoiceInfo {
   contractId: string;
   customerName: string;
   roomName: string;
+  monthlyRent: number;
+  bedCount: number;
 }
 
 export interface CreateInvoiceRequest {
@@ -36,6 +38,7 @@ export interface Invoice {
   createdAt: string;
   paidAt?: string;
   status: string;
+  dueDate?: string;
   notes?: string;
   billingCycle?: string;
 }
