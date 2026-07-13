@@ -1,62 +1,121 @@
-import { useState } from "react";
-import { Send, User, Home, DollarSign, Calendar, CheckCircle, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Send, User, Home, DollarSign, Search } from "lucide-react";
+import { accountantService, ContractInvoiceInfo, Invoice } from "../../services/accountantService";
+
+function GetInvoiceTypeName(type: string) {
+  switch (type) {
+    case "tien_coc":
+      return "Tiền cọc phòng";
+    case "tien_thue":
+      return "Tiền thuê phòng";
+    case "dich_vu":
+      return "Phí dịch vụ";
+    case "hoan_coc":
+      return "Hoàn tiền cọc";
+    case "thu_them":
+      return "Thu thêm đối soát";
+    default:
+      return type;
+  }
+}
 
 export function PaymentRequests() {
-  const [selectedContract, setSelectedContract] = useState<number | null>(null);
+  const [selectedContract, setSelectedContract] = useState<ContractInvoiceInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pendingContracts, setPendingContracts] = useState<ContractInvoiceInfo[]>([]);
+  const [sentRequests, setSentRequests] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
-    paymentType: "deposit",
+    paymentType: "tien_coc",
     amount: "",
     dueDate: "",
     billingCycle: "",
     notes: "",
   });
 
-  const pendingContracts = [
-    { id: 1, name: "Nguyễn Văn A", room: "Phòng 203 - Tòa A", contractId: "CT-2026-0601" },
-    { id: 2, name: "Trần Thị B", room: "Phòng 102 - Tòa C", contractId: "CT-2026-0604" },
-    { id: 3, name: "Lê Văn C", room: "Phòng 501 - Tòa A", contractId: "CT-2026-0605" },
-  ];
+  async function loadData() {
+    try {
+      const [pending, sent] = await Promise.all([
+        accountantService.getPendingContractsForInvoice(),
+        accountantService.getSentRequests(),
+      ]);
+      setPendingContracts(pending);
+      setSentRequests(sent);
+    } catch (err) {
+      console.error("Lỗi khi tải danh sách yêu cầu thanh toán:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const sentRequests = [
-    {
-      id: 1,
-      customer: "Phạm Thị D",
-      room: "Phòng 305 - Tòa B",
-      type: "Tiền cọc",
-      amount: 8000000,
-      dueDate: "14 Thg 5, 2026",
-      sentDate: "13 Thg 5, 2026",
-      status: "Chờ thanh toán",
-    },
-    {
-      id: 2,
-      customer: "Ngô Văn E",
-      room: "Phòng 404 - Tòa A",
-      type: "Tiền phòng tháng",
-      amount: 2500000,
-      dueDate: "15 Thg 5, 2026",
-      sentDate: "14 Thg 5, 2026",
-      status: "Chờ thanh toán",
-    },
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Đã gửi yêu cầu thanh toán thành công!");
-    setSelectedContract(null);
+    if (!selectedContract) return;
+
+    if (!window.confirm(`Bạn có chắc chắn muốn gửi yêu cầu thanh toán trị giá ${Number(formData.amount).toLocaleString()} VNĐ cho khách hàng ${selectedContract.customerName} không?`)) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const isDeposit = formData.paymentType === "tien_coc";
+      const isRent = formData.paymentType === "tien_thue";
+
+      await accountantService.createInvoiceRequest({
+        customerId: selectedContract.customerId,
+        depositId: isDeposit ? selectedContract.contractId : undefined,
+        contractId: !isDeposit ? selectedContract.contractId : undefined,
+        invoiceType: formData.paymentType,
+        totalAmount: Number(formData.amount),
+        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
+        billingCycle: formData.billingCycle ? `${formData.billingCycle}-01` : undefined,
+        notes: formData.notes,
+      });
+
+      alert("Đã gửi yêu cầu thanh toán thành công!");
+      setSelectedContract(null);
+      setFormData({
+        paymentType: "tien_coc",
+        amount: "",
+        dueDate: "",
+        billingCycle: "",
+        notes: "",
+      });
+      loadData();
+    } catch (err) {
+      console.error("Lỗi khi tạo yêu cầu thanh toán:", err);
+      alert("Đã xảy ra lỗi khi tạo yêu cầu thanh toán.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSelectContract = (contract: ContractInvoiceInfo) => {
+    setSelectedContract(contract);
+    // Tự động gán mặc định loại dựa trên mã
+    const isDeposit = contract.contractId.startsWith("DC") || contract.id.startsWith("DC") || !contract.contractId.includes("HD");
     setFormData({
-      paymentType: "deposit",
+      paymentType: isDeposit ? "tien_coc" : "tien_thue",
       amount: "",
-      dueDate: "",
-      billingCycle: "",
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Hạn thanh toán mặc định 24h sau
+      billingCycle: new Date().toISOString().substring(0, 7), // Tháng hiện tại
       notes: "",
     });
   };
 
-  const handleSelectContract = (id: number) => {
-    setSelectedContract(id);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -64,7 +123,7 @@ export function PaymentRequests() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Yêu cầu thanh toán</h1>
-          <p className="text-gray-600">Gửi yêu cầu thanh toán cho khách</p>
+          <p className="text-gray-600">Gửi yêu cầu thanh toán cho khách hàng</p>
         </div>
       </div>
 
@@ -73,50 +132,57 @@ export function PaymentRequests() {
         {/* Pending Contracts List */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Hợp đồng chờ xử lý</h2>
+            <h2 className="text-xl font-bold text-gray-900 font-sans">Hồ sơ chờ lập hóa đơn</h2>
           </div>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm kiếm theo tên, phòng hoặc mã hợp đồng..."
+              placeholder="Tìm theo tên hoặc số phòng..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
             {pendingContracts
               .filter(
                 (c) =>
-                  c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  c.room.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  c.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  c.roomName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   c.contractId.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map((contract) => (
                 <div
                   key={contract.id}
-                  onClick={() => handleSelectContract(contract.id)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedContract === contract.id
+                  onClick={() => handleSelectContract(contract)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedContract?.id === contract.id
                     ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500"
                     : "border-gray-200 bg-white hover:border-blue-300"
                     }`}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-sm font-bold text-blue-600">{contract.contractId}</span>
+                    <span className="text-sm font-bold text-blue-600">
+                      Mã: {contract.contractId}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-900 font-medium mb-1">
                     <User className="w-4 h-4 text-gray-500" />
-                    {contract.name}
+                    {contract.customerName}
                   </div>
                   <div className="flex items-center gap-2 text-gray-600 text-sm">
                     <Home className="w-4 h-4 text-gray-500" />
-                    {contract.room}
+                    {contract.roomName}
                   </div>
                 </div>
               ))}
+            {pendingContracts.length === 0 && (
+              <div className="p-8 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
+                Không có hồ sơ nào chờ lập hóa đơn.
+              </div>
+            )}
           </div>
         </div>
 
@@ -131,7 +197,7 @@ export function PaymentRequests() {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu thanh toán</h2>
                   <p className="text-sm text-gray-600">
-                    Cho {pendingContracts.find((c) => c.id === selectedContract)?.name}
+                    Gửi cho khách hàng: <span className="font-semibold text-gray-900">{selectedContract.customerName}</span>
                   </p>
                 </div>
               </div>
@@ -146,10 +212,10 @@ export function PaymentRequests() {
                       onChange={(e) => setFormData({ ...formData, paymentType: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     >
-                      <option value="deposit">Tiền cọc</option>
-                      <option value="rent">Tiền phòng tháng</option>
-                      <option value="service">Phí dịch vụ</option>
-                      <option value="utilities">Tiền điện nước</option>
+                      <option value="tien_coc">Tiền cọc phòng</option>
+                      <option value="tien_thue">Tiền thuê phòng tháng</option>
+                      <option value="dich_vu">Phí dịch vụ sinh hoạt</option>
+                      <option value="thu_them">Thu thêm đối soát</option>
                     </select>
                   </div>
 
@@ -158,7 +224,7 @@ export function PaymentRequests() {
                     <input
                       type="number"
                       required
-                      min="0"
+                      min="1"
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -167,7 +233,7 @@ export function PaymentRequests() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Hạn chót</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hạn chót thanh toán</label>
                     <input
                       type="date"
                       required
@@ -177,7 +243,7 @@ export function PaymentRequests() {
                     />
                   </div>
 
-                  {(formData.paymentType === "rent" || formData.paymentType === "utilities") && (
+                  {(formData.paymentType === "tien_thue" || formData.paymentType === "dich_vu") && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">Kỳ thanh toán (Tháng/Năm)</label>
                       <input
@@ -192,14 +258,14 @@ export function PaymentRequests() {
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Ghi chú (Không bắt buộc)
+                      Ghi chú / Nội dung hướng dẫn
                     </label>
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                      placeholder="Thêm ghi chú bất kỳ..."
+                      placeholder="Nhập thông tin hướng dẫn thanh toán cho khách..."
                     />
                   </div>
                 </div>
@@ -207,10 +273,11 @@ export function PaymentRequests() {
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    disabled={submitting}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
-                    Gửi yêu cầu
+                    {submitting ? "Đang xử lý..." : "Gửi yêu cầu thanh toán"}
                   </button>
                 </div>
               </form>
@@ -218,23 +285,23 @@ export function PaymentRequests() {
           ) : (
             <div className="h-full min-h-[300px] flex flex-col items-center justify-center bg-gray-50 rounded-xl border border-gray-200 border-dashed text-gray-500 p-8">
               <Send className="w-12 h-12 mb-4 text-gray-400" />
-              <p className="text-lg font-medium text-gray-900 mb-1">Chưa chọn hợp đồng</p>
+              <p className="text-lg font-medium text-gray-900 mb-1">Chưa chọn hồ sơ</p>
               <p className="text-center max-w-sm">
-                Chọn một hợp đồng chờ xử lý từ danh sách để tạo yêu cầu thanh toán.
+                Hãy chọn một hồ sơ cọc hoặc hợp đồng thuê ở cột bên trái để bắt đầu lập yêu cầu thanh toán.
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Sent Requests */}
+      {/* Sent Requests List */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-8">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Yêu cầu đã gửi</h2>
+          <h2 className="text-xl font-bold text-gray-900">Danh sách yêu cầu thanh toán đã phát hành</h2>
         </div>
         <div className="divide-y divide-gray-200">
           {sentRequests.map((request) => (
-            <div key={request.id} className="p-6 hover:bg-gray-50 transition-colors">
+            <div key={request.invoiceId} className="p-6 hover:bg-gray-50 transition-colors">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start gap-3 mb-3">
@@ -242,37 +309,42 @@ export function PaymentRequests() {
                       <DollarSign className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900 mb-1">{request.customer}</h3>
-                      <p className="text-sm text-gray-600">{request.room}</p>
+                      <h3 className="font-bold text-gray-900 mb-1">
+                        <span className="font-mono mr-2">{request.invoiceId}</span> — {request.customerName}
+                      </h3>
+                      <p className="text-sm text-gray-600">{request.roomName}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm ml-0 lg:ml-15 mt-2 lg:mt-0">
                     <div>
-                      <p className="text-gray-600">Loại</p>
-                      <p className="font-medium text-gray-900">{request.type}</p>
+                      <p className="text-gray-600">Loại khoản thu</p>
+                      <p className="font-medium text-gray-900">{GetInvoiceTypeName(request.invoiceType)}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Số tiền</p>
-                      <p className="font-medium text-gray-900">{request.amount.toLocaleString()} VNĐ</p>
+                      <p className="font-medium text-gray-900">{request.totalAmount.toLocaleString()} VNĐ</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Hạn chót</p>
-                      <p className="font-medium text-gray-900">{request.dueDate}</p>
+                      <p className="text-gray-600">Ngày lập</p>
+                      <p className="font-medium text-gray-900">{new Date(request.createdAt).toLocaleDateString("vi-VN")}</p>
                     </div>
                     <div>
-                      <p className="text-gray-600">Ngày gửi</p>
-                      <p className="font-medium text-gray-900">{request.sentDate}</p>
+                      <p className="text-gray-600">Trạng thái</p>
+                      <span className={`px-2 py-0.5 inline-block text-xs font-semibold rounded-full ${
+                        request.status === "da_thanh_toan" ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"
+                      }`}>
+                        {request.status === "da_thanh_toan" ? "Đã thanh toán" : "Chờ thanh toán"}
+                      </span>
                     </div>
                   </div>
                 </div>
-
-                <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-medium rounded-full self-start lg:self-auto">
-                  {request.status}
-                </span>
               </div>
             </div>
           ))}
+          {sentRequests.length === 0 && (
+            <div className="p-8 text-center text-gray-500">Chưa có yêu cầu thanh toán nào được phát hành.</div>
+          )}
         </div>
       </div>
     </div>

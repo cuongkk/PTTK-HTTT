@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   DollarSign,
@@ -5,73 +6,112 @@ import {
   CheckCircle,
   RefreshCcw,
   TrendingUp,
-  AlertCircle,
   FileText,
-  Calendar,
   Calculator,
 } from "lucide-react";
+import { accountantService, Invoice } from "../../services/accountantService";
+
+function GetInvoiceTypeName(type: string) {
+  switch (type) {
+    case "tien_coc":
+      return "Tiền cọc phòng";
+    case "tien_thue":
+      return "Tiền thuê phòng";
+    case "dich_vu":
+      return "Phí dịch vụ";
+    case "hoan_coc":
+      return "Hoàn tiền cọc";
+    case "thu_them":
+      return "Thu thêm đối soát";
+    default:
+      return type;
+  }
+}
 
 export function AccountantDashboard() {
-  const stats = [
-    { label: "Chờ xác nhận thanh toán", value: "52.000.000 VNĐ", icon: Clock, color: "orange", count: "8" },
-    { label: "Tổng nợ chưa thu", value: "34.000.000 VNĐ", icon: FileText, color: "blue", count: "5" },
-    { label: "Yêu cầu hoàn tiền", value: "12.000.000 VNĐ", icon: RefreshCcw, color: "purple", count: "3" },
-    { label: "Doanh thu tháng", value: "245.000.000 VNĐ", icon: TrendingUp, color: "green", trend: "+12%" },
-  ];
+  const [pendingPayments, setPendingPayments] = useState<Invoice[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState([
+    { label: "Chờ xác nhận thanh toán", value: "0 VNĐ", icon: Clock, color: "orange", count: "0" },
+    { label: "Tổng nợ chưa thu", value: "0 VNĐ", icon: FileText, color: "blue", count: "0" },
+    { label: "Yêu cầu hoàn tiền", value: "0 VNĐ", icon: RefreshCcw, color: "purple", count: "0" },
+    { label: "Doanh thu", value: "0 VNĐ", icon: TrendingUp, color: "green", trend: undefined },
+  ]);
 
-  const pendingPayments = [
-    {
-      id: 1,
-      customer: "Nguyễn Văn A",
-      type: "Tiền phòng tháng",
-      amount: 4000000,
-      dueDate: "20 Thg 5, 2026",
-      status: "Chờ xác nhận",
-    },
-    {
-      id: 2,
-      customer: "Trần Thị B",
-      type: "Tiền cọc",
-      amount: 8000000,
-      dueDate: "25 Thg 5, 2026",
-      status: "Chờ xác nhận",
-    },
-    {
-      id: 3,
-      customer: "Lê Văn C",
-      type: "Phí dịch vụ",
-      amount: 500000,
-      dueDate: "18 Thg 5, 2026",
-      status: "Quá hạn",
-    },
-  ];
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [pending, allInvoices] = await Promise.all([
+          accountantService.getPendingConfirmations(),
+          accountantService.getSentRequests(),
+        ]);
 
-  const recentTransactions = [
-    {
-      id: 1,
-      type: "Đã nhận thanh toán",
-      customer: "Phạm Thị D",
-      amount: 4000000,
-      date: "14 Thg 5, 2026",
-      time: "10:30 SA",
-    },
-    {
-      id: 2,
-      type: "Đã xử lý hoàn tiền",
-      customer: "Hoàng Văn E",
-      amount: -6000000,
-      date: "13 Thg 5, 2026",
-      time: "15:45",
-    },
-    {
-      id: 3,
-      type: "Đã nhận thanh toán",
-      customer: "Ngô Thị F",
-      amount: 3000000,
-      date: "13 Thg 5, 2026",
-      time: "11:20 SA",
-    },
-  ];
+        setPendingPayments(pending.slice(0, 5));
+        setRecentTransactions(allInvoices.filter(i => i.status === "da_thanh_toan").slice(0, 5));
+
+        // Calculate stats
+        const pendingAmount = pending.reduce((sum, p) => sum + p.totalAmount, 0);
+        const unpaidInvoices = allInvoices.filter(i => i.status === "cho_thanh_toan" && i.documentType !== "chi" && i.invoiceType !== "hoan_coc");
+        const unpaidAmount = unpaidInvoices.reduce((sum, i) => sum + i.totalAmount, 0);
+        
+        const refundInvoices = allInvoices.filter(i => i.invoiceType === "hoan_coc" || i.documentType === "chi");
+        const refundAmount = refundInvoices.reduce((sum, i) => sum + i.totalAmount, 0);
+
+        const paidInvoices = allInvoices.filter(i => i.status === "da_thanh_toan");
+        const monthlyRevenue = paidInvoices.reduce((sum, i) => {
+          if (i.documentType === "chi" || i.invoiceType === "hoan_coc") {
+            return sum - i.totalAmount;
+          }
+          return sum + i.totalAmount;
+        }, 0);
+
+        setStats([
+          {
+            label: "Chờ xác nhận thanh toán",
+            value: `${pendingAmount.toLocaleString()} VNĐ`,
+            icon: Clock,
+            color: "orange",
+            count: pending.length.toString(),
+          },
+          {
+            label: "Tổng nợ chưa thu",
+            value: `${unpaidAmount.toLocaleString()} VNĐ`,
+            icon: FileText,
+            color: "blue",
+            count: unpaidInvoices.length.toString(),
+          },
+          {
+            label: "Yêu cầu hoàn tiền",
+            value: `${refundAmount.toLocaleString()} VNĐ`,
+            icon: RefreshCcw,
+            color: "purple",
+            count: refundInvoices.length.toString(),
+          },
+          {
+            label: "Doanh thu",
+            value: `${monthlyRevenue.toLocaleString()} VNĐ`,
+            icon: TrendingUp,
+            color: "green",
+            trend: paidInvoices.length > 0 ? `+${paidInvoices.filter(i => i.documentType !== "chi").length} gd` : undefined,
+          },
+        ]);
+      } catch (err) {
+        console.error("Lỗi khi tải dữ liệu dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -160,27 +200,27 @@ export function AccountantDashboard() {
           </div>
           <div className="divide-y divide-gray-200">
             {pendingPayments.map((payment) => (
-              <div key={payment.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div key={payment.invoiceId} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{payment.customer}</h3>
-                    <p className="text-sm text-gray-600">{payment.type}</p>
+                    <h3 className="font-semibold text-gray-900">
+                      <span className="font-mono mr-2">{payment.invoiceId}</span> — {payment.customerName}
+                    </h3>
+                    <p className="text-sm text-gray-600">{GetInvoiceTypeName(payment.invoiceType)}</p>
                   </div>
-                  <span
-                    className={`px-3 py-1 text-xs font-medium rounded-full ${payment.status === "Overdue"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-orange-100 text-orange-700"
-                      }`}
-                  >
-                    {payment.status}
+                  <span className="px-3 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-700">
+                    Chờ xác nhận
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-900">{payment.amount.toLocaleString()} VNĐ</span>
-                  <span className="text-gray-600">Hạn chót: {payment.dueDate}</span>
+                  <span className="font-medium text-gray-900">{payment.totalAmount.toLocaleString()} VNĐ</span>
+                  <span className="text-gray-600">Ngày lập: {new Date(payment.createdAt).toLocaleDateString("vi-VN")}</span>
                 </div>
               </div>
             ))}
+            {pendingPayments.length === 0 && (
+              <div className="p-8 text-center text-gray-500">Không có khoản thanh toán nào chờ duyệt.</div>
+            )}
           </div>
           <div className="p-4 border-t border-gray-200">
             <Link
@@ -199,38 +239,46 @@ export function AccountantDashboard() {
           </div>
           <div className="divide-y divide-gray-200">
             {recentTransactions.map((txn) => (
-              <div key={txn.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div key={txn.invoiceId} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start gap-3">
                   <div
-                    className={`p-2 rounded-lg ${txn.amount > 0 ? "bg-green-100" : "bg-red-100"
+                    className={`p-2 rounded-lg ${txn.documentType === "thu" ? "bg-green-100" : "bg-red-100"
                       }`}
                   >
                     <DollarSign
-                      className={`w-5 h-5 ${txn.amount > 0 ? "text-green-600" : "text-red-600"
+                      className={`w-5 h-5 ${txn.documentType === "thu" ? "text-green-600" : "text-red-600"
                         }`}
                     />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-start justify-between mb-1">
-                      <h3 className="font-semibold text-gray-900">{txn.type}</h3>
+                      <h3 className="font-semibold text-gray-900">
+                        {txn.documentType === "thu" ? "Đã nhận thanh toán" : "Đã xử lý hoàn tiền"}
+                      </h3>
                       <span
-                        className={`font-bold ${txn.amount > 0 ? "text-green-600" : "text-red-600"
+                        className={`font-bold ${txn.documentType === "thu" ? "text-green-600" : "text-red-600"
                           }`}
                       >
-                        {txn.amount > 0 ? "+" : ""}{Math.abs(txn.amount).toLocaleString()} VNĐ
+                        {txn.documentType === "thu" ? "+" : "-"}{txn.totalAmount.toLocaleString()} VNĐ
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">{txn.customer}</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-mono mr-2">{txn.invoiceId}</span> — {txn.customerName} ({txn.roomName})
+                    </p>
                     <p className="text-xs text-gray-500">
-                      {txn.date} lúc {txn.time}
+                      {new Date(txn.createdAt).toLocaleDateString("vi-VN")} lúc {new Date(txn.createdAt).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
               </div>
             ))}
+            {recentTransactions.length === 0 && (
+              <div className="p-8 text-center text-gray-500">Chưa có giao dịch nào được ghi nhận.</div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+

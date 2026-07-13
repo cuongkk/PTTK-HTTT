@@ -82,6 +82,7 @@ builder.Services.AddScoped<IBedCatalogService, BedCatalogService>();
 builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
 builder.Services.AddScoped<ICustomerWorkflowService, CustomerWorkflowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAccountantService, AccountantService>();
 
 var app = builder.Build();
 
