@@ -35,6 +35,7 @@ import {
 } from "../ui/select";
 import { ApiError } from "../../services/apiClient";
 import { serviceCatalogService, type ServiceItem } from "../../services/system-admin/serviceCatalogService";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const SERVICE_TYPE_OPTIONS = [
   { value: "dien", label: "Điện" },
@@ -62,6 +63,7 @@ export function ServiceCatalog() {
   const [deleteTarget, setDeleteTarget] = useState<ServiceItem | null>(null);
 
   const [newService, setNewService] = useState(emptyNewService);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
   const [editService, setEditService] = useState({
     serviceName: "",
     serviceType: "dien",
@@ -113,26 +115,32 @@ export function ServiceCatalog() {
       toast.error("Đơn giá không được âm.");
       return;
     }
-    if (!window.confirm(`Xác nhận tạo dịch vụ "${newService.serviceName}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      await serviceCatalogService.create({
-        serviceName: newService.serviceName,
-        serviceType: newService.serviceType,
-        unit: newService.unit,
-        unitPrice: Number(newService.unitPrice) || 0,
-        description: newService.description || undefined,
-      });
-      toast.success("Đã thêm dịch vụ mới.");
-      setIsAddDialogOpen(false);
-      setNewService(emptyNewService);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Tạo dịch vụ thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Tạo dịch vụ",
+      message: `Xác nhận tạo dịch vụ "${newService.serviceName}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          await serviceCatalogService.create({
+            serviceName: newService.serviceName,
+            serviceType: newService.serviceType,
+            unit: newService.unit,
+            unitPrice: Number(newService.unitPrice) || 0,
+            description: newService.description || undefined,
+          });
+          toast.success("Đã thêm dịch vụ mới.");
+          setIsAddDialogOpen(false);
+          setNewService(emptyNewService);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Tạo dịch vụ thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleUpdateSubmit = async () => {
@@ -141,26 +149,32 @@ export function ServiceCatalog() {
       toast.error("Đơn giá không được âm.");
       return;
     }
-    if (!window.confirm(`Xác nhận cập nhật dịch vụ "${currentService.serviceName}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      await serviceCatalogService.update(currentService.serviceId, {
-        serviceName: editService.serviceName,
-        serviceType: editService.serviceType,
-        unit: editService.unit,
-        unitPrice: Number(editService.unitPrice) || 0,
-        description: editService.description || undefined,
-        isActive: editService.isActive,
-      });
-      toast.success("Đã cập nhật dịch vụ.");
-      setIsEditDialogOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Cập nhật dịch vụ thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Cập nhật dịch vụ",
+      message: `Xác nhận cập nhật dịch vụ "${currentService.serviceName}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          await serviceCatalogService.update(currentService.serviceId, {
+            serviceName: editService.serviceName,
+            serviceType: editService.serviceType,
+            unit: editService.unit,
+            unitPrice: Number(editService.unitPrice) || 0,
+            description: editService.description || undefined,
+            isActive: editService.isActive,
+          });
+          toast.success("Đã cập nhật dịch vụ.");
+          setIsEditDialogOpen(false);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Cập nhật dịch vụ thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleConfirmDelete = async () => {
@@ -452,6 +466,15 @@ export function ServiceCatalog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="info"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

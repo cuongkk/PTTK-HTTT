@@ -1,46 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { FileText, ArrowLeft, CheckCircle, AlertCircle, Sparkles, Search } from "lucide-react";
-
-interface DepositContract {
-  id: number;
-  contractId: string;
-  type: "deposit";
-  customer: string;
-  phone: string;
-  room: string;
-  area: string;
-  depositAmount: number;
-  holdUntil: string;
-  status: "Chờ thanh toán cọc" | "Đã đặt cọc" | "Hủy";
-  createdDate: string;
-}
-
-interface RentalContract {
-  id: number;
-  contractId: string;
-  type: "rental";
-  customer: string;
-  phone: string;
-  room: string;
-  moveInDate: string;
-  duration: number;
-  monthlyRent: number;
-  services: string[];
-  paymentCycle: string;
-  depositRef: string;
-  status: "Hiệu lực" | "Chờ nhận phòng" | "Đã kết thúc" | "Chờ trả phòng";
-  createdDate: string;
-}
-
-const INITIAL_DEPOSITS: DepositContract[] = [
-  { id: 1, contractId: "HDC-2026-001", type: "deposit", customer: "Nguyễn Văn B", phone: "0901234567", room: "Phòng 201 – Tòa A", area: "Khu A", depositAmount: 1800000, holdUntil: "30/05/2026", status: "Đã đặt cọc", createdDate: "14/05/2026" },
-  { id: 2, contractId: "HDC-2026-002", type: "deposit", customer: "Trần Thị C", phone: "0912345678", room: "Phòng 305 – Tòa B", area: "Khu B", depositAmount: 2400000, holdUntil: "01/06/2026", status: "Chờ thanh toán cọc", createdDate: "15/05/2026" },
-];
-
-const INITIAL_RENTALS: RentalContract[] = [
-  { id: 1, contractId: "HDT-2026-001", type: "rental", customer: "Nguyễn Văn A", phone: "0934567890", room: "Phòng 102 – Tòa C", moveInDate: "15/01/2026", duration: 12, monthlyRent: 2000000, services: ["Điện", "Nước", "Internet"], paymentCycle: "Hàng tháng", depositRef: "HDC-2025-011", status: "Hiệu lực", createdDate: "10/01/2026" },
-];
+import { salesApi } from "../../services/sales/salesApi";
+import { toast } from "sonner";
 
 export function CreateRentalContract() {
   const navigate = useNavigate();
@@ -51,11 +13,12 @@ export function CreateRentalContract() {
     customer: "",
     phone: "",
     room: "",
+    roomId: "",
     moveInDate: "",
     duration: "12",
     monthlyRent: "",
     paymentCycle: "Hàng tháng",
-    services: "",
+    services: "Điện, Nước, Internet",
   });
   const [showPreview, setShowPreview] = useState(false);
 
@@ -67,83 +30,80 @@ export function CreateRentalContract() {
     const depositRef = params.get("depositRef");
     if (depositRef) {
       rf("depositRef", depositRef);
-      const saved = localStorage.getItem("roommanager_deposits");
-      const currentDeposits: DepositContract[] = saved ? JSON.parse(saved) : INITIAL_DEPOSITS;
-      const found = currentDeposits.find(
-        (d) => d.contractId.toLowerCase() === depositRef.toLowerCase()
-      );
-      if (found) {
-        setRentalForm((prev) => ({
-          ...prev,
-          depositRef: found.contractId,
-          customer: found.customer,
-          phone: found.phone,
-          room: found.room,
-          monthlyRent: found.depositAmount.toString(),
-        }));
-      }
+      salesApi.getDepositSlips()
+        .then((slips) => {
+          const found = slips.find(
+            (d) => d.depositId.toLowerCase() === depositRef.toLowerCase()
+          );
+          if (found) {
+            setRentalForm((prev) => ({
+              ...prev,
+              depositRef: found.depositId,
+              customer: found.customerName,
+              phone: found.phoneNumber,
+              room: found.roomName,
+              monthlyRent: found.depositAmount.toString(),
+              moveInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            }));
+          }
+        })
+        .catch(console.error);
     }
   }, [location.search]);
 
   // Search deposit contract manually
-  const handleSearchDeposit = () => {
+  const handleSearchDeposit = async () => {
     if (!rentalForm.depositRef.trim()) {
-      alert("Vui lòng nhập mã hợp đồng cọc để tra cứu.");
+      toast.warning("Vui lòng nhập mã hợp đồng cọc để tra cứu.");
       return;
     }
-    const saved = localStorage.getItem("roommanager_deposits");
-    const currentDeposits: DepositContract[] = saved ? JSON.parse(saved) : INITIAL_DEPOSITS;
-    const found = currentDeposits.find(
-      (d) => d.contractId.toLowerCase() === rentalForm.depositRef.trim().toLowerCase()
-    );
+    try {
+      const slips = await salesApi.getDepositSlips();
+      const found = slips.find(
+        (d) => d.depositId.toLowerCase() === rentalForm.depositRef.trim().toLowerCase()
+      );
 
-    if (found) {
-      setRentalForm((prev) => ({
-        ...prev,
-        customer: found.customer,
-        phone: found.phone,
-        room: found.room,
-        monthlyRent: found.depositAmount.toString(),
-      }));
-      alert(`Đã tìm thấy hợp đồng cọc ${found.contractId} và tự động điền thông tin!`);
-    } else {
-      alert("Không tìm thấy hợp đồng đặt cọc tương ứng. Vui lòng kiểm tra lại mã.");
+      if (found) {
+        setRentalForm((prev) => ({
+          ...prev,
+          customer: found.customerName,
+          phone: found.phoneNumber,
+          room: found.roomName,
+          monthlyRent: found.depositAmount.toString(),
+          moveInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        }));
+        toast.success(`Đã tìm thấy hợp đồng cọc ${found.depositId} và tự động điền thông tin!`);
+      } else {
+        toast.error("Không tìm thấy hợp đồng đặt cọc tương ứng hoặc trạng thái chưa được kế toán xác nhận.");
+      }
+    } catch (err) {
+      toast.error("Lỗi khi tra cứu hợp đồng cọc.");
     }
   };
 
-  const handleCreateRental = () => {
-    const { customer, phone, room, moveInDate, duration, monthlyRent, depositRef } = rentalForm;
-    if (!customer || !phone || !room || !moveInDate || !monthlyRent || !depositRef) {
-      alert("Vui lòng điền đủ thông tin bắt buộc.");
+  const handleCreateRental = async () => {
+    const { depositRef, moveInDate, duration, monthlyRent, paymentCycle, services } = rentalForm;
+    if (!depositRef || !moveInDate || !monthlyRent) {
+      toast.warning("Vui lòng điền đủ thông tin bắt buộc.");
       return;
     }
 
-    // Load existing rental contracts from localStorage
-    const savedRentals = localStorage.getItem("roommanager_rentals");
-    const currentRentals: RentalContract[] = savedRentals ? JSON.parse(savedRentals) : INITIAL_RENTALS;
+    try {
+      const result = await salesApi.createRentalContract({
+        depositId: depositRef,
+        roomId: "", // resolved by backend automatically
+        moveInDate: new Date(moveInDate).toISOString(),
+        durationMonths: parseInt(duration),
+        monthlyRent: parseInt(monthlyRent),
+        paymentCycle,
+        services: services ? services.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      });
 
-    const newContract: RentalContract = {
-      id: currentRentals.length + 1,
-      contractId: `HDT-2026-${String(currentRentals.length + 1).padStart(3, "0")}`,
-      type: "rental",
-      customer,
-      phone,
-      room,
-      moveInDate,
-      duration: parseInt(duration),
-      monthlyRent: parseInt(monthlyRent),
-      services: rentalForm.services ? rentalForm.services.split(",").map((s) => s.trim()) : [],
-      paymentCycle: rentalForm.paymentCycle,
-      depositRef,
-      status: "Chờ nhận phòng",
-      createdDate: new Date().toLocaleDateString("vi-VN"),
-    };
-
-    const updatedRentals = [newContract, ...currentRentals];
-    localStorage.setItem("roommanager_rentals", JSON.stringify(updatedRentals));
-
-    alert(`Đã lập hợp đồng thuê ${newContract.contractId} thành công!\nThông tin đã được chuyển sang Kế toán để tính khoản thu nhận phòng đầu kỳ.`);
-    navigate("/sales/contracts");
+      toast.success(`Đã lập hợp đồng thuê ${result.contractId} thành công!\nThông tin đã được chuyển sang Kế toán để tính khoản thu nhận phòng đầu kỳ.`);
+      navigate("/sales/contracts");
+    } catch (err) {
+      toast.error("Lập hợp đồng thuê thất bại.");
+    }
   };
 
   return (
@@ -204,7 +164,7 @@ export function CreateRentalContract() {
               </button>
               <button
                 onClick={handleCreateRental}
-                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 animate-pulse"
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-4 h-4" /> Xác nhận ký hợp đồng
               </button>
@@ -223,7 +183,7 @@ export function CreateRentalContract() {
                 <input
                   value={rentalForm.depositRef}
                   onChange={(e) => rf("depositRef", e.target.value)}
-                  placeholder="Nhập mã đặt cọc (Vd: HDC-2026-001)"
+                  placeholder="Nhập mã đặt cọc (Vd: DCxxxxxxxxxx)"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
                 <button
@@ -250,41 +210,40 @@ export function CreateRentalContract() {
                 <input
                   value={rentalForm.customer}
                   onChange={(e) => rf("customer", e.target.value)}
-                  placeholder="Họ tên tự động hoặc tự nhập"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Họ tên khách thuê"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                  disabled
                 />
               </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại <span className="text-red-500">*</span>
-                </label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
                 <input
                   value={rentalForm.phone}
                   onChange={(e) => rf("phone", e.target.value)}
                   placeholder="Số điện thoại"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phòng thuê</label>
+                <input
+                  value={rentalForm.room}
+                  onChange={(e) => rf("room", e.target.value)}
+                  placeholder="Phòng thuê"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                  disabled
                 />
               </div>
             </div>
 
             <p className="text-xs text-gray-500 font-bold uppercase tracking-wide border-b pb-1 pt-2">
-              Thông tin hợp đồng thuê
+              Điều khoản thuê
             </p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phòng/giường <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={rentalForm.room}
-                  onChange={(e) => rf("room", e.target.value)}
-                  placeholder="Vd: Phòng 201 – Tòa A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày vào ở <span className="text-red-500">*</span>
+                  Ngày bắt đầu nhận phòng <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -294,13 +253,12 @@ export function CreateRentalContract() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thời hạn thuê</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Thời hạn hợp đồng</label>
                 <select
                   value={rentalForm.duration}
                   onChange={(e) => rf("duration", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
-                  <option value="3">3 tháng</option>
                   <option value="6">6 tháng</option>
                   <option value="12">12 tháng</option>
                   <option value="24">24 tháng</option>
@@ -308,7 +266,7 @@ export function CreateRentalContract() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tiền thuê/tháng (VNĐ) <span className="text-red-500">*</span>
+                  Giá thuê hàng tháng (VNĐ) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -326,29 +284,19 @@ export function CreateRentalContract() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 >
                   <option>Hàng tháng</option>
-                  <option>Hàng quý</option>
-                  <option>6 tháng/lần</option>
+                  <option>Mỗi 3 tháng</option>
+                  <option>Mỗi 6 tháng</option>
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dịch vụ đi kèm (phân cách bằng dấu phẩy)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Các dịch vụ đi kèm (cách nhau bằng dấu phẩy)</label>
                 <input
                   value={rentalForm.services}
                   onChange={(e) => rf("services", e.target.value)}
-                  placeholder="Điện, Nước, Internet, Vệ sinh, Gửi xe..."
+                  placeholder="Điện, Nước, Internet, Giặt ủi"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
-            </div>
-
-            <div className="p-3.5 bg-blue-50 rounded-xl text-xs text-blue-700 border border-blue-100 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-              <span>
-                Sau khi lập hợp đồng thuê, thông tin sẽ được{" "}
-                <strong>tự động gửi sang Kế toán</strong> để tính toán khoản tiền thu nhận phòng đầu kỳ.
-              </span>
             </div>
 
             <div className="flex gap-3 pt-3 border-t">
@@ -364,7 +312,7 @@ export function CreateRentalContract() {
                 onClick={() => {
                   const { customer, phone, room, moveInDate, monthlyRent, depositRef } = rentalForm;
                   if (!customer || !phone || !room || !moveInDate || !monthlyRent || !depositRef) {
-                    alert("Vui lòng điền đủ thông tin bắt buộc.");
+                    toast.warning("Vui lòng điền đủ thông tin bắt buộc.");
                     return;
                   }
                   setShowPreview(true);
