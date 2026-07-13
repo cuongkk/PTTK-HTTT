@@ -38,4 +38,7 @@ public class CustomerWorkflowController : ControllerBase
 
     [HttpGet("rooms/{roomId}/context")]
     public async Task<ActionResult<CustomerRoomContextDto>> GetRoomContext(string roomId) => Ok(await _service.GetRoomContextAsync(User.GetAccountId(), roomId));
+
+    [HttpGet("payments")]
+    public async Task<ActionResult<List<CustomerPaymentDto>>> GetPayments() => Ok(await _service.GetPaymentsAsync(User.GetAccountId()));
 }

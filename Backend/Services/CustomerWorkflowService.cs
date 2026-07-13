@@ -17,6 +17,7 @@ public interface ICustomerWorkflowService
     Task<CustomerContractDetailDto> GetContractDetailAsync(string accountId, string roomId);
     Task<CustomerCheckoutDetailDto> GetCheckoutDetailAsync(string accountId, string roomId);
     Task<CustomerRoomContextDto> GetRoomContextAsync(string accountId, string roomId);
+    Task<List<CustomerPaymentDto>> GetPaymentsAsync(string accountId);
 }
 
 public class CustomerWorkflowService : ICustomerWorkflowService
@@ -182,6 +183,29 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             : deposit is not null ? await _db.Invoices.Where(x => x.DepositId == deposit.DepositId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync() : null;
         var members = application is null ? new List<CustomerTenantDto>() : await _db.TenantMembers.Where(x => x.ApplicationId == application.ApplicationId).Select(x => new CustomerTenantDto(x.FullName, x.Gender, x.Nationality, x.DateOfBirth, x.NationalId, x.DocumentImageUrl, x.PermanentAddress, x.OccupationOrSchool)).ToListAsync();
         return new CustomerRoomContextDto(room.RoomId, room.RoomName, branch.BranchName, room.RoomType, room.RoomPrice ?? 0, room.Status, customer.FullName, customer.PhoneNumber, customer.Email, customer.NationalId, customer.Gender, customer.Nationality, customer.DateOfBirth, customer.Address, application?.ApplicationId, application?.Status, application?.NumberOfPeople, application?.ExpectedMoveInDate, application?.ExpectedRentalMonths, deposit?.DepositId, deposit?.Status, deposit?.DepositAmount, contract?.ContractId, contract?.Status, invoice?.InvoiceId, invoice?.Status, invoice?.TotalAmount, members);
+    }
+
+    public async Task<List<CustomerPaymentDto>> GetPaymentsAsync(string accountId)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        var invoices = await _db.Invoices.Where(x => x.CustomerId == customerId).OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var result = new List<CustomerPaymentDto>();
+        foreach (var invoice in invoices)
+        {
+            string? roomId = null;
+            if (invoice.ContractId is not null) roomId = await _db.RentalContracts.Where(x => x.ContractId == invoice.ContractId).Select(x => x.RoomId).FirstOrDefaultAsync();
+            if (roomId is null && invoice.DepositId is not null)
+            {
+                var applicationId = await _db.DepositSlips.Where(x => x.DepositId == invoice.DepositId).Select(x => x.ApplicationId).FirstOrDefaultAsync();
+                roomId = await (from schedule in _db.RoomViewingSchedules join link in _db.RoomViewingScheduleRooms on schedule.ScheduleId equals link.ScheduleId where schedule.ApplicationId == applicationId select link.RoomId).FirstOrDefaultAsync();
+            }
+            if (roomId is null) continue;
+            if (roomId is not ("PHONG_10" or "PHONG_16" or "PHONG_38")) continue;
+            var roomName = await _db.Rooms.Where(x => x.RoomId == roomId).Select(x => x.RoomName).FirstAsync();
+            var type = invoice.InvoiceType switch { "tien_coc" => "Tiền cọc", "tien_thue" => "Khoản nhận phòng", "thu_them" => "Khoản phát sinh", "hoan_coc" => "Hoàn cọc", _ => "Thanh toán dịch vụ" };
+            result.Add(new CustomerPaymentDto(invoice.InvoiceId, type, roomId, roomName, invoice.TotalAmount, invoice.CreatedAt, invoice.PaidAt, invoice.Status, invoice.PaymentMethod, invoice.BankName ?? "Vietcombank", invoice.BankAccountNumber ?? "0123456789", invoice.BankAccountHolder ?? "HOMESTAY DORM", $"{invoice.InvoiceType.ToUpperInvariant()} {roomId}", invoice.ProofImageUrl));
+        }
+        return result;
     }
 
     private async Task<string> GetCustomerIdAsync(string accountId) =>
