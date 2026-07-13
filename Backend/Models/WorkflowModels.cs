@@ -18,6 +18,7 @@ public class RentalApplication
     public DateOnly? ExpectedMoveInDate { get; set; }
     public short? ExpectedRentalMonths { get; set; }
     public string? DesiredArea { get; set; }
+    public string? DesiredRoomId { get; set; }
     public string? DesiredRoomType { get; set; }
     public decimal? MinimumPrice { get; set; }
     public decimal? MaximumPrice { get; set; }
@@ -31,6 +32,7 @@ public class RentalApplication
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public Customer Customer { get; set; } = null!;
     public Employee? SalesEmployee { get; set; }
+    public Room? DesiredRoom { get; set; }
     public ICollection<RoomViewingSchedule> RoomViewingSchedules { get; set; } = new List<RoomViewingSchedule>();
     public ICollection<DepositSlip> DepositSlips { get; set; } = new List<DepositSlip>();
     public ICollection<TenantMember> TenantMembers { get; set; } = new List<TenantMember>();

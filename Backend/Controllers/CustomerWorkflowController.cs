@@ -15,6 +15,10 @@ public class CustomerWorkflowController : ControllerBase
     private readonly ICustomerWorkflowService _service;
     public CustomerWorkflowController(ICustomerWorkflowService service) => _service = service;
 
+    [HttpPost("rental-applications")]
+    public async Task<ActionResult<CreateCustomerRentalApplicationResponse>> CreateRentalApplication(CreateCustomerRentalApplicationRequest request) =>
+        Ok(await _service.CreateRentalApplicationAsync(User.GetAccountId(), request));
+
     [HttpGet("viewed-rooms")]
     public async Task<ActionResult<List<ViewedRoomDto>>> GetViewedRooms() => Ok(await _service.GetViewedRoomsAsync(User.GetAccountId()));
 
@@ -38,4 +42,7 @@ public class CustomerWorkflowController : ControllerBase
 
     [HttpGet("rooms/{roomId}/context")]
     public async Task<ActionResult<CustomerRoomContextDto>> GetRoomContext(string roomId) => Ok(await _service.GetRoomContextAsync(User.GetAccountId(), roomId));
+
+    [HttpGet("payments")]
+    public async Task<ActionResult<List<CustomerPaymentDto>>> GetPayments() => Ok(await _service.GetPaymentsAsync(User.GetAccountId()));
 }
