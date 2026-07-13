@@ -227,7 +227,6 @@ public class AccountantService : IAccountantService
     {
         var query = await _dbContext.Invoices
             .Where(i => i.Status == "cho_thanh_toan" && (!string.IsNullOrEmpty(i.ProofImageUrl) || i.PaymentMethod == "tien_mat"))
-            .Where(i => i.InvoiceType != "tien_coc")
             .Join(_dbContext.Customers,
                 i => i.CustomerId,
                 c => c.CustomerId,
@@ -311,6 +310,7 @@ public class AccountantService : IAccountantService
         if (invoice.InvoiceType == "tien_coc" && !string.IsNullOrEmpty(invoice.DepositId))
         {
             var deposit = await _dbContext.DepositSlips
+                .Include(d => d.Application)
                 .Include(d => d.Beds)
                 .FirstOrDefaultAsync(d => d.DepositId == invoice.DepositId);
 
@@ -318,6 +318,7 @@ public class AccountantService : IAccountantService
             {
                 deposit.Status = "hoan_thanh";
                 deposit.PaidAt = DateTime.UtcNow;
+                deposit.Application.Status = "da_dat_coc";
 
                 // Khóa trạng thái giường sang 'da_dat_coc'
                 var bedIds = deposit.Beds.Select(b => b.BedId).ToList();
@@ -326,6 +327,14 @@ public class AccountantService : IAccountantService
                 {
                     bed.Status = "da_dat_coc";
                     bed.UpdatedAt = DateTime.UtcNow;
+                }
+
+                var roomIds = beds.Select(b => b.RoomId).Distinct().ToList();
+                var rooms = await _dbContext.Rooms.Where(r => roomIds.Contains(r.RoomId)).ToListAsync();
+                foreach (var room in rooms.Where(r => r.RoomType == RoomType.Whole))
+                {
+                    room.Status = "da_dat_coc";
+                    room.UpdatedAt = DateTime.UtcNow;
                 }
             }
         }

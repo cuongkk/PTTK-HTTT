@@ -76,6 +76,13 @@ export interface CustomerRoomContext { roomId: string; roomName: string; branchN
 export interface CustomerPayment { invoiceId: string; paymentType: string; roomId: string; roomName: string; amount: number; createdAt: string; paidAt: string | null; status: string; paymentMethod: string; bankName: string | null; bankAccountNumber: string | null; bankAccountHolder: string | null; transferContent: string; proofImageUrl: string | null; }
 
 export const customerWorkflowService = {
+  createRentalApplication: (request: {
+    roomId: string; fullName: string; phone: string; email?: string; numberOfPeople: number; gender: string;
+    nationality: string; documentType: string; documentNumber: string; documentImageUrl: string;
+    dateOfBirth?: string; permanentAddress?: string; financialDocumentUrl?: string; expectedMoveInDate: string;
+    expectedRentalMonths: number; livingSchedule?: string; requiresQuietLifestyle: boolean; requiresParking: boolean;
+    requiresAirConditioner: boolean; otherRequirements?: string;
+  }) => apiClient.post<{ applicationId: string; status: string; message: string }>("/customer-workflow/rental-applications", request),
   getViewedRooms: () => apiClient.get<ViewedRoom[]>("/customer-workflow/viewed-rooms"),
   getDepositedRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/deposited-rooms"),
   getRentingRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/renting-rooms"),

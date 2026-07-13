@@ -164,8 +164,8 @@ export function CustomerRooms() {
                     Yêu cầu đặt cọc
                   </button>
                 )}
-                {tab === "viewed" && room.applicationStatus === "cho_ra_soat_coc" && (
-                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Đang chờ rà soát đặt cọc</span>
+                {tab === "viewed" && ["cho_sale_ra_soat_coc", "cho_quan_ly_xac_nhan_coc", "cho_khach_thanh_toan_coc", "cho_ke_toan_xac_nhan_coc"].includes(room.applicationStatus) && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Yêu cầu đặt cọc đang được xử lý</span>
                 )}
                 {tab === "deposited" && (
                   <>

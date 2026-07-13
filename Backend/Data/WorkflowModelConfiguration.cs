@@ -20,14 +20,16 @@ public static class WorkflowModelConfiguration
 
         modelBuilder.Entity<RentalApplication>(e =>
         {
-            e.ToTable("ho_so_dang_ky", t => { t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0"); t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_ra_soat_coc','da_dat_coc','cho_kiem_tra_nhan_phong','du_dieu_kien_nhan_phong','huy')"); });
+            e.ToTable("ho_so_dang_ky", t => { t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0"); t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_sale_ra_soat_coc','cho_quan_ly_xac_nhan_coc','cho_khach_thanh_toan_coc','cho_ke_toan_xac_nhan_coc','da_dat_coc','cho_sale_doi_chieu_nhan_phong','cho_quan_ly_duyet_nhan_phong','du_dieu_kien_nhan_phong','huy')"); });
             e.HasKey(x => x.ApplicationId).HasName("pk_ho_so");
             e.Property(x => x.ApplicationId).HasColumnName("ma_ho_so").HasMaxLength(12); e.Property(x => x.CustomerId).HasColumnName("ma_kh").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10);
             e.Property(x => x.NumberOfPeople).HasColumnName("so_nguoi"); e.Property(x => x.ExpectedMoveInDate).HasColumnName("thoi_gian_du_kien_thue").HasColumnType("date"); e.Property(x => x.ExpectedRentalMonths).HasColumnName("thoi_han_thue_thang");
+            e.Property(x => x.DesiredRoomId).HasColumnName("ma_phong_mong_muon").HasMaxLength(10);
             e.Property(x => x.DesiredArea).HasColumnName("khu_vuc_mong_muon").HasMaxLength(100); e.Property(x => x.DesiredRoomType).HasColumnName("loai_phong_mong_muon").HasMaxLength(30); e.Property(x => x.MinimumPrice).HasColumnName("gia_toi_thieu").HasColumnType("decimal(12,2)"); e.Property(x => x.MaximumPrice).HasColumnName("gia_toi_da").HasColumnType("decimal(12,2)");
             e.Property(x => x.Gender).HasColumnName("gioi_tinh").HasMaxLength(20); e.Property(x => x.LivingSchedule).HasColumnName("gio_giac_sinh_hoat").HasMaxLength(200); e.Property(x => x.RequiresQuietLifestyle).HasColumnName("yeu_cau_yen_tinh").HasDefaultValue(false); e.Property(x => x.RequiresParking).HasColumnName("yeu_cau_gui_xe").HasDefaultValue(false); e.Property(x => x.RequiresAirConditioner).HasColumnName("yeu_cau_dieu_hoa").HasDefaultValue(false);
             e.Property(x => x.OtherRequirements).HasColumnName("yeu_cau_khac"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(40).HasDefaultValue("moi"); e.Property(x => x.CreatedAt).HasColumnName("ngay_tao").HasDefaultValueSql("SYSUTCDATETIME()");
             e.HasOne(x => x.Customer).WithMany().HasForeignKey(x => x.CustomerId).HasConstraintName("fk_hoso_kh").OnDelete(DeleteBehavior.Restrict); e.HasOne(x => x.SalesEmployee).WithMany().HasForeignKey(x => x.SalesEmployeeId).HasConstraintName("fk_hoso_sale").OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.DesiredRoom).WithMany().HasForeignKey(x => x.DesiredRoomId).HasConstraintName("fk_hoso_phong_mong_muon").OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<RoomViewingSchedule>(e =>

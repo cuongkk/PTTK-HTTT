@@ -65,6 +65,17 @@ export function RegistrationManagement() {
 
   useEffect(() => {
     loadData();
+    const refreshTimer = window.setInterval(loadData, 10_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadData();
+    };
+    window.addEventListener("focus", loadData);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", loadData);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, []);
 
   const f = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
@@ -138,17 +149,22 @@ export function RegistrationManagement() {
   const filtered = regs.filter(r =>
     r.customerName.toLowerCase().includes(search.toLowerCase()) ||
     r.applicationId.toLowerCase().includes(search.toLowerCase()) ||
-    r.phoneNumber.includes(search)
+    r.phoneNumber.includes(search) ||
+    r.roomName.toLowerCase().includes(search.toLowerCase())
   );
 
   const getStatusLabel = (st: string) => {
     switch (st) {
       case "moi": return "Chờ sắp lịch";
       case "da_xem_phong": return "Đã xem";
-      case "cho_ra_soat_coc": return "Chờ rà soát cọc";
+      case "cho_sale_ra_soat_coc": return "Chờ Sale rà soát cọc";
+      case "cho_quan_ly_xac_nhan_coc": return "Chờ Quản lý xác nhận cọc";
+      case "cho_khach_thanh_toan_coc": return "Chờ khách thanh toán cọc";
+      case "cho_ke_toan_xac_nhan_coc": return "Chờ Kế toán xác nhận cọc";
       case "da_dat_coc": return "Đã cọc";
       case "du_dieu_kien_nhan_phong": return "Đủ điều kiện nhận phòng";
-      case "cho_kiem_tra_nhan_phong": return "Chờ kiểm tra nhận phòng";
+      case "cho_sale_doi_chieu_nhan_phong": return "Chờ Sale đối chiếu nhận phòng";
+      case "cho_quan_ly_duyet_nhan_phong": return "Chờ Quản lý duyệt nhận phòng";
       case "dang_thue": return "Đang thuê";
       default: return st;
     }
@@ -157,7 +173,12 @@ export function RegistrationManagement() {
   const statusColor: Record<string, string> = {
     "moi": "bg-blue-150 text-blue-800 border border-blue-200",
     "da_xem_phong": "bg-purple-100 text-purple-700",
-    "cho_ra_soat_coc": "bg-yellow-100 text-yellow-800",
+    "cho_sale_ra_soat_coc": "bg-yellow-100 text-yellow-800",
+    "cho_quan_ly_xac_nhan_coc": "bg-orange-100 text-orange-800",
+    "cho_khach_thanh_toan_coc": "bg-cyan-100 text-cyan-800",
+    "cho_ke_toan_xac_nhan_coc": "bg-amber-100 text-amber-800",
+    "cho_sale_doi_chieu_nhan_phong": "bg-indigo-100 text-indigo-800",
+    "cho_quan_ly_duyet_nhan_phong": "bg-violet-100 text-violet-800",
     "da_dat_coc": "bg-green-100 text-green-700",
   };
 
@@ -202,11 +223,12 @@ export function RegistrationManagement() {
                       <p className="text-xs text-gray-400">Mã ĐK: {reg.applicationId} · Ngày gửi: {new Date(reg.createdAt).toLocaleDateString("vi-VN")}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs ml-13">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs ml-13">
                     <div><p className="text-gray-400">Khu vực</p><p className="font-medium text-gray-800">{reg.area}</p></div>
                     <div><p className="text-gray-400">Giới tính</p><p className="font-medium text-gray-800">{reg.gender}</p></div>
                     <div><p className="text-gray-400">Sức chứa</p><p className="font-medium text-gray-800">{reg.capacity} người</p></div>
                     <div><p className="text-gray-400">Mức giá</p><p className="font-medium text-gray-800">{reg.priceRange}</p></div>
+                    <div><p className="text-gray-400">Phòng dự kiến</p><p className="font-medium text-gray-800">{reg.roomName}</p></div>
                   </div>
                   {reg.appointmentAt && (
                     <div className="mt-2 ml-13 flex items-center gap-1 text-xs text-green-700 font-semibold">
@@ -216,12 +238,12 @@ export function RegistrationManagement() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColor[reg.status] ?? "bg-gray-100 text-gray-600"}`}>{getStatusLabel(reg.status)}</span>
-                  {reg.roomName === "Chưa phân phòng" && reg.status === "moi" ? (
+                  {reg.status === "moi" && !reg.appointmentSent ? (
                     <button
-                      onClick={() => { setSelectedRegForAssign(reg); setSelectedRoomForAssign(null); }}
+                      onClick={() => { setSelectedRegForAssign(reg); setSelectedRoomForAssign(vacantRooms.find((room) => room.roomId === reg.roomId) ?? null); }}
                       className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors"
                     >
-                      <ArrowRight className="w-3 h-3" /> Phân phòng & Sắp lịch
+                      <ArrowRight className="w-3 h-3" /> Sắp lịch xem phòng
                     </button>
                   ) : (
                     reg.status === "moi" && reg.appointmentSent && reg.scheduleId && (
@@ -379,12 +401,12 @@ export function RegistrationManagement() {
               ))}
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              {selectedReg.roomName === "Chưa phân phòng" && selectedReg.status === "moi" ? (
+              {selectedReg.status === "moi" && !selectedReg.appointmentSent ? (
                 <button
-                  onClick={() => { setSelectedRegForAssign(selectedReg); setSelectedReg(null); setSelectedRoomForAssign(null); }}
+                  onClick={() => { setSelectedRegForAssign(selectedReg); setSelectedReg(null); setSelectedRoomForAssign(vacantRooms.find((room) => room.roomId === selectedReg.roomId) ?? null); }}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                 >
-                  <ArrowRight className="w-4 h-4" /> Phân phòng & Sắp lịch
+                  <ArrowRight className="w-4 h-4" /> Sắp lịch xem phòng
                 </button>
               ) : (
                 !selectedReg.appointmentSent && selectedReg.status === "moi" && (

@@ -150,13 +150,23 @@ export function MainLayout() {
   useEffect(() => {
     const loadUnread = () => notificationService.getMine().then((data) => setUnreadNotifications(data.unreadCount)).catch(() => undefined);
     loadUnread();
+    const refreshTimer = window.setInterval(loadUnread, 10_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadUnread();
+    };
     window.addEventListener("notifications-updated", loadUnread);
-    return () => window.removeEventListener("notifications-updated", loadUnread);
+    window.addEventListener("focus", loadUnread);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("notifications-updated", loadUnread);
+      window.removeEventListener("focus", loadUnread);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [location.pathname]);
 
   const roleNavigation = {
     customer: [
-      { name: "Tổng quan", path: "/customer", icon: Home },
       { name: "Tìm phòng", path: "/customer/rooms", icon: Search },
       { name: "Phòng của tôi", path: "/customer/my-rooms", icon: Building2 },
       { name: "Thanh toán", path: "/customer/payments", icon: CreditCard },
@@ -170,6 +180,7 @@ export function MainLayout() {
       { name: "Lập HĐ cọc", path: "/sales/deposit-contract", icon: FilePlus },
       { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileCheck },
       { name: "Trả phòng", path: "/sales/checkout-contract", icon: DoorOpen },
+      { name: "Thông báo", path: "/sales/notifications", icon: Bell },
     ],
     accountant: [
       { name: "Trang chủ", path: "/accountant", icon: Home },
@@ -177,6 +188,7 @@ export function MainLayout() {
       { name: "Khoản thu nhận phòng", path: "/accountant/check-in-charges", icon: ClipboardList },
       { name: "Xác nhận thanh toán", path: "/accountant/payment-confirmation", icon: CheckCircle },
       { name: "Đối soát trả phòng", path: "/accountant/reconciliation", icon: Calculator },
+      { name: "Thông báo", path: "/accountant/notifications", icon: Bell },
     ],
     manager: [
       { name: "Dashboard", path: "/manager", icon: Home },
@@ -184,6 +196,7 @@ export function MainLayout() {
       { name: "Contract Approval", path: "/manager/contract-approval", icon: FileCheck },
       { name: "Tenant Verification", path: "/manager/tenant-verification", icon: UserCheck },
       { name: "Liquidation", path: "/manager/liquidation", icon: ClipboardCheck },
+      { name: "Thông báo", path: "/manager/notifications", icon: Bell },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },
@@ -191,6 +204,7 @@ export function MainLayout() {
       { name: "Cài đặt thông số hệ thống", path: "/system-admin/settings", icon: Settings },
       { name: "Quản lý danh mục phòng/giường", path: "/system-admin/rooms", icon: Building2 },
       { name: "Quản lý dịch vụ", path: "/system-admin/services", icon: Sparkles },
+      { name: "Thông báo", path: "/system-admin/notifications", icon: Bell },
     ],
   };
 

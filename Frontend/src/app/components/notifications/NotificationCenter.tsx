@@ -8,7 +8,19 @@ export function NotificationCenter() {
   const [error, setError] = useState("");
   const unreadCount = items.filter((item) => !item.isRead).length;
 
-  useEffect(() => { notificationService.getMine().then((data) => setItems(data.items)).catch((requestError) => setError(requestError.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => {
+    const loadNotifications = () => notificationService.getMine()
+      .then((data) => { setItems(data.items); setError(""); })
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setLoading(false));
+    loadNotifications();
+    const refreshTimer = window.setInterval(loadNotifications, 10_000);
+    window.addEventListener("focus", loadNotifications);
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", loadNotifications);
+    };
+  }, []);
   const markRead = async (id: string) => { await notificationService.markRead(id); setItems((current) => current.map((item) => item.notificationId === id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); window.dispatchEvent(new Event("notifications-updated")); };
   const markAll = async () => { await notificationService.markAllRead(); setItems((current) => current.map((item) => ({ ...item, isRead: true, readAt: item.readAt ?? new Date().toISOString() }))); window.dispatchEvent(new Event("notifications-updated")); };
 

@@ -15,6 +15,10 @@ public class CustomerWorkflowController : ControllerBase
     private readonly ICustomerWorkflowService _service;
     public CustomerWorkflowController(ICustomerWorkflowService service) => _service = service;
 
+    [HttpPost("rental-applications")]
+    public async Task<ActionResult<CreateCustomerRentalApplicationResponse>> CreateRentalApplication(CreateCustomerRentalApplicationRequest request) =>
+        Ok(await _service.CreateRentalApplicationAsync(User.GetAccountId(), request));
+
     [HttpGet("viewed-rooms")]
     public async Task<ActionResult<List<ViewedRoomDto>>> GetViewedRooms() => Ok(await _service.GetViewedRoomsAsync(User.GetAccountId()));
 

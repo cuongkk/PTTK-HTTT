@@ -1,5 +1,29 @@
 namespace Backend.Dtos;
 
+public record CreateCustomerRentalApplicationRequest(
+    string RoomId,
+    string FullName,
+    string Phone,
+    string? Email,
+    short NumberOfPeople,
+    string Gender,
+    string Nationality,
+    string DocumentType,
+    string DocumentNumber,
+    string DocumentImageUrl,
+    DateOnly? DateOfBirth,
+    string? PermanentAddress,
+    string? FinancialDocumentUrl,
+    DateOnly ExpectedMoveInDate,
+    short ExpectedRentalMonths,
+    string? LivingSchedule,
+    bool RequiresQuietLifestyle,
+    bool RequiresParking,
+    bool RequiresAirConditioner,
+    string? OtherRequirements);
+
+public record CreateCustomerRentalApplicationResponse(string ApplicationId, string Status, string Message);
+
 public record InitialRentalInformationDto(
     string FullName,
     string Phone,

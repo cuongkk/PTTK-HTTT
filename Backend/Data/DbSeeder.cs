@@ -74,7 +74,15 @@ public static class DbSeeder
         for (var i = 0; i < 6; i++)
         {
             var appId = $"HSDDAT{i:000000}"; var scheduleId = $"LXDDAT{i:000000}";
-            var appStatus = i == 0 ? "da_xem_phong" : i == 5 ? "da_dat_coc" : "cho_ra_soat_coc";
+            var appStatus = i switch
+            {
+                0 => "da_xem_phong",
+                1 => "cho_sale_ra_soat_coc",
+                2 => "cho_quan_ly_xac_nhan_coc",
+                3 => "cho_khach_thanh_toan_coc",
+                4 => "cho_ke_toan_xac_nhan_coc",
+                _ => "da_dat_coc"
+            };
             if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == appId)) db.RentalApplications.Add(new RentalApplication { ApplicationId = appId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = appStatus });
             await db.SaveChangesAsync();
             if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == scheduleId)) db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = scheduleId, ApplicationId = appId, SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 10, 9, 0, 0), Status = "hoan_thanh" });
@@ -84,7 +92,7 @@ public static class DbSeeder
             {
                 var depositId = $"DCDDAT{i:000000}";
                 if (!await db.DepositSlips.AnyAsync(x => x.DepositId == depositId)) db.DepositSlips.Add(new DepositSlip { DepositId = depositId, ApplicationId = appId, SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 6000000, PaymentDueAt = new DateTime(2026, 7, 15, 8, 0, 0), PaidAt = i >= 4 ? new DateTime(2026, 7, 14, 9, 0, 0) : null, Status = i == 5 ? "hoan_thanh" : "cho_thanh_toan" });
-                if (i >= 4 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDDDAT{i:000000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDDDAT{i:000000}", CustomerId = "KH0000000001", DepositId = depositId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_coc", DocumentType = "thu", TotalAmount = 6000000, ProofImageUrl = "demo/chung-tu/coc.jpg", Status = i == 5 ? "da_thanh_toan" : "cho_thanh_toan" });
+                if (i >= 4 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDDDAT{i:000000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDDDAT{i:000000}", CustomerId = "KH0000000001", DepositId = depositId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_coc", DocumentType = "thu", TotalAmount = 6000000, ProofImageUrl = "/demo/demo-document.png", Status = i == 5 ? "da_thanh_toan" : "cho_thanh_toan" });
             }
         }
         await db.SaveChangesAsync();
@@ -93,7 +101,13 @@ public static class DbSeeder
         for (var i = 0; i < 8; i++)
         {
             var appId = $"HSDNHAN{i:00000}"; var depositId = $"DCDNHAN{i:00000}"; var scheduleId = $"LXDNHAN{i:00000}";
-            var appStatus = i == 0 ? "da_dat_coc" : i <= 2 ? "cho_kiem_tra_nhan_phong" : "du_dieu_kien_nhan_phong";
+            var appStatus = i switch
+            {
+                0 => "da_dat_coc",
+                1 => "cho_sale_doi_chieu_nhan_phong",
+                2 => "cho_quan_ly_duyet_nhan_phong",
+                _ => "du_dieu_kien_nhan_phong"
+            };
             if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == appId)) db.RentalApplications.Add(new RentalApplication { ApplicationId = appId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today.AddDays(15), ExpectedRentalMonths = 12, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = appStatus });
             await db.SaveChangesAsync();
             if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == scheduleId)) db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = scheduleId, ApplicationId = appId, SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 5, 9, 0, 0), Status = "hoan_thanh" });
@@ -106,7 +120,7 @@ public static class DbSeeder
                 var contractId = $"HDNHAN{i:000000}";
                 var status = i == 4 ? "cho_ky" : i == 5 ? "cho_thanh_toan_nhan_phong" : i == 6 ? "cho_xac_nhan_thanh_toan" : "hieu_luc";
                 if (!await db.RentalContracts.AnyAsync(x => x.ContractId == contractId)) db.RentalContracts.Add(new RentalContract { ContractId = contractId, DepositId = depositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = $"PHONG_{i + 11}", NumberOfBeds = 1, MonthlyRent = 3000000, PaymentCycle = "hang_thang", SignedDate = today, StartDate = today.AddDays(15), EndDate = today.AddYears(1), Status = status });
-                if (i >= 5 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDNNHAN{i:00000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDNNHAN{i:00000}", CustomerId = "KH0000000001", ContractId = contractId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 3000000, ProofImageUrl = i >= 6 ? "demo/chung-tu/nhan-phong.jpg" : null, Status = i == 7 ? "da_thanh_toan" : "cho_thanh_toan" });
+                if (i >= 5 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDNNHAN{i:00000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDNNHAN{i:00000}", CustomerId = "KH0000000001", ContractId = contractId, AccountantEmployeeId = "NV00000004", InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 3000000, ProofImageUrl = i >= 6 ? "/demo/demo-document.png" : null, Status = i == 7 ? "da_thanh_toan" : "cho_thanh_toan" });
             }
         }
         await db.SaveChangesAsync();
@@ -133,12 +147,15 @@ public static class DbSeeder
             await db.SaveChangesAsync();
             if (!await db.DepositSlips.AnyAsync(x => x.DepositId == depositId)) db.DepositSlips.Add(new DepositSlip { DepositId = depositId, ApplicationId = appId, SalesEmployeeId = "NV00000003", DepositAmount = 6000000, PaymentDueAt = DateTime.UtcNow, PaidAt = DateTime.UtcNow, Status = "hoan_thanh" });
             await db.SaveChangesAsync();
-            if (!await db.RentalContracts.AnyAsync(x => x.ContractId == contractId)) db.RentalContracts.Add(new RentalContract { ContractId = contractId, DepositId = depositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = $"PHONG_{roomNo}", NumberOfBeds = 1, MonthlyRent = 3000000, PaymentCycle = "hang_thang", SignedDate = today.AddMonths(-6), StartDate = today.AddMonths(-6), EndDate = today.AddMonths(6), Status = i == 0 ? "cho_hoan_coc" : i < 3 ? "cho_khach_xac_nhan" : "cho_doi_soat" });
+            if (!await db.RentalContracts.AnyAsync(x => x.ContractId == contractId)) db.RentalContracts.Add(new RentalContract { ContractId = contractId, DepositId = depositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = $"PHONG_{roomNo}", NumberOfBeds = 1, MonthlyRent = 3000000, PaymentCycle = "hang_thang", SignedDate = today.AddMonths(-6), StartDate = today.AddMonths(-6), EndDate = today.AddMonths(6), Status = i < 3 ? "cho_hoan_coc" : "cho_doi_soat" });
             await db.SaveChangesAsync();
             if (!await db.Reconciliations.AnyAsync(x => x.ReconciliationId == reconciliationId)) db.Reconciliations.Add(new Reconciliation { ReconciliationId = reconciliationId, ContractId = contractId, AccountantEmployeeId = "NV00000004", ManagerEmployeeId = "NV00000002", CreatedDate = today, RefundRate = i == 0 ? 80 : 0, OriginalDeposit = 6000000, BaseRefund = i == 0 ? 4800000 : 0, TotalDeductions = i is 1 or 2 ? 6500000 : 0, RefundAmount = i == 0 ? 4800000 : 0, AdditionalPaymentAmount = i is 1 or 2 ? 500000 : 0, Status = "da_xac_nhan" });
             await db.SaveChangesAsync();
+            if (!await db.CheckoutReports.AnyAsync(x => x.CheckoutReportId == $"BBFIN{i:0000000}")) db.CheckoutReports.Add(new CheckoutReport { CheckoutReportId = $"BBFIN{i:0000000}", ReconciliationId = reconciliationId, ManagerEmployeeId = "NV00000002", CheckoutDate = today, RoomCondition = "Đã kiểm tra hiện trạng để quyết toán", FinalElectricityReading = 1600 + i, FinalWaterReading = 450 + i, KeysReturned = true, Note = $"Biên bản cho nhánh tài chính PHONG_{roomNo}" });
+            if (!await db.CheckoutRequests.AnyAsync(x => x.CheckoutRequestId == $"YTFIN{i:0000000}")) db.CheckoutRequests.Add(new CheckoutRequest { CheckoutRequestId = $"YTFIN{i:0000000}", ContractId = contractId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", ReconciliationId = reconciliationId, RequestedCheckoutAt = new DateTime(2026, 8, 20 + i, 9, 0, 0), ConfirmedInspectionAt = new DateTime(2026, 8, 20 + i, 10, 0, 0), Reason = "Dữ liệu demo nhánh tài chính cuối kỳ", Status = i < 3 ? "cho_hoan_tien" : "cho_doi_soat", CreatedAt = new DateTime(2026, 7, 12, 12 + i, 0, 0, DateTimeKind.Utc), Note = $"Nhánh tài chính PHONG_{roomNo}" });
+            await db.SaveChangesAsync();
             var invoiceType = i == 0 ? "hoan_coc" : "thu_them";
-            if (i < 3 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDFIN{i:0000000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDFIN{i:0000000}", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = contractId, ReconciliationId = reconciliationId, InvoiceType = invoiceType, DocumentType = i == 0 ? "chi" : "thu", TotalAmount = i == 0 ? 4800000 : 500000, ProofImageUrl = i == 2 ? "demo/chung-tu/thu-them.jpg" : null, Status = "cho_thanh_toan" });
+            if (i < 3 && !await db.Invoices.AnyAsync(x => x.InvoiceId == $"HDFIN{i:0000000}")) db.Invoices.Add(new Invoice { InvoiceId = $"HDFIN{i:0000000}", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = contractId, ReconciliationId = reconciliationId, InvoiceType = invoiceType, DocumentType = i == 0 ? "chi" : "thu", TotalAmount = i == 0 ? 4800000 : 500000, ProofImageUrl = i == 2 ? "/demo/demo-document.png" : null, Status = "cho_thanh_toan" });
         }
         await db.SaveChangesAsync();
 
@@ -432,7 +449,7 @@ public static class DbSeeder
             NumberOfPeople = 1, ExpectedMoveInDate = new DateOnly(2026, 8, 20), ExpectedRentalMonths = 12,
             DesiredArea = "Thủ Đức", DesiredRoomType = RoomType.Shared, MinimumPrice = 1200000, MaximumPrice = 1600000,
             Gender = "Nu", LivingSchedule = "Về trước 23:00", RequiresQuietLifestyle = true, RequiresParking = false,
-            RequiresAirConditioner = true, Status = "cho_ra_soat_coc", CreatedAt = new DateTime(2026, 7, 10, 8, 0, 0, DateTimeKind.Utc),
+            RequiresAirConditioner = true, Status = "cho_sale_ra_soat_coc", CreatedAt = new DateTime(2026, 7, 10, 8, 0, 0, DateTimeKind.Utc),
         });
 
         // Kế toán: hồ sơ đã được duyệt cọc, có phiếu và hóa đơn chờ xác nhận thanh toán.
@@ -454,8 +471,8 @@ public static class DbSeeder
             new RoomViewingScheduleRoom { ScheduleId = "LX0000000005", RoomId = "P_TD_102" },
             new RoomViewingScheduleRoom { ScheduleId = "LX0000000006", RoomId = "P_Q5_301" });
         db.TenantMembers.AddRange(
-            new TenantMember { TenantMemberId = "TV0000000005", ApplicationId = "HS0000000005", CustomerId = "KH0000000002", FullName = "Trần Thảo My", NationalId = "079204000002", Gender = "Nu", DateOfBirth = new DateOnly(2004, 8, 20), Nationality = "Việt Nam", DocumentType = "CCCD", DocumentImageUrl = "demo/ho-so/HS0000000005/cccd.jpg", PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", IsPrimaryTenant = true, IsEligible = true },
-            new TenantMember { TenantMemberId = "TV0000000006", ApplicationId = "HS0000000006", CustomerId = "KH0000000003", FullName = "Lê Quốc Anh", NationalId = "079202000003", Gender = "Nam", DateOfBirth = new DateOnly(2002, 11, 3), Nationality = "Việt Nam", DocumentType = "CCCD", DocumentImageUrl = "demo/ho-so/HS0000000006/cccd.jpg", PermanentAddress = "TP.HCM", OccupationOrSchool = "Kỹ sư", IsPrimaryTenant = true, IsEligible = true },
+            new TenantMember { TenantMemberId = "TV0000000005", ApplicationId = "HS0000000005", CustomerId = "KH0000000002", FullName = "Trần Thảo My", NationalId = "079204000002", Gender = "Nu", DateOfBirth = new DateOnly(2004, 8, 20), Nationality = "Việt Nam", DocumentType = "CCCD", DocumentImageUrl = "/demo/demo-document.png", PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", IsPrimaryTenant = true, IsEligible = true },
+            new TenantMember { TenantMemberId = "TV0000000006", ApplicationId = "HS0000000006", CustomerId = "KH0000000003", FullName = "Lê Quốc Anh", NationalId = "079202000003", Gender = "Nam", DateOfBirth = new DateOnly(2002, 11, 3), Nationality = "Việt Nam", DocumentType = "CCCD", DocumentImageUrl = "/demo/demo-document.png", PermanentAddress = "TP.HCM", OccupationOrSchool = "Kỹ sư", IsPrimaryTenant = true, IsEligible = true },
             new TenantMember { TenantMemberId = "TV0000000007", ApplicationId = "HS0000000006", FullName = "Phạm Minh Khang", NationalId = "079202000007", Gender = "Nam", DocumentType = "CCCD", OccupationOrSchool = "Sinh viên", IsPrimaryTenant = false, IsEligible = true },
             new TenantMember { TenantMemberId = "TV0000000008", ApplicationId = "HS0000000006", FullName = "Vũ Hoàng Long", NationalId = "079202000008", Gender = "Nam", DocumentType = "CCCD", OccupationOrSchool = "Nhân viên văn phòng", IsPrimaryTenant = false, IsEligible = true });
         db.DepositSlips.Add(new DepositSlip { DepositId = "DC0000000003", ApplicationId = "HS0000000006", SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 11600000, CreatedAt = new DateTime(2026, 7, 12, 8, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 13, 8, 0, 0, DateTimeKind.Utc), Status = "cho_thanh_toan" });
@@ -501,8 +518,8 @@ public static class DbSeeder
                 TenantMemberId = "TV0000000002", ApplicationId = "HS0000000002", CustomerId = "KH0000000001",
                 FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD",
                 NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM",
-                DocumentImageUrl = "demo/ho-so/HS0000000002/cccd-nguyen-gia-bao.jpg",
-                FinancialDocumentUrl = "demo/ho-so/HS0000000002/xac-nhan-sinh-vien.pdf", OccupationOrSchool = "Sinh viên Đại học Công nghệ",
+                DocumentImageUrl = "/demo/demo-document.png",
+                FinancialDocumentUrl = "/demo/demo-document.png", OccupationOrSchool = "Sinh viên Đại học Công nghệ",
                 IsPrimaryTenant = true, IsEligible = true, Note = "Thông tin người đứng tên nhập khi đăng ký xem phòng",
             });
 
@@ -515,9 +532,9 @@ public static class DbSeeder
         if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == "LX0000000003" && x.RoomId == "P_Q5_201"))
             db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = "LX0000000003", RoomId = "P_Q5_201" });
         if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TV0000000003"))
-            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TV0000000003", ApplicationId = "HS0000000003", CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DocumentImageUrl = "demo/ho-so/HS0000000003/cccd-nguyen-gia-bao.jpg", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên Đại học Công nghệ", IsPrimaryTenant = true, IsEligible = true });
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TV0000000003", ApplicationId = "HS0000000003", CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DocumentImageUrl = "/demo/demo-document.png", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên Đại học Công nghệ", IsPrimaryTenant = true, IsEligible = true });
         if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TV0000000004"))
-            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TV0000000004", ApplicationId = "HS0000000003", FullName = "Phạm Minh Khang", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000004", DocumentImageUrl = "demo/ho-so/HS0000000003/cccd-pham-minh-khang.jpg", DateOfBirth = new DateOnly(2003, 9, 18), PermanentAddress = "18 Lý Thường Kiệt, Quận 10, TP.HCM", OccupationOrSchool = "Sinh viên Đại học Bách khoa", IsPrimaryTenant = false, IsEligible = true, Note = "Đã được Quản lý xác nhận đủ điều kiện ở cùng" });
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TV0000000004", ApplicationId = "HS0000000003", FullName = "Phạm Minh Khang", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000004", DocumentImageUrl = "/demo/demo-document.png", DateOfBirth = new DateOnly(2003, 9, 18), PermanentAddress = "18 Lý Thường Kiệt, Quận 10, TP.HCM", OccupationOrSchool = "Sinh viên Đại học Bách khoa", IsPrimaryTenant = false, IsEligible = true, Note = "Đã được Quản lý xác nhận đủ điều kiện ở cùng" });
         if (!await db.DepositSlips.AnyAsync(x => x.DepositId == "DC0000000002"))
             db.DepositSlips.Add(new DepositSlip { DepositId = "DC0000000002", ApplicationId = "HS0000000003", SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 9000000, CreatedAt = new DateTime(2026, 7, 11, 8, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 12, 8, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 11, 10, 0, 0, DateTimeKind.Utc), Status = "hoan_thanh" });
 
@@ -574,7 +591,7 @@ public static class DbSeeder
             new Invoice { InvoiceId = "HDON00000001", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", DepositId = "DC0000000001", InvoiceType = "tien_coc", DocumentType = "thu", TotalAmount = 3000000, PaymentMethod = "chuyen_khoan", TransactionId = "VCB-DEMO-001", CreatedAt = new DateTime(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 11, 10, 0, 0, DateTimeKind.Utc), Status = "da_thanh_toan" },
             new Invoice { InvoiceId = "HDON00000002", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = "HD0000000001", InvoiceType = "dich_vu", DocumentType = "thu", TotalAmount = 150000, PaymentMethod = "chuyen_khoan", CreatedAt = new DateTime(2026, 8, 1, 8, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 8, 1, 8, 30, 0, DateTimeKind.Utc), Status = "da_thanh_toan", BillingPeriod = new DateOnly(2026, 8, 1) },
             new Invoice { InvoiceId = "HDON00000003", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ReconciliationId = "DS0000000001", InvoiceType = "hoan_coc", DocumentType = "chi", TotalAmount = 1680000, PaymentMethod = "chuyen_khoan", BankName = "Vietcombank", BankAccountNumber = "0123456789", BankAccountHolder = "NGUYEN GIA BAO", CreatedAt = new DateTime(2027, 2, 1, 8, 0, 0, DateTimeKind.Utc), Status = "cho_thanh_toan" },
-            new Invoice { InvoiceId = "HDON00000004", CustomerId = "KH0000000003", AccountantEmployeeId = "NV00000004", DepositId = "DC0000000003", InvoiceType = "tien_coc", DocumentType = "thu", TotalAmount = 11600000, PaymentMethod = "chuyen_khoan", TransactionId = "VCB-DEMO-CHO-DOI-SOAT", ProofImageUrl = "demo/chung-tu/HDON00000004.jpg", CreatedAt = new DateTime(2026, 7, 12, 9, 0, 0, DateTimeKind.Utc), Status = "cho_thanh_toan", Note = "Khách đã tải chứng từ, kế toán cần xác nhận" },
+            new Invoice { InvoiceId = "HDON00000004", CustomerId = "KH0000000003", AccountantEmployeeId = "NV00000004", DepositId = "DC0000000003", InvoiceType = "tien_coc", DocumentType = "thu", TotalAmount = 11600000, PaymentMethod = "chuyen_khoan", TransactionId = "VCB-DEMO-CHO-DOI-SOAT", ProofImageUrl = "/demo/demo-document.png", CreatedAt = new DateTime(2026, 7, 12, 9, 0, 0, DateTimeKind.Utc), Status = "cho_thanh_toan", Note = "Khách đã tải chứng từ, kế toán cần xác nhận" },
         };
         foreach (var item in invoices)
             if (!await db.Invoices.AnyAsync(x => x.InvoiceId == item.InvoiceId)) db.Invoices.Add(item);
