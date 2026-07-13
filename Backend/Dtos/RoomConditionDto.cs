@@ -1,14 +1,10 @@
 namespace Backend.Dtos;
 
-public class RoomInspectionConditionDto
+public class RoomConditionDto
 {
-    public string RoomId { get; set; } = "";
-
-    public string RoomName { get; set; } = "";
-
-    public string Building { get; set; } = "";
-
-    public string Status { get; set; } = "";
-
-    public string? Tenant {get; set; }
+    public string RoomID { get; set; }
+    public string RoomName { get; set; } = default!;
+    public string Building { get; set; } = default!;
+    public string Status { get; set; } = default!;
+    public string Tenant { get; set; } = default!;
 }

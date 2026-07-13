@@ -2,7 +2,7 @@ using Backend.Dtos;
 
 namespace Backend.Services;
 
-public interface IRoomInspectionConditionService
+public interface IRoomInpectionConditionService
 {
-    Task<List<RoomInspectionConditionDto>> GetRoomInspectionConditionsAsync();
+    Task<List<RoomConditionDto>> GetRoomConditionsAsync();
 }

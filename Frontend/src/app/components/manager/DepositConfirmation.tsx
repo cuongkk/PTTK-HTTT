@@ -1,50 +1,88 @@
-import { useState } from "react";
-import { ArrowUpRight, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowUpRight, Search, Building2 } from "lucide-react";
+
+// 1. Khai báo interface chuẩn theo nghiệp vụ bắt buộc
+interface Deposit {
+  id: number;
+  depositCode: string;       // Mã phiếu cọc (Sửa từ contractCode)
+  customer: string;          // Khách cọc (Bắt buộc)
+  room: string;         // Phòng/Giường (Bắt buộc)
+  bed: string
+  branch: string;            // Chi nhánh (Bắt buộc)
+  depositAmount: string;     
+  status: string;            // Trạng thái phiếu (Chờ xác nhận, Đã xác nhận...)
+  isValid: boolean;          // Kết quả xử lý: Hợp lệ / Không hợp lệ (Bắt buộc)
+  confirmedBy: string;       // Người xác nhận (Bắt buộc)
+  confirmedAt: string;       // Thời điểm xác nhận (Bắt buộc)
+  expectedCheckIn: string;   // Thời điểm nhận phòng dự kiến (Bắt buộc)
+  date: string;              // Ngày tạo phiếu cọc
+}
 
 export function DepositConfirmation() {
-  // Thay đổi cách quản lý: Thay vì lưu id hoặc boolean, ta lưu cả object deposit đang được chọn
+// Quản lý state chọn phiếu theo ID để đồng bộ với cách tìm kiếm
   const [selectedDeposit, setSelectedDeposit] = useState<any | null>(null);
   const [search, setSearch] = useState("");
 
-  const deposits = [
-    {
-      id: 1,
-      contractCode: "DC001",
-      customer: "Nguyễn Văn A",
-      room: "Room 501",
-      depositAmount: "2.000.000 VNĐ",
-      status: "Chờ xác nhận",
-      date: "25/6/2026",
-    },
-    {
-      id: 2,
-      contractCode: "DC002",
-      customer: "Trần Văn B",
-      room: "Room 203",
-      depositAmount: "2.500.000 VNĐ", // Sửa nhẹ dữ liệu mẫu để thấy rõ sự thay đổi khi click
-      status: "Chờ xác nhận",
-      date: "26/6/2026",
-    },
-    {
-      id: 3,
-      contractCode: "DC003",
-      customer: "Lê Văn C",
-      room: "Room 404",
-      depositAmount: "3.000.000 VNĐ", // Sửa nhẹ dữ liệu mẫu để thấy rõ sự thay đổi khi click
-      status: "Chờ xác nhận",
-      date: "27/6/2026",
-    },
-  ];
+  // State quản lý dữ liệu nhận về từ Backend API
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Logic lọc tìm kiếm dữ liệu phòng
+  // 2. Gọi API lấy danh sách xác nhận cọc khi load trang
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
+      setLoading(false);
+      return;
+    }
+
+    // Thay đổi đường dẫn URL phù hợp với API thực tế của backend của bạn
+    fetch("http://localhost:5157/api/manager/deposit-confirmation", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      }
+    })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Bạn không có quyền truy cập chức năng này!");
+        }
+        if (!res.ok) {
+          throw new Error("Không thể lấy dữ liệu đặt cọc từ hệ thống!");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setDeposits(data); // Đổ dữ liệu từ API vào state
+        console.log("Dữ liệu đặt cọc nhận về:", data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // 3. Logic lọc tìm kiếm dữ liệu cọc khách hàng
   const filteredDeposits = deposits.filter((deposit) => {
-    const query = search.toLowerCase();
+    const query = search.toLowerCase().trim();
+    if (!query) return true;
     return (
-      deposit.contractCode.toLowerCase().includes(query) ||
+      deposit.depositCode.toLowerCase().includes(query) ||
       deposit.customer.toLowerCase().includes(query) ||
       deposit.room.toLowerCase().includes(query)
     );
   });
+
+  // 4. Tìm kiếm thông tin phiếu cọc đang được click chọn xem chi tiết
+  // Sửa lỗi logic: So sánh trực tiếp với biến selectedDepositId chứ không bọc trong dấu ""
+  const currentSelectedDeposit = deposits.find((d) => d.id === selectedDeposit);
+
+  // Giao diện khi đang tải hoặc lỗi hệ thống
+  if (loading) return <div className="text-center py-10 text-gray-600">Đang tải dữ liệu đặt cọc...</div>;
+  if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
 
   return (
     <div className="space-y-6">
@@ -75,14 +113,15 @@ export function DepositConfirmation() {
               className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
             >
               <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {deposit.contractCode}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {deposit.customer}
-                  </p>
-                </div>
+                <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">{deposit.room}</h3>
+                      <p className="text-sm text-gray-600">{deposit.branch}</p>
+                    </div>
+                  </div>
 
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
                   {deposit.status}
@@ -90,6 +129,11 @@ export function DepositConfirmation() {
               </div>
 
               <div className="space-y-2 mb-4 text-sm">
+                <p>
+                  <span className="text-gray-600">Khách hàng:</span>{" "}
+                    {deposit.customer}
+                </p>
+
                 <p>
                   <span className="text-gray-600">Phòng:</span>{" "}
                   {deposit.room}
@@ -166,10 +210,54 @@ export function DepositConfirmation() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Giường
+                </label>
+                <input
+                  value={selectedDeposit.bed}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tiền cọc
                 </label>
                 <input
                   value={selectedDeposit.depositAmount}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nhân viên thực hiện
+                </label>
+                <input
+                  value={selectedDeposit.confirmedBy}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
+                />
+              </div>
+
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ngày thực hiện
+                </label>
+                <input
+                  value={selectedDeposit.confirmedAt}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ngày checkin dự kiến
+                </label>
+                <input
+                  value={selectedDeposit.expectedCheckIn}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
                 />

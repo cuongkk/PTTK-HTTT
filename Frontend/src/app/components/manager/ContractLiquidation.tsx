@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { 
   ClipboardCheck, 
-  Building2, 
   AlertCircle, 
   CheckCircle2, 
   Printer, 
@@ -26,7 +25,7 @@ const contractLiquidation = [
     contractId: "HD001",
     customer: "Nguyễn Văn A",
     room: "Phòng 501",
-    building: "Tòa C",
+    branch: "Tòa C",
     startDate: "01/01/2026",
     endDate: "01/06/2027",
     moveOutDate: "11/07/2026",
@@ -51,7 +50,7 @@ const contractLiquidation = [
     contractId: "HD002",
     customer: "Trần Thị B",
     room: "Phòng 202",
-    building: "Tòa A",
+    branch: "Tòa A",
     startDate: "10/12/2025",
     endDate: "10/06/2026",
     moveOutDate: "10/06/2026",
@@ -131,7 +130,7 @@ export function ContractLiquidation() {
                       </span>
                       <h3 className="text-xl font-black text-gray-900 mt-2 flex items-center gap-1.5">
                         <Home className="w-5 h-5 text-gray-400" /> {c.room}
-                        <span className="text-sm font-normal text-gray-500">({c.building})</span>
+                        <span className="text-sm font-normal text-gray-500">({c.branch})</span>
                       </h3>
                     </div>
                     <span className="px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 border border-orange-200 shadow-sm">
@@ -255,7 +254,7 @@ export function ContractLiquidation() {
                 <Home className="w-4 h-4 text-gray-400" />
                 <div>
                   <p className="text-xs text-gray-500">Phòng thuê</p>
-                  <p className="font-semibold text-gray-900">{currentContract.room} ({currentContract.building})</p>
+                  <p className="font-semibold text-gray-900">{currentContract.room} ({currentContract.branch})</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">

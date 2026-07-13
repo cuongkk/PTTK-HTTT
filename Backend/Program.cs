@@ -84,7 +84,9 @@ builder.Services.AddScoped<ICustomerWorkflowService, CustomerWorkflowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddScoped<IRoomInspectionStatusService,RoomInspectionStatusService>();
-builder.Services.AddScoped<IDepositConfirmationService,DepositConfirmationService>();
+builder.Services.AddScoped<IRoomInpectionConditionService,RoomInpectionConditionService>();
+builder.Services.AddScoped<IDepositConfirmationService, DepositConfirmationService>();
+builder.Services.AddScoped<ITenantVerificationService, TenantVerificationService>();
 
 var app = builder.Build();
 

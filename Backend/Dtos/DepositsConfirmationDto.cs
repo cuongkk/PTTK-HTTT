@@ -1,12 +1,19 @@
+// Backend/Dtos/DepositConfirmationDto.cs
 namespace Backend.Dtos;
 
 public class DepositConfirmationDto
 {
-    public int Id { get; set; }                // id: 1, 2, 3...
-    public string ContractCode { get; set; }   // "DC001"
-    public string Customer { get; set; }       // "Nguyễn Văn A"
-    public string Room { get; set; }           // "Room 501"
-    public string DepositAmount { get; set; }  // "2.000.000 VNĐ"
-    public string Status { get; set; }         // "Chờ xác nhận"
-    public string Date { get; set; }           // "25/6/2026"
+    public string Id { get; set; } = default!;
+    public string DepositCode { get; set; } = default!;
+    public string Customer { get; set; } = default!;
+    public string Room { get; set; } = default!;
+    public string Bed { get; set; } = default!;
+    public string Branch { get; set; } = default!;
+    public string DepositAmount { get; set; } = default!;
+    public string Status { get; set; } = default!;
+    public bool IsValid { get; set; }
+    public string ConfirmedBy { get; set; } = default!;
+    public string ConfirmedAt { get; set; } = default!;
+    public string ExpectedCheckIn { get; set; } = default!;
+    public string Date { get; set; } = default!;
 }

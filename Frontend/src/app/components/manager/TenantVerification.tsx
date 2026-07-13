@@ -1,45 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserCheck, CheckCircle, XCircle, FileText, AlertCircle, Building2, Users, ArrowUpRight } from "lucide-react";
 
+interface Tenant {
+  name: string;
+  idNumber?: string;
+  phone?: string;
+}
+
+interface Contract {
+  id: string;
+  contractCode: string;
+  room: string;
+  building: string;
+  checkInDate: string;
+  checkOutDate: string;
+  tenants: Tenant[];
+}
+
 export function TenantVerification() {
-  const [selectedContract, setSelectedContract] = useState<any>(null);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // State for data from backend
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   
 
-  const contracts = [
-    {
-      id: 1,
-      contractCode: "HD001",
-      room: "Phòng 501",
-      building: "Tòa C",
-      checkInDate: "01/06/2026",
-      checkOutDate: "01/06/2027",
+  // useEffect to fetch contracts awaiting verification
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
+      setLoading(false);
+      return;
+    }
 
-      tenants: [
-        {
-          name: "Nguyễn Văn A",
-          idNumber: "079xxx",
-          phone: "090xxxx",
-          creditScore: 720,
-        },
-        {
-          name: "Trần Văn B",
-          idNumber: "079xxx",
-          phone: "091xxxx",
-          creditScore: 680,
-        },
-      ],
-    },
-  ];
+    fetch("http://localhost:5157/api/manager/tenant-verifications", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Bạn không có quyền truy cập chức năng này!");
+        }
+        if (!res.ok) {
+          throw new Error("Không thể lấy dữ liệu từ hệ thống!");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setContracts(data);
+        console.log("Fetched contracts:", data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   
 
-  const handleApprove = (id: number) => {
+  const handleApprove = (id: string) => {
     alert(`Đã phê duyệt khách thuê số ${id}!`);
   };
 
-  const handleReject = (id: number) => {
+  const handleReject = (id: string) => {
     const reason = prompt("Lý do từ chối hồ sơ:");
     if (reason) {
       alert(`Đã từ chối khách thuê số ${id}. Lý do: ${reason}`);
@@ -78,9 +110,42 @@ export function TenantVerification() {
         </div>
       </div>
 
+      {/* Search / Filters */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <div className="relative w-full max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <FileText className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm theo mã hợp đồng, phòng hoặc tên khách..."
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Contract List */}
+      {loading ? (
+        <div className="text-center py-10 text-gray-600">Đang tải dữ liệu...</div>
+      ) : error ? (
+        <div className="text-center py-10 text-red-600">Lỗi: {error}</div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {contracts.map((contract) => (
+        {contracts
+          .filter((contract) => {
+            const q = searchQuery.toLowerCase().trim();
+            if (!q) return true;
+            const inTenants = (contract.tenants || []).some((t: any) => (t.name || "").toLowerCase().includes(q));
+            return (
+              (contract.contractCode || "").toLowerCase().includes(q) ||
+              (contract.room || "").toLowerCase().includes(q) ||
+              (contract.building || "").toLowerCase().includes(q) ||
+              inTenants
+            );
+          })
+          .map((contract) => (
           <div
             key={contract.id}
             className="bg-white rounded-xl border border-gray-200 shadow-sm p-6"
@@ -130,6 +195,7 @@ export function TenantVerification() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Detail Modal */}
       {showDetail && selectedContract && (
@@ -271,7 +337,7 @@ export function TenantVerification() {
                 className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg"
               >
                 <CheckCircle className="w-4 h-4" />
-                Ký hợp đồng
+                Đáp ứng
               </button>
 
               <button
@@ -281,7 +347,7 @@ export function TenantVerification() {
                 className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg"
               >
                 <XCircle className="w-4 h-4" />
-                Từ chối
+                Không đáp ứng
               </button>
             </div>
           </div>
@@ -290,3 +356,4 @@ export function TenantVerification() {
     </div>
   );
 }
+

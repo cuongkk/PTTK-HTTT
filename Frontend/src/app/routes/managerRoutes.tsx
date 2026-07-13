@@ -23,7 +23,7 @@ export const managerRoutes: RouteObject = {
     { path: "deposit-confirmation", Component: DepositConfirmation },
     
     // Giữ nguyên các trang còn lại
-    { path: "contract-approval", Component: ContractApproval }, 
+    //{ path: "contract-approval", Component: ContractApproval }, 
     { path: "tenant-verification", Component: TenantVerification },
     { path: "liquidation", Component: ContractLiquidation }, 
     { path: "notifications", Component: NotificationCenter },

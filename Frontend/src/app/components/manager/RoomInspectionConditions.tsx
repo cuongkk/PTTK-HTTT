@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ClipboardList, Building2, Camera, Search, X } from "lucide-react";
 
 interface RoomCondition {
-  roomID: number;
+  roomID: string;
   roomName: string;
   building: string;
   status: string;
@@ -10,7 +10,7 @@ interface RoomCondition {
 }
 
 export function RoomInspectionConditions() {
-   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [showInspectionForm, setShowInspectionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
@@ -28,7 +28,7 @@ export function RoomInspectionConditions() {
       return;
     }
 
-    fetch("http://localhost:5157/api/room-inspection-condition", {
+    fetch("http://localhost:5157/api/manager/room-inspection-condition", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -67,7 +67,7 @@ export function RoomInspectionConditions() {
   });
 
   // Phòng đang chọn
-  const currentSelectedRoom = rooms.find((r) => r.roomID === selectedRoomId);
+  const currentSelectedRoom = rooms.find((r) => r.roomID == "selectedRoomId");
 
   if (loading) return <div className="text-center py-10 text-gray-600">Đang tải dữ liệu...</div>;
   if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
@@ -144,7 +144,7 @@ export function RoomInspectionConditions() {
                 <div className="space-y-3 mb-4">
                   {room.tenant && (
                     <div className="text-sm">
-                      <p className="text-gray-600">Khách thuê hiện tại</p>
+                      <p className="text-gray-600">Khách  thuê hiện tại</p>
                       <p className="font-medium text-gray-900">{room.tenant}</p>
                     </div>
                   )}

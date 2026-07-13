@@ -1,24 +1,26 @@
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Backend.Dtos;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Backend.Controllers;
 
 [ApiController]
+[Authorize(Roles = "quan_ly")] 
 [Route("api/manager/room-inspection-condition")]
-public class RoomInspectionConditionController : ControllerBase
+public class RoomInpectionConditionController : ControllerBase
 {
-    private readonly IRoomInspectionConditionService _service;
+    private readonly IRoomInpectionConditionService _roomConditionService;
 
-    public RoomInspectionConditionController(IRoomInspectionConditionService service)
+    public RoomInpectionConditionController(IRoomInpectionConditionService roomConditionService)
     {
-        _service = service;
+        _roomConditionService = roomConditionService;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetRoomInspectionConditions()
+    public async Task<ActionResult<List<RoomConditionDto>>> GetRoomConditions()
     {
-        var result = await _service.GetRoomInspectionConditionsAsync();
-
+        var result = await _roomConditionService.GetRoomConditionsAsync();
         return Ok(result);
     }
 }
