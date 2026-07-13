@@ -29,6 +29,7 @@ import { logout } from "../../services/system-admin/authService";
 import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
 import { getStoredToken } from "../../services/apiClient";
 import { notificationService } from "../../services/notificationService";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
 
@@ -70,6 +71,63 @@ export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>(getRoleFromPathname(location.pathname));
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const toggleNotificationDropdown = async () => {
+    if (!showNotificationDropdown) {
+      try {
+        const data = await notificationService.getMine();
+        setNotificationsList(data.items);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setShowNotificationDropdown(!showNotificationDropdown);
+  };
+
+  const getNotificationLink = (n: any) => {
+    const content = n.content;
+    const title = n.title.toLowerCase();
+    if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
+      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
+      if (depositMatch) {
+        return `/${currentRole}/contracts?action=checkin&ref=${depositMatch[0]}`;
+      }
+      return `/${currentRole}/contracts`;
+    }
+    if (title.includes("trả phòng") || content.toLowerCase().includes("trả phòng")) {
+      const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
+      if (contractMatch) {
+        return `/${currentRole}/checkout-contract?contractId=${contractMatch[0]}`;
+      }
+      return `/${currentRole}/checkout-contract`;
+    }
+    if (title.includes("cọc") || content.toLowerCase().includes("cọc")) {
+      return `/${currentRole}/contracts`;
+    }
+    if (title.includes("đăng ký") || content.toLowerCase().includes("đăng ký")) {
+      return `/${currentRole}/registrations`;
+    }
+    return `/${currentRole}/notifications`;
+  };
+
+  useEffect(() => {
+    setShowNotificationDropdown(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!showNotificationDropdown) return;
+    const handleClose = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".notification-trigger-container")) {
+        setShowNotificationDropdown(false);
+      }
+    };
+    document.addEventListener("click", handleClose);
+    return () => document.removeEventListener("click", handleClose);
+  }, [showNotificationDropdown]);
 
   useEffect(() => {
     setCurrentRole(getRoleFromPathname(location.pathname));
@@ -140,11 +198,8 @@ export function MainLayout() {
 
   const navigation = roleNavigation[currentRole];
 
-  const handleLogout = async () => {
-    if (!window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
-    await logout();
-    navigate("/login");
-    setIsMobileMenuOpen(false);
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
   };
 
   return (
@@ -185,10 +240,85 @@ export function MainLayout() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
               {/* Notifications */}
-              <button onClick={() => navigate(`/${currentRole}/notifications`)} aria-label="Mở thông báo" className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 relative">
-                <Bell className="w-5 h-5" />
-                {unreadNotifications > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}
-              </button>
+              <div className="relative notification-trigger-container">
+                <button
+                  onClick={toggleNotificationDropdown}
+                  aria-label="Mở thông báo"
+                  className="p-2 text-gray-400 hover:text-gray-650 rounded-lg hover:bg-gray-100 relative"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {showNotificationDropdown && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-250 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-3 border-b border-gray-150 flex justify-between items-center bg-gray-50/50">
+                      <span className="font-bold text-xs text-gray-900">Thông báo mới nhất</span>
+                      {unreadNotifications > 0 && (
+                        <button
+                          onClick={async () => {
+                            await notificationService.markAllRead();
+                            setNotificationsList(prev => prev.map(n => ({ ...n, isRead: true })));
+                            setUnreadNotifications(0);
+                            window.dispatchEvent(new Event("notifications-updated"));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-755 font-semibold"
+                        >
+                          Đọc tất cả
+                        </button>
+                      )}
+                    </div>
+                    <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                      {notificationsList.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-gray-500">Chưa có thông báo mới</div>
+                      ) : (
+                        notificationsList.slice(0, 5).map((n) => (
+                          <div
+                            key={n.notificationId}
+                            onClick={async () => {
+                              if (!n.isRead) {
+                                await notificationService.markRead(n.notificationId);
+                                setNotificationsList(prev =>
+                                  prev.map(item =>
+                                    item.notificationId === n.notificationId ? { ...item, isRead: true } : item
+                                  )
+                                );
+                                setUnreadNotifications(prev => Math.max(0, prev - 1));
+                                window.dispatchEvent(new Event("notifications-updated"));
+                              }
+                              const link = getNotificationLink(n);
+                              navigate(link);
+                              setShowNotificationDropdown(false);
+                            }}
+                            className={`p-3 text-left block cursor-pointer transition-colors text-xs ${
+                              n.isRead ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100/50"
+                            }`}
+                          >
+                            <p className={`font-semibold ${n.isRead ? "text-gray-800" : "text-gray-955"}`}>{n.title}</p>
+                            <p className="text-gray-600 mt-0.5 line-clamp-2">{n.content}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString("vi-VN")}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-gray-150 text-center bg-gray-50/50">
+                      <button
+                        onClick={() => {
+                          navigate(`/${currentRole}/notifications`);
+                          setShowNotificationDropdown(false);
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-755 font-bold"
+                      >
+                        Xem tất cả thông báo
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* User Menu */}
               <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
@@ -258,6 +388,21 @@ export function MainLayout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Đăng xuất"
+        message="Bạn có chắc chắn muốn đăng xuất không?"
+        confirmLabel="Đăng xuất"
+        cancelLabel="Ở lại"
+        variant="warning"
+        onConfirm={async () => {
+          setShowLogoutConfirm(false);
+          await logout();
+          navigate("/login");
+          setIsMobileMenuOpen(false);
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

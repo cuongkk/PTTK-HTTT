@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { roomService, type Room } from "../../services/system-admin/roomService";
+import { customerWorkflowService, type CustomerRoomContext } from "../../services/customerWorkflowService";
 
 export function RentalRegistration() {
   const navigate = useNavigate();
@@ -10,10 +11,12 @@ export function RentalRegistration() {
   const moveInDate = searchParams.get("moveInDate") ?? "";
   const [submitted, setSubmitted] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
+  const [context, setContext] = useState<CustomerRoomContext | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    roomService.getAll().then((items) => setRoom(items.find((item) => item.roomId === roomId) ?? null)).finally(() => setLoading(false));
+    Promise.all([roomService.getAll(), roomId ? customerWorkflowService.getRoomContext(roomId) : Promise.resolve(null)])
+      .then(([items, roomContext]) => { setRoom(items.find((item) => item.roomId === roomId) ?? null); setContext(roomContext); }).finally(() => setLoading(false));
   }, [roomId]);
 
   const submit = (event: FormEvent) => { event.preventDefault(); setSubmitted(true); };
@@ -29,15 +32,15 @@ export function RentalRegistration() {
       </button>
     </div>
     <form onSubmit={submit} className="space-y-6 rounded-xl border border-gray-200 bg-white p-5"><h2 className="font-bold">Thông tin đăng ký ban đầu</h2><div className="grid gap-4 md:grid-cols-2">
-      {["Họ và tên", "Số điện thoại", "Email"].map((label) => <label key={label} className="text-sm font-medium">{label}<input required={label !== "Email"} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>)}
+      {["Họ và tên", "Số điện thoại", "Email"].map((label) => <label key={label} className="text-sm font-medium">{label}<input defaultValue={label === "Họ và tên" ? context?.customerName : label === "Số điện thoại" ? context?.phone : context?.email ?? ""} required={label !== "Email"} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>)}
       <label className="text-sm font-medium">Số người dự kiến ở<input required type="number" min="1" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Giới tính<select className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option>Nam</option><option>Nữ</option><option>Nhóm hỗn hợp</option></select></label>
       <label className="text-sm font-medium">Quốc tịch<input required defaultValue="Việt Nam" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Loại giấy tờ<select required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option>CCCD</option><option>Hộ chiếu</option></select></label>
-      <label className="text-sm font-medium">Số CCCD<input required inputMode="numeric" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+      <label className="text-sm font-medium">Số CCCD<input required inputMode="numeric" defaultValue={context?.nationalId ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Ảnh CCCD<input required type="file" accept="image/*" className="mt-2 block w-full text-sm" /></label>
-      <label className="text-sm font-medium">Ngày sinh<input required type="date" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
-      <label className="text-sm font-medium">Địa chỉ thường trú<input required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+      <label className="text-sm font-medium">Ngày sinh<input required type="date" defaultValue={context?.dateOfBirth ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+      <label className="text-sm font-medium">Địa chỉ thường trú<input required defaultValue={context?.address ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium md:col-span-2">Tài liệu tài chính (nếu áp dụng)<input type="file" className="mt-2 block w-full text-sm" /></label>
       <label className="text-sm font-medium">Ngày dự kiến vào<input required type="date" defaultValue={moveInDate} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
       <label className="text-sm font-medium">Thời hạn thuê<select className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option>6 tháng</option><option>12 tháng</option><option>Trên 12 tháng</option></select></label>

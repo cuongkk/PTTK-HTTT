@@ -52,10 +52,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 
@@ -81,7 +80,9 @@ builder.Services.AddScoped<IRoomCatalogService, RoomCatalogService>();
 builder.Services.AddScoped<IBedCatalogService, BedCatalogService>();
 builder.Services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
 builder.Services.AddScoped<ICustomerWorkflowService, CustomerWorkflowService>();
+builder.Services.AddScoped<ISalesWorkflowService, SalesWorkflowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAccountantService, AccountantService>();
 
 builder.Services.AddScoped<IRoomInspectionStatusService,RoomInspectionStatusService>();
 builder.Services.AddScoped<IRoomInpectionConditionService,RoomInpectionConditionService>();

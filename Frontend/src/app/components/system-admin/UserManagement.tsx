@@ -58,6 +58,7 @@ import {
 } from "../ui/select";
 import { ApiError } from "../../services/apiClient";
 import { userService, type UserListItem } from "../../services/system-admin/userService";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const ROLE_OPTIONS = [
   { value: "system_admin", label: "Quản trị hệ thống" },
@@ -101,6 +102,7 @@ export function UserManagement() {
 
   const [newUser, setNewUser] = useState({ fullName: "", email: "", roleId: "khach_hang", phoneNumber: "" });
   const [editUser, setEditUser] = useState({ fullName: "", phoneNumber: "", roleId: "", status: "" });
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; variant?: "warning"|"danger"|"info"; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -130,38 +132,52 @@ export function UserManagement() {
     setIsEditDialogOpen(true);
   };
 
-  const handleCreateSubmit = async () => {
-    if (!window.confirm(`Xác nhận tạo tài khoản cho "${newUser.fullName || newUser.email}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      const result = await userService.create(newUser);
-      toast.success(`Đã tạo tài khoản. Mật khẩu tạm thời: ${result.temporaryPassword}`, { duration: 10000 });
-      setIsAddDialogOpen(false);
-      setNewUser({ fullName: "", email: "", roleId: "khach_hang", phoneNumber: "" });
-      await loadUsers();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Tạo tài khoản thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateSubmit = () => {
+    setConfirmDialog({
+      open: true,
+      title: "Tạo tài khoản",
+      message: `Xác nhận tạo tài khoản cho "${newUser.fullName || newUser.email}"?`,
+      variant: "info",
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          const result = await userService.create(newUser);
+          toast.success(`Đã tạo tài khoản. Mật khẩu tạm thời: ${result.temporaryPassword}`, { duration: 10000 });
+          setIsAddDialogOpen(false);
+          setNewUser({ fullName: "", email: "", roleId: "khach_hang", phoneNumber: "" });
+          await loadUsers();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Tạo tài khoản thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
-  const handleUpdateSubmit = async () => {
+  const handleUpdateSubmit = () => {
     if (!currentUser) return;
-    if (!window.confirm(`Xác nhận cập nhật tài khoản của "${currentUser.displayName}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      await userService.update(currentUser.accountId, editUser);
-      toast.success("Đã cập nhật tài khoản.");
-      setIsEditDialogOpen(false);
-      await loadUsers();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Cập nhật tài khoản thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Cập nhật tài khoản",
+      message: `Xác nhận cập nhật tài khoản của "${currentUser.displayName}"?`,
+      variant: "info",
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          await userService.update(currentUser.accountId, editUser);
+          toast.success("Đã cập nhật tài khoản.");
+          setIsEditDialogOpen(false);
+          await loadUsers();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Cập nhật tài khoản thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleConfirmDelete = async () => {
@@ -179,14 +195,22 @@ export function UserManagement() {
     }
   };
 
-  const handleResetPassword = async (user: UserListItem) => {
-    if (!window.confirm(`Đặt lại mật khẩu cho "${user.displayName}"?`)) return;
-    try {
-      const result = await userService.resetPassword(user.accountId);
-      toast.success(`Mật khẩu mới: ${result.newPassword}`, { duration: 10000 });
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Đặt lại mật khẩu thất bại.");
-    }
+  const handleResetPassword = (user: UserListItem) => {
+    setConfirmDialog({
+      open: true,
+      title: "Đặt lại mật khẩu",
+      message: `Đặt lại mật khẩu cho "${user.displayName}"?`,
+      variant: "warning",
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        try {
+          const result = await userService.resetPassword(user.accountId);
+          toast.success(`Mật khẩu mới: ${result.newPassword}`, { duration: 10000 });
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Đặt lại mật khẩu thất bại.");
+        }
+      }
+    });
   };
 
   const stats = [
@@ -486,6 +510,15 @@ export function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant ?? "info"}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

@@ -147,6 +147,7 @@ public class HandoverReport
     public decimal? InitialElectricityReading { get; set; }
     public decimal? InitialWaterReading { get; set; }
     public string? Note { get; set; }
+    public ICollection<HandoverDetail> AssetDetails { get; set; } = new List<HandoverDetail>();
 }
 
 public class HandoverDetail

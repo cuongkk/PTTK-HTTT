@@ -15,11 +15,8 @@ public static class DbSeeder
         await SeedBranchesAsync(db);
         await SeedUsersAsync(db);
         await SeedSystemParametersAsync(db);
-        await SeedRoomsAndBedsAsync(db);
-        await SeedRoomPresentationDataAsync(db);
         await SeedServicesAsync(db);
         await SeedResidenceRulesAsync(db);
-        await SeedWorkflowDemoAsync(db);
         await SeedStatePipelineDemoAsync(db);
     }
 
@@ -95,10 +92,13 @@ public static class DbSeeder
         // UC3: PHONG_11..PHONG_18 từ chờ bổ sung hồ sơ đến hợp đồng hiệu lực.
         for (var i = 0; i < 8; i++)
         {
-            var appId = $"HSDNHAN{i:00000}"; var depositId = $"DCDNHAN{i:00000}";
+            var appId = $"HSDNHAN{i:00000}"; var depositId = $"DCDNHAN{i:00000}"; var scheduleId = $"LXDNHAN{i:00000}";
             var appStatus = i == 0 ? "da_dat_coc" : i <= 2 ? "cho_kiem_tra_nhan_phong" : "du_dieu_kien_nhan_phong";
             if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == appId)) db.RentalApplications.Add(new RentalApplication { ApplicationId = appId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today.AddDays(15), ExpectedRentalMonths = 12, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = appStatus });
             await db.SaveChangesAsync();
+            if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == scheduleId)) db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = scheduleId, ApplicationId = appId, SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 5, 9, 0, 0), Status = "hoan_thanh" });
+            await db.SaveChangesAsync();
+            if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == scheduleId && x.RoomId == $"PHONG_{i + 11}")) db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = scheduleId, RoomId = $"PHONG_{i + 11}" });
             if (!await db.DepositSlips.AnyAsync(x => x.DepositId == depositId)) db.DepositSlips.Add(new DepositSlip { DepositId = depositId, ApplicationId = appId, SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 6000000, PaymentDueAt = new DateTime(2026, 7, 10, 8, 0, 0), PaidAt = new DateTime(2026, 7, 9, 9, 0, 0), Status = "hoan_thanh" });
             await db.SaveChangesAsync();
             if (i >= 4)
@@ -541,6 +541,8 @@ public static class DbSeeder
 
         if (!await db.RentalContracts.AnyAsync(x => x.ContractId == "HD0000000001"))
             db.RentalContracts.Add(new RentalContract { ContractId = "HD0000000001", DepositId = "DC0000000001", CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = "P_Q5_101", NumberOfBeds = 1, MonthlyRent = 1500000, PaymentCycle = "hang_thang", SignedDate = new DateOnly(2026, 7, 12), StartDate = new DateOnly(2026, 8, 1), EndDate = new DateOnly(2027, 7, 31), Status = "hieu_luc" });
+        if (!await db.RentalContracts.AnyAsync(x => x.ContractId == "HD0000000002"))
+            db.RentalContracts.Add(new RentalContract { ContractId = "HD0000000002", DepositId = "DC0000000002", CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", RoomId = "P_Q5_201", NumberOfBeds = 2, MonthlyRent = 4500000, PaymentCycle = "hang_thang", SignedDate = new DateOnly(2026, 7, 12), StartDate = new DateOnly(2026, 8, 1), EndDate = new DateOnly(2027, 7, 31), Status = "cho_ky" });
         await db.SaveChangesAsync();
 
         if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TV0000000001"))

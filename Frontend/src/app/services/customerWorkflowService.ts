@@ -70,10 +70,17 @@ export interface CustomerRoomSummary {
   applicationStatus: string;
 }
 
+export interface CustomerContractDetail { roomId: string; roomName: string; branchName: string; roomType: string; monthlyRent: number; numberOfBeds: number; startDate: string; endDate: string | null; contractStatus: string; customerName: string; applicationStatus: string; invoiceStatus: string | null; amountDue: number | null; }
+export interface CustomerCheckoutDetail { roomId: string; roomName: string; contractId: string; contractStatus: string; requestStatus: string | null; requestedCheckoutAt: string | null; confirmedInspectionAt: string | null; reason: string | null; roomCondition: string | null; finalElectricityReading: number | null; finalWaterReading: number | null; originalDeposit: number | null; totalDeductions: number | null; refundAmount: number | null; additionalPaymentAmount: number | null; invoiceStatus: string | null; }
+export interface CustomerRoomContext { roomId: string; roomName: string; branchName: string; roomType: string; monthlyRent: number; roomStatus: string; customerName: string; phone: string; email: string | null; nationalId: string | null; gender: string | null; nationality: string | null; dateOfBirth: string | null; address: string | null; applicationId: string | null; applicationStatus: string | null; numberOfPeople: number | null; expectedMoveInDate: string | null; expectedRentalMonths: number | null; depositId: string | null; depositStatus: string | null; depositAmount: number | null; contractId: string | null; contractStatus: string | null; invoiceId: string | null; invoiceStatus: string | null; invoiceAmount: number | null; tenants: Array<{ fullName: string; gender: string | null; nationality: string | null; dateOfBirth: string | null; nationalId: string | null; documentImageUrl: string | null; permanentAddress: string | null; occupationOrSchool: string | null; }>; }
+
 export const customerWorkflowService = {
   getViewedRooms: () => apiClient.get<ViewedRoom[]>("/customer-workflow/viewed-rooms"),
   getDepositedRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/deposited-rooms"),
   getRentingRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/renting-rooms"),
   getDepositRequest: (applicationId: string, roomId: string) => apiClient.get<DepositRequestDetail>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`),
   submitDepositRequest: (applicationId: string, roomId: string, request: SubmitDepositRequest) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`, request),
+  getContractDetail: (roomId: string) => apiClient.get<CustomerContractDetail>(`/customer-workflow/rooms/${roomId}/contract`),
+  getCheckoutDetail: (roomId: string) => apiClient.get<CustomerCheckoutDetail>(`/customer-workflow/rooms/${roomId}/checkout`),
+  getRoomContext: (roomId: string) => apiClient.get<CustomerRoomContext>(`/customer-workflow/rooms/${roomId}/context`),
 };

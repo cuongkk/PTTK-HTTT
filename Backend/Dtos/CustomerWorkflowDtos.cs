@@ -68,3 +68,10 @@ public record CustomerRoomSummaryDto(
     string ReferenceId,
     string Status,
     string ApplicationStatus);
+
+public record CustomerContractDetailDto(string RoomId, string RoomName, string BranchName, string RoomType, decimal MonthlyRent, short NumberOfBeds, DateOnly StartDate, DateOnly? EndDate, string ContractStatus, string CustomerName, string ApplicationStatus, string? InvoiceStatus, decimal? AmountDue);
+
+public record CustomerCheckoutDetailDto(string RoomId, string RoomName, string ContractId, string ContractStatus, string? RequestStatus, DateTime? RequestedCheckoutAt, DateTime? ConfirmedInspectionAt, string? Reason, string? RoomCondition, decimal? FinalElectricityReading, decimal? FinalWaterReading, decimal? OriginalDeposit, decimal? TotalDeductions, decimal? RefundAmount, decimal? AdditionalPaymentAmount, string? InvoiceStatus);
+
+public record CustomerTenantDto(string FullName, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? NationalId, string? DocumentImageUrl, string? PermanentAddress, string? OccupationOrSchool);
+public record CustomerRoomContextDto(string RoomId, string RoomName, string BranchName, string RoomType, decimal MonthlyRent, string RoomStatus, string CustomerName, string Phone, string? Email, string? NationalId, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? Address, string? ApplicationId, string? ApplicationStatus, short? NumberOfPeople, DateOnly? ExpectedMoveInDate, short? ExpectedRentalMonths, string? DepositId, string? DepositStatus, decimal? DepositAmount, string? ContractId, string? ContractStatus, string? InvoiceId, string? InvoiceStatus, decimal? InvoiceAmount, List<CustomerTenantDto> Tenants);

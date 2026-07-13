@@ -36,6 +36,7 @@ import {
 } from "../ui/select";
 import { ApiError } from "../../services/apiClient";
 import { roomService, type Room, type Branch } from "../../services/system-admin/roomService";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const ROOM_TYPE_OPTIONS = [
   { value: "nguyen_can", label: "Nguyên căn" },
@@ -82,6 +83,7 @@ export function RoomBedCatalog() {
   const [deleteTarget, setDeleteTarget] = useState<Room | null>(null);
 
   const [newRoom, setNewRoom] = useState(emptyNewRoom);
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
   const [editRoom, setEditRoom] = useState({
     roomName: "",
     roomType: "nguyen_can",
@@ -136,55 +138,67 @@ export function RoomBedCatalog() {
       toast.error("Vui lòng chọn chi nhánh và nhập tên phòng.");
       return;
     }
-    if (!window.confirm(`Xác nhận tạo phòng "${newRoom.roomName}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      await roomService.create({
-        branchId: newRoom.branchId,
-        roomName: newRoom.roomName,
-        roomType: newRoom.roomType,
-        capacity: Number(newRoom.capacity) || 1,
-        area: newRoom.area || undefined,
-        roomPrice: newRoom.roomPrice ? Number(newRoom.roomPrice) : undefined,
-        hasAirConditioner: newRoom.hasAirConditioner,
-        hasParking: newRoom.hasParking,
-      });
-      toast.success("Đã thêm loại phòng mới.");
-      setIsAddDialogOpen(false);
-      setNewRoom(emptyNewRoom);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Tạo phòng thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Tạo phòng",
+      message: `Xác nhận tạo phòng "${newRoom.roomName}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          await roomService.create({
+            branchId: newRoom.branchId,
+            roomName: newRoom.roomName,
+            roomType: newRoom.roomType,
+            capacity: Number(newRoom.capacity) || 1,
+            area: newRoom.area || undefined,
+            roomPrice: newRoom.roomPrice ? Number(newRoom.roomPrice) : undefined,
+            hasAirConditioner: newRoom.hasAirConditioner,
+            hasParking: newRoom.hasParking,
+          });
+          toast.success("Đã thêm loại phòng mới.");
+          setIsAddDialogOpen(false);
+          setNewRoom(emptyNewRoom);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Tạo phòng thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleUpdateSubmit = async () => {
     if (!currentRoom) return;
-    if (!window.confirm(`Xác nhận cập nhật phòng "${currentRoom.roomName}"?`)) return;
-
-    setIsSubmitting(true);
-    try {
-      await roomService.update(currentRoom.roomId, {
-        roomName: editRoom.roomName,
-        roomType: editRoom.roomType,
-        capacity: Number(editRoom.capacity) || 1,
-        area: editRoom.area || undefined,
-        roomPrice: editRoom.roomPrice ? Number(editRoom.roomPrice) : undefined,
-        hasAirConditioner: editRoom.hasAirConditioner,
-        hasParking: editRoom.hasParking,
-        status: editRoom.status,
-      });
-      toast.success("Đã cập nhật phòng.");
-      setIsEditDialogOpen(false);
-      await load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Cập nhật phòng thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Cập nhật phòng",
+      message: `Xác nhận cập nhật phòng "${currentRoom.roomName}"?`,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setIsSubmitting(true);
+        try {
+          await roomService.update(currentRoom.roomId, {
+            roomName: editRoom.roomName,
+            roomType: editRoom.roomType,
+            capacity: Number(editRoom.capacity) || 1,
+            area: editRoom.area || undefined,
+            roomPrice: editRoom.roomPrice ? Number(editRoom.roomPrice) : undefined,
+            hasAirConditioner: editRoom.hasAirConditioner,
+            hasParking: editRoom.hasParking,
+            status: editRoom.status,
+          });
+          toast.success("Đã cập nhật phòng.");
+          setIsEditDialogOpen(false);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Cập nhật phòng thất bại.");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    });
   };
 
   const handleConfirmDelete = async () => {
@@ -534,6 +548,15 @@ export function RoomBedCatalog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="info"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

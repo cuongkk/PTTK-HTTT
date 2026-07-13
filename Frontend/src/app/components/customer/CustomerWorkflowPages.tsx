@@ -22,7 +22,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { customerWorkflowService, type CustomerRoomSummary, type DepositRequestDetail, type ViewedRoom } from "../../services/customerWorkflowService";
+import { customerWorkflowService, type CustomerCheckoutDetail, type CustomerContractDetail, type CustomerRoomContext, type CustomerRoomSummary, type DepositRequestDetail, type ViewedRoom } from "../../services/customerWorkflowService";
 
 type RoomTab = "viewed" | "deposited" | "renting";
 
@@ -115,6 +115,7 @@ export function CustomerRooms() {
           date: `${tab === "deposited" ? "Đã cọc" : "Từ"} ${new Date(room.relevantAt).toLocaleDateString("vi-VN")}`,
           applicationId: "",
           applicationStatus: room.applicationStatus,
+          workflowStatus: room.status,
         }));
 
   return (
@@ -175,16 +176,19 @@ export function CustomerRooms() {
                       {room.applicationStatus === "du_dieu_kien_nhan_phong" ? "Xem và ký hợp đồng" : "Bổ sung thông tin"}
                     </button>
                     <button
-                      onClick={() => navigate(`/customer/checkouts/TP-${room.id}/reconciliation`)}
+                      onClick={() => {}}
                       className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                     >
                       Yêu cầu hoàn tiền
                     </button>
                   </>
                 )}
-                {tab === "renting" && (
+                {tab === "renting" && room.workflowStatus === "cho_khach_xac_nhan" && (
+                  <button onClick={() => navigate(`/customer/checkouts/${room.id}/reconciliation`)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">Xác nhận hiện trạng và đối soát</button>
+                )}
+                {tab === "renting" && room.workflowStatus !== "cho_khach_xac_nhan" && (
                   <button
-                    onClick={() => navigate(`/customer/checkouts/TP-${room.id}/reconciliation`)}
+                    onClick={() => navigate(`/customer/checkouts/${room.id}/request`)}
                     className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                   >
                     Yêu cầu trả phòng
@@ -374,9 +378,14 @@ export function DepositRequest() {
 
 function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
   const navigate = useNavigate();
+  const params = useParams();
   const [paid, setPaid] = useState(false);
   const isDeposit = kind === "deposit";
-  const amount = isDeposit ? "3.000.000 đ" : "1.850.000 đ";
+  const rawReference = params.paymentRequestId ?? "";
+  const paymentRoomId = rawReference.replace(/^(TT|DT)-/, "");
+  const [paymentContext, setPaymentContext] = useState<CustomerRoomContext | null>(null);
+  useEffect(() => { if (paymentRoomId) customerWorkflowService.getRoomContext(paymentRoomId).then(setPaymentContext); }, [paymentRoomId]);
+  const amount = `${(paymentContext?.invoiceAmount ?? paymentContext?.depositAmount ?? 0).toLocaleString("vi-VN")} đ`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title={isDeposit ? "Thanh toán tiền cọc" : "Thanh toán khoản nhận phòng"} backTo={isDeposit ? "/customer/my-rooms?tab=viewed" : "/customer/my-rooms?tab=deposited"} />
@@ -387,7 +396,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
             <h3 className="mt-3 text-xl font-bold">Đang chờ đối chiếu</h3>
             <p className="mt-2 text-gray-600">Bạn không cần thanh toán lại trong thời gian xử lý.</p>
             <button
-              onClick={() => navigate(isDeposit ? "/customer/my-rooms?tab=deposited" : "/customer/handovers/BBBG-P_Q5_201")}
+              onClick={() => navigate(isDeposit ? "/customer/my-rooms?tab=deposited" : "/customer/handovers/BBBG-PHONG_18")}
               className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white"
             >
               Mô phỏng: tiếp tục
@@ -398,7 +407,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
         <>
           <Section title="Chi tiết khoản thu">
             <InfoRow label="Loại khoản thu" value={isDeposit ? "Tiền cọc" : "Tiền thuê kỳ đầu và dịch vụ"} />
-            <InfoRow label="Phòng/giường" value="P_Q5_201 - Nguyên phòng" />
+            <InfoRow label="Phòng/giường" value={`${paymentContext?.roomName ?? "Đang tải..."} - ${paymentContext?.roomType === "ghep" ? "Ở ghép" : "Nguyên phòng"}`} />
             <InfoRow label="Số tiền" value={amount} />
             <InfoRow label="Hạn thanh toán" value="23:59 ngày 12/07/2026" />
           </Section>
@@ -408,7 +417,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
               <div>
                 <InfoRow label="Ngân hàng" value="Vietcombank" />
                 <InfoRow label="Số tài khoản" value="0123456789" />
-                <InfoRow label="Nội dung" value={isDeposit ? "COC YC-P_Q5_101" : "NHANPHONG P_Q5_201"} />
+                <InfoRow label="Nội dung" value={isDeposit ? `Đặt cọc ${paymentContext?.roomId ?? ""}` : `Nhận phòng ${paymentContext?.roomId ?? ""}`} />
                 <label className="mt-4 block text-sm font-medium text-gray-700">
                   Chứng từ
                   <input type="file" className="mt-2 block w-full text-sm" />
@@ -433,15 +442,24 @@ export function CheckInPayment() {
 }
 
 export function CustomerCheckIn() {
+  const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
   const [params] = useSearchParams();
   const profileApproved = params.get("profileApproved") === "true";
   const [showContract, setShowContract] = useState(profileApproved);
   const [signatureName, setSignatureName] = useState("");
   const [residenceRules, setResidenceRules] = useState<ResidenceRule[]>([]);
+  const { checkInId } = useParams();
+  const contractRoomId = (checkInId ?? "").replace(/^NP-/, "");
+  const [contractDetail, setContractDetail] = useState<CustomerContractDetail | null>(null);
+  const [checkInContext, setCheckInContext] = useState<CustomerRoomContext | null>(null);
   useEffect(() => {
-    roomService.getResidenceRules("P_Q5_201").then(setResidenceRules).catch(() => setResidenceRules([]));
-  }, []);
+    if (!contractRoomId) return;
+    Promise.all([roomService.getResidenceRules(contractRoomId), customerWorkflowService.getRoomContext(contractRoomId)])
+      .then(([rules, context]) => { setResidenceRules(rules); setCheckInContext(context); })
+      .catch(() => setResidenceRules([]));
+    customerWorkflowService.getContractDetail(contractRoomId).then(setContractDetail).catch(() => setContractDetail(null));
+  }, [contractRoomId]);
   if (showContract)
     return (
       <div className="space-y-6">
@@ -451,14 +469,14 @@ export function CustomerCheckIn() {
             <h3 className="text-center text-lg font-bold">HỢP ĐỒNG THUÊ CHỖ Ở</h3>
             <div>
               <h4 className="font-bold text-gray-900">1. Thông tin các bên</h4>
-              <p>Bên cho thuê: HomeStay Dorm - Chi nhánh Quận 5.</p>
-              <p>Bên thuê: Nguyễn Gia Bảo. Danh sách người ở kèm theo lấy từ hồ sơ đã được Quản lý xác nhận.</p>
+              <p>Bên cho thuê: HomeStay Dorm - {contractDetail?.branchName ?? "Đang tải..."}.</p>
+              <p>Bên thuê: {contractDetail?.customerName ?? "Đang tải..."}. Danh sách người ở kèm theo lấy từ hồ sơ đã được Quản lý xác nhận.</p>
             </div>
             <div>
               <h4 className="font-bold text-gray-900">2. Phòng/giường và thời hạn thuê</h4>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 <p>
-                  Phòng thuê: <strong>Phòng 201</strong>
+                  Phòng thuê: <strong>{contractDetail?.roomName ?? "Đang tải..."}</strong>
                 </p>
                 <p>
                   Hình thức: <strong>Thuê nguyên phòng</strong>
@@ -480,7 +498,7 @@ export function CustomerCheckIn() {
             <div>
               <h4 className="font-bold text-gray-900">3. Giá thuê và kỳ thanh toán</h4>
               <p>
-                Giá thuê nguyên phòng: <strong>4.500.000 đồng/tháng</strong>.
+                Giá thuê: <strong>{(contractDetail?.monthlyRent ?? 0).toLocaleString("vi-VN")} đồng/tháng</strong>.
               </p>
               <p>Kỳ thanh toán: hàng tháng, thanh toán trước ngày 01 của mỗi tháng. Khoản thu nhận phòng gồm tiền thuê kỳ đầu và các dịch vụ phát sinh theo yêu cầu.</p>
             </div>
@@ -537,8 +555,8 @@ export function CustomerCheckIn() {
               className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"
             />
           </label>
-          <button disabled={!signatureName.trim()} className="mt-5 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:bg-gray-300">
-            Ký hợp đồng
+          <button disabled={!signatureName.trim()} onClick={() => navigate(`/customer/check-in-payments/TT-${contractRoomId}`)} className="mt-5 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:bg-gray-300">
+            {contractDetail?.contractStatus === "cho_ky" ? "Ký hợp đồng" : "Tiếp tục thanh toán"}
           </button>
         </Section>
       </div>
@@ -575,10 +593,10 @@ export function CustomerCheckIn() {
                 </tr>
               </thead>
               <tbody>
-                {["Nguyễn Gia Bảo", ""].map((name, index) => (
+                {(checkInContext?.tenants.length ? checkInContext.tenants : [{ fullName: checkInContext?.customerName ?? "", gender: checkInContext?.gender, nationality: checkInContext?.nationality, dateOfBirth: checkInContext?.dateOfBirth, nationalId: checkInContext?.nationalId, documentImageUrl: null, permanentAddress: checkInContext?.address, occupationOrSchool: null }]).map((tenant, index) => (
                   <tr key={index} className="border-t align-top">
                     <td className="p-2">
-                      <input required defaultValue={name} className="w-full rounded border px-2 py-2" />
+                      <input required defaultValue={tenant.fullName} className="w-full rounded border px-2 py-2" />
                     </td>
                     <td className="p-2">
                       <select required className="w-full rounded border px-2 py-2">
@@ -587,23 +605,23 @@ export function CustomerCheckIn() {
                       </select>
                     </td>
                     <td className="p-2">
-                      <input required defaultValue="Việt Nam" className="w-full rounded border px-2 py-2" />
+                      <input required defaultValue={tenant.nationality ?? "Việt Nam"} className="w-full rounded border px-2 py-2" />
                     </td>
                     <td className="p-2">
-                      <input required type="date" defaultValue={index === 0 ? "2003-05-12" : ""} className="w-full rounded border px-2 py-2" />
+                      <input required type="date" defaultValue={tenant.dateOfBirth ?? ""} className="w-full rounded border px-2 py-2" />
                     </td>
                     <td className="p-2">
-                      <input required defaultValue={index === 0 ? "079203000001" : ""} className="w-full rounded border px-2 py-2" />
+                      <input required defaultValue={tenant.nationalId ?? ""} className="w-full rounded border px-2 py-2" />
                     </td>
                     <td className="p-2">
-                      {index === 0 && <span className="mb-1 block text-xs text-gray-500">Đã có: cccd-nguyen-gia-bao.jpg</span>}
-                      <input required={index !== 0} type="file" accept="image/*" className="w-full text-xs" />
+                      {tenant.documentImageUrl && <span className="mb-1 block text-xs text-gray-500">Đã có: {tenant.documentImageUrl}</span>}
+                      <input required={!tenant.documentImageUrl} type="file" accept="image/*" className="w-full text-xs" />
                     </td>
                     <td className="p-2">
-                      <input required defaultValue={index === 0 ? "25 Nguyễn Trãi, Quận 5, TP.HCM" : ""} className="w-full rounded border px-2 py-2" />
+                      <input required defaultValue={tenant.permanentAddress ?? ""} className="w-full rounded border px-2 py-2" />
                     </td>
                     <td className="p-2">
-                      <input required defaultValue={index === 0 ? "Sinh viên Đại học Công nghệ" : ""} className="w-full rounded border px-2 py-2" />
+                      <input required defaultValue={tenant.occupationOrSchool ?? ""} className="w-full rounded border px-2 py-2" />
                     </td>
                   </tr>
                 ))}
@@ -635,7 +653,7 @@ export function HandoverConfirmation() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Biên bản bàn giao" backTo="/customer/my-rooms?tab=deposited" />
       <Section title="Thông tin bàn giao">
-        <InfoRow label="Phòng" value="P_Q5_201" />
+        <InfoRow label="Phòng" value="PHONG_18" />
         <InfoRow label="Ngày bàn giao" value="01/08/2026" />
         <InfoRow label="Chỉ số điện đầu" value="1.245 kWh" />
         <InfoRow label="Chỉ số nước đầu" value="382 m³" />
@@ -665,32 +683,55 @@ export function HandoverConfirmation() {
   );
 }
 
+export function CheckoutRequestPage() {
+  const { checkoutId } = useParams();
+  const navigate = useNavigate();
+  const [detail, setDetail] = useState<CustomerCheckoutDetail | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  useEffect(() => { if (checkoutId) customerWorkflowService.getCheckoutDetail(checkoutId).then(setDetail); }, [checkoutId]);
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader title="Yêu cầu trả phòng" backTo="/customer/my-rooms?tab=renting" />
+      {submitted && <StatusBanner tone="amber">Yêu cầu mẫu đã được nhập. Prototype chưa cập nhật trạng thái vào database.</StatusBanner>}
+      <Section title="Thông tin hợp đồng">
+        <InfoRow label="Phòng" value={detail?.roomName ?? "Đang tải..."} />
+        <InfoRow label="Hợp đồng" value={detail?.contractId ?? "Đang tải..."} />
+        <InfoRow label="Trạng thái" value={detail?.contractStatus ?? "Đang tải..."} />
+      </Section>
+      <Section title="Lịch trả phòng đề xuất">
+        <label className="block text-sm font-medium">Ngày và giờ muốn trả phòng<input type="datetime-local" defaultValue={detail?.requestedCheckoutAt?.slice(0, 16)} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+        <label className="mt-4 block text-sm font-medium">Lý do<textarea defaultValue={detail?.reason ?? ""} rows={3} className="mt-2 w-full rounded-lg border border-gray-300 p-3" /></label>
+        <div className="mt-5 flex justify-end"><button onClick={() => setSubmitted(true)} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white">Gửi yêu cầu trả phòng</button></div>
+      </Section>
+    </div>
+  );
+}
+
 export function CheckoutReconciliation() {
   const navigate = useNavigate();
   const { checkoutId } = useParams();
-  const [agreed, setAgreed] = useState(false);
+  const [detail, setDetail] = useState<CustomerCheckoutDetail | null>(null);
+  useEffect(() => { if (checkoutId) customerWorkflowService.getCheckoutDetail(checkoutId).then(setDetail); }, [checkoutId]);
   return (
     <div className="space-y-6">
       <PageHeader title="Xác nhận hiện trạng, đối soát và hoàn cọc" backTo="/customer/my-rooms?tab=renting" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Biên bản hiện trạng">
-          <InfoRow label="Tình trạng phòng" value="Tốt" />
+          <InfoRow label="Tình trạng phòng" value={detail?.roomCondition ?? "Chưa có biên bản"} />
           <InfoRow label="Vệ sinh" value="Đạt" />
           <InfoRow label="Tài sản" value="Đầy đủ" />
-          <InfoRow label="Điện cuối kỳ" value="1.380 kWh" />
-          <InfoRow label="Nước cuối kỳ" value="401 m³" />
+          <InfoRow label="Điện cuối kỳ" value={`${detail?.finalElectricityReading ?? 0} kWh`} />
+          <InfoRow label="Nước cuối kỳ" value={`${detail?.finalWaterReading ?? 0} m³`} />
           <InfoRow label="Chi phí hư hỏng" value="0 đ" />
         </Section>
         <Section title="Kết quả đối soát">
-          <InfoRow label="Tiền cọc gốc" value="9.000.000 đ" />
+          <InfoRow label="Tiền cọc gốc" value={`${(detail?.originalDeposit ?? 0).toLocaleString("vi-VN")} đ`} />
           <InfoRow label="Tỷ lệ hoàn" value="70%" />
           <InfoRow label="Tiền thuê còn nợ" value="0 đ" />
           <InfoRow label="Điện, nước, dịch vụ" value="420.000 đ" />
-          <InfoRow label="Tổng được hoàn" value="5.880.000 đ" />
-          <label className="mt-4 flex gap-3 text-sm">
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-            Tôi đồng ý với biên bản và kết quả đối soát.
-          </label>
+          <InfoRow label="Tổng khấu trừ" value={`${(detail?.totalDeductions ?? 0).toLocaleString("vi-VN")} đ`} />
+          <InfoRow label="Tổng được hoàn" value={`${(detail?.refundAmount ?? 0).toLocaleString("vi-VN")} đ`} />
+          <InfoRow label="Cần thanh toán thêm" value={`${(detail?.additionalPaymentAmount ?? 0).toLocaleString("vi-VN")} đ`} />
         </Section>
       </div>
       <Section title="Phản hồi">
@@ -698,11 +739,10 @@ export function CheckoutReconciliation() {
         <div className="mt-4 flex justify-end gap-3">
           <button className="rounded-lg border border-gray-300 px-4 py-2.5 font-semibold text-gray-700">Gửi khiếu nại</button>
           <button
-            disabled={!agreed}
             onClick={() => navigate(`/customer/checkout-payments/DT-${checkoutId}`)}
-            className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white disabled:bg-gray-300"
+            className="rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white"
           >
-            Xác nhận kết quả
+            {(detail?.additionalPaymentAmount ?? 0) > 0 ? "Thanh toán khoản phát sinh" : "Xác nhận kết quả"}
           </button>
         </div>
       </Section>
@@ -747,7 +787,7 @@ export function CheckoutSettlement() {
             </label>
           </div>
         )}
-        <button onClick={() => navigate(`/customer/checkouts/TP-P_Q5_102/liquidation`)} className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white">
+        <button onClick={() => navigate(`/customer/checkouts/PHONG_37/liquidation`)} className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white">
           Xác nhận thông tin nhận tiền
         </button>
       </Section>
@@ -762,8 +802,8 @@ export function LiquidationConfirmation() {
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader title="Biên bản trả phòng và thanh lý" backTo="/customer/my-rooms?tab=renting" />
       <Section title="Nội dung thanh lý">
-        <InfoRow label="Hợp đồng" value="HĐT-P_Q5_102-2026" />
-        <InfoRow label="Phòng/giường" value="P_Q5_102 - Giường 01" />
+        <InfoRow label="Hợp đồng" value="Hợp đồng PHONG_37" />
+        <InfoRow label="Phòng/giường" value="PHONG_37 - Nguyên phòng" />
         <InfoRow label="Kết quả đối soát" value="Hoàn 5.880.000 đ" />
         <InfoRow label="Công nợ" value="0 đ" />
         <InfoRow label="Chìa khóa/thẻ" value="Đã thu hồi" />
@@ -783,8 +823,8 @@ export function LiquidationConfirmation() {
 export function CustomerNotifications() {
   const [readIds, setReadIds] = useState<string[]>(["TB03"]);
   const notifications = [
-    { id: "TB01", title: "Lịch xem phòng đã được sắp xếp", message: "Bạn có lịch xem P_Q5_101 lúc 09:00 ngày 14/07/2026.", time: "10 phút trước", icon: CalendarDays },
-    { id: "TB02", title: "Yêu cầu đặt cọc đang được xử lý", message: "Hồ sơ YC-P_Q5_101 đã được tiếp nhận.", time: "2 giờ trước", icon: ReceiptText },
+    { id: "TB01", title: "Lịch xem phòng đã được sắp xếp", message: "Bạn có lịch xem PHONG_3 lúc 09:00 ngày 14/07/2026.", time: "10 phút trước", icon: CalendarDays },
+    { id: "TB02", title: "Yêu cầu đặt cọc đang được xử lý", message: "Yêu cầu của PHONG_6 đã được tiếp nhận.", time: "2 giờ trước", icon: ReceiptText },
     { id: "TB03", title: "Thanh toán đã được xác nhận", message: "Khoản cọc 3.000.000 đ đã được xác nhận.", time: "Hôm qua", icon: CheckCircle2 },
   ];
   return (

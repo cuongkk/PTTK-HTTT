@@ -29,4 +29,13 @@ public class CustomerWorkflowController : ControllerBase
 
     [HttpPost("applications/{applicationId}/rooms/{roomId}/deposit-request")]
     public async Task<ActionResult<SubmitDepositResponse>> SubmitDepositRequest(string applicationId, string roomId, SubmitDepositRequest request) => Ok(await _service.SubmitDepositRequestAsync(User.GetAccountId(), applicationId, roomId, request));
+
+    [HttpGet("rooms/{roomId}/contract")]
+    public async Task<ActionResult<CustomerContractDetailDto>> GetContract(string roomId) => Ok(await _service.GetContractDetailAsync(User.GetAccountId(), roomId));
+
+    [HttpGet("rooms/{roomId}/checkout")]
+    public async Task<ActionResult<CustomerCheckoutDetailDto>> GetCheckout(string roomId) => Ok(await _service.GetCheckoutDetailAsync(User.GetAccountId(), roomId));
+
+    [HttpGet("rooms/{roomId}/context")]
+    public async Task<ActionResult<CustomerRoomContextDto>> GetRoomContext(string roomId) => Ok(await _service.GetRoomContextAsync(User.GetAccountId(), roomId));
 }
