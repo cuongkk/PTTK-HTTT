@@ -114,30 +114,10 @@ export function PaymentConfirmation() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-        <p className="text-gray-600">Kiểm tra và phê duyệt minh chứng thanh toán của khách hàng</p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Xác nhận thanh toán</h1>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Chờ xác nhận</p>
-          <p className="text-2xl font-bold text-gray-900">{pendingPayments.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Tổng số tiền</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {pendingPayments.reduce((sum, p) => sum + p.totalAmount, 0).toLocaleString()} VNĐ
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Đã xác nhận hôm nay</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {confirmedTodayCount}
-          </p>
-        </div>
-      </div>
 
       {/* Pending Payments */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

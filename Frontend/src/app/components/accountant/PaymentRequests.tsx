@@ -144,10 +144,9 @@ export function PaymentRequests() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Yêu cầu thanh toán</h1>
-          <p className="text-gray-600">Gửi yêu cầu thanh toán cho khách hàng</p>
+          <h1 className="text-3xl font-bold text-gray-900">Yêu cầu thanh toán</h1>
         </div>
       </div>
 

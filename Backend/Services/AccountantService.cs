@@ -69,34 +69,6 @@ public class AccountantService : IAccountantService
                 });
             }
         }
-
-        // Lấy danh sách hợp đồng thuê chưa có hóa đơn tiền thuê phòng kỳ đầu
-        var rentalContracts = await _dbContext.RentalContracts
-            .Include(c => c.Customer)
-            .Include(c => c.Room)
-            .Where(c => c.Status == "hieu_luc")
-            .ToListAsync();
-
-        foreach (var c in rentalContracts)
-        {
-            var hasFirstMonthInvoice = await _dbContext.Invoices
-                .AnyAsync(i => i.ContractId == c.ContractId && i.InvoiceType == "tien_thue");
-
-            if (!hasFirstMonthInvoice)
-            {
-                result.Add(new ContractInvoiceInfoDto
-                {
-                    Id = c.ContractId,
-                    ContractId = c.ContractId,
-                    CustomerId = c.CustomerId,
-                    CustomerName = c.Customer.FullName,
-                    RoomName = c.Room.RoomName,
-                    MonthlyRent = c.MonthlyRent,
-                    BedCount = c.NumberOfBeds
-                });
-            }
-        }
-
         return result;
     }
 

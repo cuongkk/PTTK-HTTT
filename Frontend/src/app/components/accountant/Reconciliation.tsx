@@ -130,53 +130,10 @@ export function Reconciliation() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Đối soát trả phòng</h1>
-        <p className="text-gray-600">Tính toán các khoản khấu trừ hư hại/dịch vụ và hoàn tiền cọc thanh lý hợp đồng</p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Đối soát trả phòng</h1>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Tổng số hồ sơ trả phòng</p>
-              <p className="text-2xl font-bold text-gray-900">{reconciliationsList.length}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <Calculator className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Tổng tiền cọc hoàn khách</p>
-              <p className="text-2xl font-bold text-green-600">
-                {reconciliationsList.reduce((sum, r) => sum + (r.refundAmount > 0 ? r.refundAmount : 0), 0).toLocaleString()} VNĐ
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Hồ sơ đã hoàn thành</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {reconciliationsList.filter(r => r.status === "Đã hoàn thành").length} hồ sơ
-              </p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Pending Reconciliations */}
       <div className="space-y-6">
@@ -196,7 +153,7 @@ export function Reconciliation() {
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 overflow-x-auto">
-          {["Tất cả", "Chờ tính toán", "Chờ xử lý", "Đã hoàn thành"].map((tab) => (
+          {["Tất cả", "Chờ tính toán", "Chờ xử lý"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
