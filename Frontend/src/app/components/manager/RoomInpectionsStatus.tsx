@@ -6,8 +6,10 @@ interface Room {
   id: string;
   name: string;
   building: string;
-  status: string;
+  condition: string;
   availableBedsCount: number;
+  customerName?: string;
+  contractId?: string;
 }
 
 export function RoomInspectionStatus() {
@@ -67,7 +69,7 @@ export function RoomInspectionStatus() {
     return (
       room.name?.toLowerCase().includes(query) ||
       room.building?.toLowerCase().includes(query) ||
-      room.status?.toLowerCase().includes(query)
+      room.condition?.toLowerCase().includes(query)
     );
   });
 
@@ -94,7 +96,7 @@ export function RoomInspectionStatus() {
     // Nếu Backend cập nhật thành công, update lại State ở Frontend để giao diện đổi màu luôn
     setRooms(prevRooms => 
       prevRooms.map(room => 
-        room.id === roomId ? { ...room, status: "Trống" } : room
+        room.id === roomId ? { ...room, condition: "Trống" } : room
       )
     );
     alert("Xác nhận phòng trống thành công!");
@@ -109,8 +111,7 @@ export function RoomInspectionStatus() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra trạng thái phòng</h1>
-        <p className="text-gray-600">Kiểm tra trạng thái và lịch sử thuê phòng</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra tình trạng phòng</h1>
       </div>
 
       {/* Search - Tích hợp y hệt đoạn code mẫu của bạn */}
@@ -123,34 +124,6 @@ export function RoomInspectionStatus() {
           placeholder="Tìm theo mã hợp đồng, tên khách, số phòng..." 
           className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" 
         />
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Còn khả năng nhận cọc</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {rooms.filter(room=> room.status == "Trống").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Đã được giữ chỗ</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {rooms.filter(room=>room.status == "Đã được giữ chỗ").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Đã được đặt cọc</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {rooms.filter(room=>room.status == "Đã được đặt cọc").length}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Đang bảo trì</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {rooms.filter(room=>room.status == "Đang bảo trì").length}
-          </p>
-        </div>
       </div>
 
       {/* Room List - Render từ danh sách đã lọc filteredRooms */}
@@ -173,22 +146,22 @@ export function RoomInspectionStatus() {
                   </div>
                   <span
                     className={`px-3 py-1 text-sm font-medium rounded-full ${
-                      room.status === "Available"
+                      room.condition === "Trống"
                         ? "bg-green-100 text-green-700"
-                        : room.status === "Reserved"
+                        : room.condition === "Đã được giữ chỗ"
                         ? "bg-yellow-100 text-yellow-700"
-                        : room.status === "Deposited"
+                        : room.condition === "Đã được đặt cọc"
                         ? "bg-red-100 text-red-700"
                         : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {room.status === "Available"
+                    {room.condition === "Trống"
                       ? "Còn khả năng nhận đặt cọc"
-                      : room.status === "Reserved"
+                      : room.condition === "Đã được giữ chỗ"
                       ? "Đã được giữ chỗ"
-                      : room.status === "Deposited"
+                      : room.condition === "Đã được đặt cọc"
                       ? "Đã được đặt cọc"
-                      : room.status}
+                      : room.condition}
                   </span>
                 </div>
 
@@ -199,9 +172,16 @@ export function RoomInspectionStatus() {
                 </div>
 
                 {/* Hiển thị thông tin khách thuê/ghi chú trạng thái */}
-                <div className="text-sm mb-4">
-                  <p className="text-gray-600">Trạng thái chi tiết</p>
-                  <p className="font-medium text-gray-900">{room.status}</p>
+                <div className="text-sm mb-4 space-y-1">
+                  <p className="text-gray-600">Tình trạng chi tiết</p>
+                  <p className="font-medium text-gray-900">{room.condition}</p>
+                  {room.customerName ? (
+                    <p className="text-sm text-blue-700">
+                      <span className="font-semibold">Khách hàng:</span> {room.customerName}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-500">Chưa có thông tin khách hàng</p>
+                  )}
                 </div>
 
                 <div className="flex gap-3">

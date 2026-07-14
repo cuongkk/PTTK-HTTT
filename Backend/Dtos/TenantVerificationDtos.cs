@@ -6,12 +6,18 @@ public class TenantDto
     public string Name { get; set; } = default!;
     public string? IdNumber { get; set; }
     public string? Phone { get; set; }
+    public string? CustomerId { get; set; }
+    public string? CustomerName { get; set; }
+    public bool IsPrimaryTenant { get; set; }
+    public bool IsEligible { get; set; }
 }
 
 public class TenantVerificationDto
 {
     public string Id { get; set; } = default!;
     public string ContractCode { get; set; } = default!;
+    public string? CustomerId { get; set; }
+    public string? CustomerName { get; set; }
     public string Room { get; set; } = default!;
     public string Building { get; set; } = default!;
     public string CheckInDate { get; set; } = default!;

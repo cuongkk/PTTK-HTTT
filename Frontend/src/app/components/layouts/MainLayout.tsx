@@ -198,7 +198,7 @@ export function MainLayout() {
       { name: "Xác nhận tiền cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
       //{ name: "Xác nhận thuê phòng", path: "/manager/contract-approval", icon: FileCheck },
       { name: "Ký hợp đồng thuê", path: "/manager/tenant-verification", icon: UserCheck },
-      { name: "Thanh lý hợp đồng thuê", path: "/manager/liquidation", icon: ClipboardCheck },
+      //{ name: "Thanh lý hợp đồng thuê", path: "/manager/liquidation", icon: ClipboardCheck },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },

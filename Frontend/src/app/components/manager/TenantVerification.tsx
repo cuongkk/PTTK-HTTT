@@ -5,11 +5,17 @@ interface Tenant {
   name: string;
   idNumber?: string;
   phone?: string;
+  customerId?: string;
+  customerName?: string;
+  isPrimaryTenant?: boolean;
+  isEligible?: boolean;
 }
 
 interface Contract {
   id: string;
   contractCode: string;
+  customerId?: string;
+  customerName?: string;
   room: string;
   building: string;
   checkInDate: string;
@@ -91,25 +97,7 @@ export function TenantVerification() {
           Kiểm tra điều kiện lưu trú và ký hợp đồng thuê
         </p>
       </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <p className="text-sm text-gray-600">Chờ ký hợp đồng</p>
-          <p className="text-2xl font-bold">{contracts.length}</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <p className="text-sm text-gray-600">Đã ký tháng này</p>
-          <p className="text-2xl font-bold">12</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border shadow-sm">
-          <p className="text-sm text-gray-600">Đã từ chối</p>
-          <p className="text-2xl font-bold">2</p>
-        </div>
-      </div>
-
+      
       {/* Search / Filters */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
         <div className="relative w-full max-w-md">
@@ -272,15 +260,23 @@ export function TenantVerification() {
                         </p>
 
                         <p>
-                          <b>CCCD:</b> {tenant.idNumber}
+                          <b>CCCD:</b> {tenant.idNumber || "—"}
                         </p>
 
                         <p>
-                          <b>SĐT:</b> {tenant.phone}
+                          <b>SĐT:</b> {tenant.phone || "—"}
                         </p>
 
                         <p>
-                          <b>Điểm tín dụng:</b> {tenant.creditScore}
+                          <b>Khách hàng liên kết:</b> {tenant.customerName || "—"}
+                        </p>
+
+                        <p>
+                          <b>Vai trò:</b> {tenant.isPrimaryTenant ? "Người chính" : "Người ở cùng"}
+                        </p>
+
+                        <p>
+                          <b>Đủ điều kiện:</b> {tenant.isEligible ? "Có" : "Không"}
                         </p>
                       </div>
 

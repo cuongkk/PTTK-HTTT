@@ -10,16 +10,23 @@ interface RoomCondition {
 }
 
 export function RoomInspectionConditions() {
-   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [showInspectionForm, setShowInspectionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // State dữ liệu từ backend
   const [rooms, setRooms] = useState<RoomCondition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Gọi API khi load trang
+  // ---- State cho form kiểm tra ----
+  const [overallCondition, setOverallCondition] = useState("Rất tốt (Excellent)");
+  const [cleanliness, setCleanliness] = useState("Sạch sẽ");
+  const [damageNotes, setDamageNotes] = useState("");
+  const [estimatedCost, setEstimatedCost] = useState<number | "">("");
+  const [needMaintenance, setNeedMaintenance] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
@@ -32,8 +39,8 @@ export function RoomInspectionConditions() {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      }
+        "Authorization": `Bearer ${token}`,
+      },
     })
       .then((res) => {
         if (res.status === 401 || res.status === 403) {
@@ -45,8 +52,7 @@ export function RoomInspectionConditions() {
         return res.json();
       })
       .then((data) => {
-        setRooms(data); // giả sử backend trả về mảng trực tiếp
-        console.log(data);
+        setRooms(data);
         setLoading(false);
       })
       .catch((err) => {
@@ -55,7 +61,6 @@ export function RoomInspectionConditions() {
       });
   }, []);
 
-  // Lọc dữ liệu theo từ khóa
   const filteredRooms = rooms.filter((room) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
@@ -66,21 +71,89 @@ export function RoomInspectionConditions() {
     );
   });
 
-  // Phòng đang chọn
-  const currentSelectedRoom = rooms.find((r) => r.roomID == "selectedRoomId");
+  // Sửa lỗi: so sánh với state, không phải chuỗi literal
+  const currentSelectedRoom = rooms.find((r) => r.roomID === selectedRoomId);
+
+  // Reset form về mặc định mỗi khi mở form cho phòng mới
+  const openInspectionForm = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setOverallCondition("Rất tốt (Excellent)");
+    setCleanliness("Sạch sẽ");
+    setDamageNotes("");
+    setEstimatedCost("");
+    setNeedMaintenance(false);
+    setSaveError(null);
+    setShowInspectionForm(true);
+  };
+
+  const handleSubmitInspection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentSelectedRoom) return;
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      setSaveError("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const response = await fetch(
+        "http://localhost:5157/api/manager/room-inspection-condition",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            roomId: currentSelectedRoom.roomID,
+            overallCondition,
+            cleanliness,
+            damageNotes,
+            estimatedCost: estimatedCost === "" ? 0 : Number(estimatedCost),
+            needMaintenance,
+          }),
+        }
+      );
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Bạn không có quyền thực hiện chức năng này!");
+      }
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.message ?? "Lưu biên bản kiểm tra thất bại!");
+      }
+
+      alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom.roomName}!`);
+      setShowInspectionForm(false);
+
+      // Cập nhật lại trạng thái phòng trong danh sách mà không cần gọi lại toàn bộ API
+      setRooms((prev) =>
+        prev.map((r) =>
+          r.roomID === currentSelectedRoom.roomID
+            ? { ...r, status: overallCondition === "Kém (Poor)" ? "Cần bảo trì" : "Tình trạng tốt" }
+            : r
+        )
+      );
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Có lỗi xảy ra, vui lòng thử lại");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (loading) return <div className="text-center py-10 text-gray-600">Đang tải dữ liệu...</div>;
   if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra trạng thái phòng</h1>
-        <p className="text-gray-600">Kiểm tra trạng thái phòng và lịch sử thuê</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra tình trạng phòng</h1>
       </div>
 
-      {/* Thanh Tìm Kiếm Đa Năng */}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
         <div className="relative w-full max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -104,19 +177,14 @@ export function RoomInspectionConditions() {
         </div>
       </div>
 
-      {/* Số lượng phòng tìm thấy */}
       <div className="text-sm text-gray-500">
         Hiển thị <span className="font-semibold text-gray-900">{filteredRooms.length}</span> phòng phù hợp
       </div>
 
-      {/* Room List */}
       {filteredRooms.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredRooms.map((room) => (
-            <div
-              key={room.roomID}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-            >
+            <div key={room.roomID} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-3">
@@ -144,17 +212,14 @@ export function RoomInspectionConditions() {
                 <div className="space-y-3 mb-4">
                   {room.tenant && (
                     <div className="text-sm">
-                      <p className="text-gray-600">Khách  thuê hiện tại</p>
+                      <p className="text-gray-600">Khách thuê hiện tại</p>
                       <p className="font-medium text-gray-900">{room.tenant}</p>
                     </div>
                   )}
                 </div>
 
                 <button
-                  onClick={() => {
-                    setSelectedRoomId(room.roomID);
-                    setShowInspectionForm(true);
-                  }}
+                  onClick={() => openInspectionForm(room.roomID)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
                   <ClipboardList className="w-4 h-4" />
@@ -170,7 +235,6 @@ export function RoomInspectionConditions() {
         </div>
       )}
 
-      {/* Inspection Form Modal */}
       {showInspectionForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 my-8">
@@ -181,14 +245,21 @@ export function RoomInspectionConditions() {
                   Đang thực hiện cho: {currentSelectedRoom.roomName} ({currentSelectedRoom.building})
                 </p>
               )}
+              {saveError && (
+                <p className="text-sm text-red-600 mt-2 font-medium">{saveError}</p>
+              )}
             </div>
 
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmitInspection}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tình trạng tổng thể
                 </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <select
+                  value={overallCondition}
+                  onChange={(e) => setOverallCondition(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
                   <option>Rất tốt (Excellent)</option>
                   <option>Tốt (Good)</option>
                   <option>Trung bình (Fair)</option>
@@ -200,7 +271,11 @@ export function RoomInspectionConditions() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Mức độ sạch sẽ
                 </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                <select
+                  value={cleanliness}
+                  onChange={(e) => setCleanliness(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
                   <option>Sạch sẽ</option>
                   <option>Cần dọn dẹp</option>
                   <option>Bẩn</option>
@@ -213,6 +288,8 @@ export function RoomInspectionConditions() {
                 </label>
                 <textarea
                   rows={3}
+                  value={damageNotes}
+                  onChange={(e) => setDamageNotes(e.target.value)}
                   placeholder="Mô tả các chi tiết bị hư hại hoặc có lỗi..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                 />
@@ -224,6 +301,10 @@ export function RoomInspectionConditions() {
                 </label>
                 <input
                   type="number"
+                  value={estimatedCost}
+                  onChange={(e) =>
+                    setEstimatedCost(e.target.value === "" ? "" : Number(e.target.value))
+                  }
                   placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
@@ -247,6 +328,8 @@ export function RoomInspectionConditions() {
                   <input
                     type="checkbox"
                     id="maintenance"
+                    checked={needMaintenance}
+                    onChange={(e) => setNeedMaintenance(e.target.checked)}
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <label htmlFor="maintenance" className="text-sm text-gray-700">
@@ -259,20 +342,17 @@ export function RoomInspectionConditions() {
                 <button
                   type="button"
                   onClick={() => setShowInspectionForm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  disabled={isSaving}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom?.roomName}!`);
-                    setShowInspectionForm(false);
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  disabled={isSaving}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  Lưu kết quả
+                  {isSaving ? "Đang lưu..." : "Chuyển biên bản cho kế toán"}
                 </button>
               </div>
             </form>

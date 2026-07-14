@@ -17,32 +17,55 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
 
     public async Task<List<RoomConditionDto>> GetRoomConditionsAsync()
     {
-        // 1. Lấy toàn bộ danh sách phòng trước
         var rooms = await _db.Rooms
             .Include(r => r.Branch)
-            .Where(r => r.Status == RoomBedStatus.Rented)
             .ToListAsync();
 
-        // 2. Lấy danh sách hợp đồng đang hiệu lực từ bảng RentalContracts kèm thông tin Khách hàng
-        var activeContracts = await _db.RentalContracts
+        var contracts = await _db.RentalContracts
             .Include(c => c.Customer)
-            .Where(c => c.Status == "hieu_luc")
+            .Include(c => c.TenantMembers)
+            .Where(c => c.RoomId != null)
             .ToListAsync();
 
-        // 3. Map sang DTO bằng cách tìm hợp đồng tương ứng với từng phòng
-        return rooms.Select(r => 
+        var contractByRoomId = contracts
+            .GroupBy(c => c.RoomId)
+            .Select(g => g.OrderByDescending(c => c.StartDate).First())
+            .ToDictionary(c => c.RoomId, c => c);
+
+        var roomCustomerLinks = await (
+            from a in _db.RentalApplications
+            join c in _db.Customers on a.CustomerId equals c.CustomerId
+            join s in _db.RoomViewingSchedules on a.ApplicationId equals s.ApplicationId
+            join sr in _db.RoomViewingScheduleRooms on s.ScheduleId equals sr.ScheduleId
+            select new { sr.RoomId, CustomerName = c.FullName, AppointmentAt = s.AppointmentAt }
+        ).ToListAsync();
+
+        var applicationCustomerByRoomId = roomCustomerLinks
+            .GroupBy(x => x.RoomId)
+            .Select(g => g.OrderByDescending(x => x.AppointmentAt).First())
+            .ToDictionary(x => x.RoomId, x => x.CustomerName);
+
+        return rooms.Select(r =>
         {
-            // Tìm hợp đồng hiệu lực của phòng này (nếu có)
-            var contractForRoom = activeContracts.FirstOrDefault(c => c.RoomId == r.RoomId);
+            var contractForRoom = contractByRoomId.GetValueOrDefault(r.RoomId);
+            var tenantName = string.Empty;
+
+            if (r.Status == RoomBedStatus.Rented || r.Status == RoomBedStatus.Deposited)
+            {
+                tenantName = contractForRoom?.Customer?.FullName
+                    ?? contractForRoom?.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contractForRoom.CustomerId)?.FullName
+                    ?? contractForRoom?.TenantMembers.FirstOrDefault()?.FullName
+                    ?? applicationCustomerByRoomId.GetValueOrDefault(r.RoomId)
+                    ?? "";
+            }
 
             return new RoomConditionDto
             {
-                RoomID = r.RoomId, 
+                RoomID = r.RoomId,
                 RoomName = r.RoomName,
-                Building = r.Branch.BranchName,
+                Building = r.Branch?.BranchName ?? r.BranchId,
                 Status = MapStatus(r.Status),
-                // Nếu tìm thấy hợp đồng thì lấy tên khách hàng, không thì để rỗng
-                Tenant = contractForRoom?.Customer?.FullName ?? "" 
+                Tenant = tenantName
             };
         }).ToList();
     }
@@ -54,10 +77,44 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
 
         return status.Trim().ToLower() switch
         {
-            RoomBedStatus.Empty => "Available",
-            RoomBedStatus.Deposited => "Deposited",
-            RoomBedStatus.Rented => "Rented",
+            RoomBedStatus.Empty => "Trống",
+            RoomBedStatus.Deposited => "Đã được đặt cọc",
+            RoomBedStatus.Rented => "Đang thuê",
             _ => "Không xác định"
         };
     }
+
+    // public async Task<RoomInspectionResultDto> CreateRoomInspectionAsync(
+    //     CreateRoomInspectionDto dto,
+    //     string inspectedByEmployeeId)
+    // {
+    //     var roomExists = await _db.Rooms.AnyAsync(r => r.RoomId == dto.RoomId);
+    //     if (!roomExists)
+    //         throw new KeyNotFoundException("Không tìm thấy phòng.");
+
+    //     var inspection = new RoomInspection
+    //     {
+    //         RoomId = dto.RoomId,
+    //         InspectedByEmployeeId = inspectedByEmployeeId,
+    //         OverallCondition = dto.OverallCondition,
+    //         Cleanliness = dto.Cleanliness,
+    //         DamageNotes = dto.DamageNotes,
+    //         EstimatedCost = dto.EstimatedCost,
+    //         NeedMaintenance = dto.NeedMaintenance,
+    //         InspectedAt = DateTime.UtcNow
+    //     };
+
+    //     _db.RoomInspections.Add(inspection);
+    //     await _db.SaveChangesAsync();
+
+    //     return new RoomInspectionResultDto
+    //     {
+    //         InspectionId = inspection.Id,
+    //         RoomId = inspection.RoomId,
+    //         InspectedAt = inspection.InspectedAt
+    //     };
+    // }
+
+
+
 }

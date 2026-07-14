@@ -20,6 +20,15 @@ public class DepositConfirmationService : IDepositConfirmationService
         var deposits = await _db.DepositSlips
             .Include(d => d.Application)
                 .ThenInclude(a => a.Customer)
+            .Include(d => d.Application)
+                .ThenInclude(a => a.DesiredRoom)
+                    .ThenInclude(r => r.Branch)
+            .Include(d => d.Application)
+                .ThenInclude(a => a.RoomViewingSchedules)
+                    .ThenInclude(s => s.Rooms)
+            .Include(d => d.Contract)
+                .ThenInclude(c => c.Room)
+                    .ThenInclude(r => r.Branch)
             .Include(d => d.SalesEmployee)
             .Include(d => d.ManagerEmployee)
             .Include(d => d.Beds)
@@ -38,8 +47,9 @@ public class DepositConfirmationService : IDepositConfirmationService
             .ToListAsync();
 
         var bedLookup = beds.ToDictionary(b => b.BedId, b => b);
+        var result = new List<DepositConfirmationDto>();
 
-        return deposits.Select(d =>
+        foreach (var d in deposits)
         {
             var relatedBeds = d.Beds
                 .Select(db => bedLookup.GetValueOrDefault(db.BedId))
@@ -47,16 +57,43 @@ public class DepositConfirmationService : IDepositConfirmationService
                 .Select(b => b!)
                 .ToList();
 
-            var room = relatedBeds.FirstOrDefault()?.Room;
+            Room? room = relatedBeds.FirstOrDefault()?.Room
+                ?? d.Contract?.Room
+                ?? d.Application?.DesiredRoom;
 
-            return new DepositConfirmationDto
+            if (room is null)
+            {
+                var roomId = d.Application?.RoomViewingSchedules
+                    .SelectMany(s => s.Rooms)
+                    .Select(r => r.RoomId)
+                    .FirstOrDefault();
+
+                room = roomId is null
+                    ? null
+                    : await _db.Rooms
+                        .Include(r => r.Branch)
+                        .FirstOrDefaultAsync(r => r.RoomId == roomId);
+            }
+
+            var branch = room?.Branch?.BranchName ?? "";
+            var bedText = relatedBeds.Any()
+                ? string.Join(", ", relatedBeds.Select(b => $"Giường {b.BedNumber}"))
+                : room is null
+                    ? ""
+                    : await _db.Beds
+                        .Where(b => b.RoomId == room.RoomId)
+                        .OrderBy(b => b.BedNumber)
+                        .Select(b => $"Giường {b.BedNumber}")
+                        .FirstOrDefaultAsync() ?? "";
+
+            result.Add(new DepositConfirmationDto
             {
                 Id = d.DepositId,
                 DepositCode = d.DepositId,
                 Customer = d.Application?.Customer?.FullName ?? "",
                 Room = room?.RoomName ?? "",
-                Bed = string.Join(", ", relatedBeds.Select(b => $"Giường {b.BedNumber}")),
-                Branch = room?.Branch?.BranchName ?? "",
+                Bed = bedText,
+                Branch = branch,
                 DepositAmount = d.DepositAmount.ToString("N0"),
                 Status = MapStatus(d.Status),
                 IsValid = d.Status == "hoan_thanh",
@@ -64,8 +101,10 @@ public class DepositConfirmationService : IDepositConfirmationService
                 ConfirmedAt = d.PaidAt?.ToString("dd/MM/yyyy HH:mm") ?? "",
                 ExpectedCheckIn = d.Application?.ExpectedMoveInDate?.ToString("dd/MM/yyyy") ?? "",
                 Date = d.CreatedAt.ToString("dd/MM/yyyy HH:mm")
-            };
-        }).ToList();
+            });
+        }
+
+        return result;
     }
 
     private static string MapStatus(string status) => status switch
@@ -74,6 +113,12 @@ public class DepositConfirmationService : IDepositConfirmationService
         "hoan_thanh" => "Đã xác nhận",
         "het_han" => "Hết hạn",
         "huy" => "Đã hủy",
-        _ => "Không xác định"
+        "cho_tiep_nhan_hoan_coc" => "Đang xử lý hoàn cọc",
+        "dang_xac_nhan_hoan_coc" => "Đang xác nhận hoàn cọc",
+        "cho_doi_soat_hoan_coc" => "Chờ đối soát hoàn cọc",
+        "cho_khach_xac_nhan_hoan_coc" => "Chờ khách xác nhận",
+        "cho_hoan_tien" => "Chờ hoàn tiền",
+        "da_hoan_coc" => "Đã hoàn cọc",
+        _ => "Đang xử lý"
     };
 }

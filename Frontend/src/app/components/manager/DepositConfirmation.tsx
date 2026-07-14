@@ -3,19 +3,19 @@ import { ArrowUpRight, Search, Building2 } from "lucide-react";
 
 // 1. Khai báo interface chuẩn theo nghiệp vụ bắt buộc
 interface Deposit {
-  id: number;
-  depositCode: string;       // Mã phiếu cọc (Sửa từ contractCode)
-  customer: string;          // Khách cọc (Bắt buộc)
-  room: string;         // Phòng/Giường (Bắt buộc)
+  id: string;
+  depositCode: string;       
+  customer: string;         
+  room: string;        
   bed: string
-  branch: string;            // Chi nhánh (Bắt buộc)
+  branch: string;            
   depositAmount: string;     
-  status: string;            // Trạng thái phiếu (Chờ xác nhận, Đã xác nhận...)
-  isValid: boolean;          // Kết quả xử lý: Hợp lệ / Không hợp lệ (Bắt buộc)
-  confirmedBy: string;       // Người xác nhận (Bắt buộc)
-  confirmedAt: string;       // Thời điểm xác nhận (Bắt buộc)
-  expectedCheckIn: string;   // Thời điểm nhận phòng dự kiến (Bắt buộc)
-  date: string;              // Ngày tạo phiếu cọc
+  status: string;            
+  isValid: boolean;        
+  confirmedBy: string;      
+  confirmedAt: string;     
+  expectedCheckIn: string;  
+  date: string;             
 }
 
 export function DepositConfirmation() {
@@ -122,10 +122,10 @@ export function DepositConfirmation() {
                       <p className="text-sm text-gray-600">{deposit.branch}</p>
                     </div>
                   </div>
-
+                {/* 
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm">
                   {deposit.status}
-                </span>
+                </span> */}
               </div>
 
               <div className="space-y-2 mb-4 text-sm">
@@ -177,10 +177,10 @@ export function DepositConfirmation() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mã hợp đồng
+                  Mã đặt cọc
                 </label>
                 <input
-                  value={selectedDeposit.contractCode}
+                  value={selectedDeposit.depositCode}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
                 />
@@ -214,6 +214,17 @@ export function DepositConfirmation() {
                 </label>
                 <input
                   value={selectedDeposit.bed}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chi nhánh
+                </label>
+                <input
+                  value={selectedDeposit.branch}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 outline-none"
                 />
@@ -294,7 +305,7 @@ export function DepositConfirmation() {
 
               <button
                 onClick={() => {
-                  alert(`Từ chối chứng từ mã: ${selectedDeposit.contractCode}`);
+                  alert(`Từ chối chứng từ mã: ${selectedDeposit.depositCode}`);
                   setSelectedDeposit(null);
                 }}
                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
@@ -304,7 +315,7 @@ export function DepositConfirmation() {
 
               <button
                 onClick={() => {
-                  alert(`Duyệt thành công chứng từ mã: ${selectedDeposit.contractCode}`);
+                  alert(`Duyệt thành công chứng từ mã: ${selectedDeposit.depositCode}`);
                   setSelectedDeposit(null);
                 }}
                 className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"

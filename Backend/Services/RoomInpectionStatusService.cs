@@ -15,32 +15,50 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
     public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
     {
-        var query = _db.Rooms.AsQueryable();
+        var query = _db.Rooms
+            .Include(r => r.Branch)
+            .Include(r => r.Beds)
+            .AsQueryable();
 
         if (!string.IsNullOrEmpty(filter.BranchId))
             query = query.Where(p => p.BranchId == filter.BranchId);
 
         var rooms = await query.ToListAsync();
 
-        var result = rooms.Select(p => new RoomStatusDto
+        var contracts = await _db.RentalContracts
+            .Include(c => c.Customer)
+            .Where(c => c.RoomId != null)
+            .ToListAsync();
+
+        var contractByRoomId = contracts
+            .GroupBy(c => c.RoomId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.StartDate).First());
+
+        var result = rooms.Select(p =>
         {
-            Id = p.RoomId,
-            Name = p.RoomName,
-            Building = p.BranchId, 
-            Status = MapStatus(p.Status),
-            AvailableBedsCount = p.Beds.Count(b => b.Status.Trim().ToLower() == "trong")
+            var contract = contractByRoomId.GetValueOrDefault(p.RoomId);
+            return new RoomStatusDto
+            {
+                Id = p.RoomId,
+                Name = p.RoomName,
+                Building = p.Branch?.BranchName ?? p.BranchId,
+                Condition = MapCondition(p.Status),
+                AvailableBedsCount = p.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
+                CustomerName = contract?.Customer?.FullName ?? null,
+                ContractId = contract?.ContractId ?? null,
+            };
         }).ToList();
 
         if (!string.IsNullOrEmpty(filter.Status))
-            result = result.Where(r => r.Status == filter.Status).ToList();
+            result = result.Where(r => r.Condition == filter.Status).ToList();
 
         return result;
     }
 
 
-    private static string MapStatus(string? status) 
+    private static string MapCondition(string? status) 
     {
-        // 1. Nếu trạng thái trong DB bị rỗng hoặc null, trả về mặc định luôn, không cho chạy xuống dưới
+        // 1. Nếu điều kiện trong DB bị rỗng hoặc null, trả về mặc định luôn, không cho chạy xuống dưới
         if (string.IsNullOrWhiteSpace(status)) 
         {
             return "Không xác định";
