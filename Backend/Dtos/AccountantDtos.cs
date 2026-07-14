@@ -11,6 +11,7 @@ public class ContractInvoiceInfoDto
     public string RoomName { get; set; } = default!;
     public decimal MonthlyRent { get; set; }
     public int BedCount { get; set; }
+    public List<string> BedNames { get; set; } = new();
 }
 
 public class CreateInvoiceRequest
@@ -83,6 +84,9 @@ public class ReconciliationListItemDto
     public string RoomName { get; set; } = default!;
     public string MoveInDate { get; set; } = default!;
     public string MoveOutDate { get; set; } = default!;
+    public string ContractEndDate { get; set; } = default!;
+    public string ContractStatus { get; set; } = default!;
+    public string SignedDate { get; set; } = default!;
     public decimal Deposit { get; set; }
     public decimal MonthlyRent { get; set; }
     public decimal RefundRate { get; set; }
@@ -98,11 +102,20 @@ public class ReconciliationListItemDto
     public string? RefundMethod { get; set; }
     public string? BankName { get; set; }
     public string? AccountNumber { get; set; }
+    public string? RoomCondition { get; set; }
+    public decimal? FinalElectricityReading { get; set; }
+    public decimal? FinalWaterReading { get; set; }
+    public bool IsCalculated { get; set; }
+    public string? InvoiceStatus { get; set; }
+    public bool InvoiceHasProof { get; set; }
+    public string? InvoiceId { get; set; }
+    public bool IsDepositRefund { get; set; }
 }
 
 public class SaveReconciliationDeductionsDto
 {
     public string ReconciliationId { get; set; } = default!;
+    public decimal RefundRate { get; set; }
     public decimal Damages { get; set; }
     public decimal Utilities { get; set; }
     public decimal RentArrears { get; set; }

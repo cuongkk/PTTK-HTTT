@@ -114,7 +114,7 @@ export function PaymentRequests() {
     setSelectedContract(contract);
     // Tự động gán mặc định loại dựa trên mã
     const isDeposit = contract.contractId.startsWith("DC") || contract.id.startsWith("DC") || !contract.contractId.includes("HD");
-    
+
     const initialRentPrice = contract.monthlyRent || 0;
     const initialBedCount = contract.bedCount || 1;
     const calculatedAmount = isDeposit ? initialRentPrice * 2 * initialBedCount : "";
@@ -124,10 +124,14 @@ export function PaymentRequests() {
       bedCount: initialBedCount,
     });
 
+    const defaultDueDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const tzoffset = defaultDueDate.getTimezoneOffset() * 60000;
+    const formattedDueDate = new Date(defaultDueDate.getTime() - tzoffset).toISOString().slice(0, 16);
+
     setFormData({
       paymentType: isDeposit ? "tien_coc" : "tien_thue",
       amount: calculatedAmount.toString(),
-      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0], // Hạn thanh toán mặc định 24h sau
+      dueDate: formattedDueDate,
       billingCycle: new Date().toISOString().substring(0, 7), // Tháng hiện tại
       notes: "",
     });
@@ -146,7 +150,7 @@ export function PaymentRequests() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Yêu cầu thanh toán</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Yêu cầu thanh toán cọc</h1>
         </div>
       </div>
 
@@ -219,7 +223,7 @@ export function PaymentRequests() {
                     <DollarSign className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu thanh toán</h2>
+                    <h2 className="text-xl font-bold text-gray-900">Tạo yêu cầu thanh toán cọc</h2>
                     <p className="text-sm text-gray-600">
                       Gửi cho khách hàng: <span className="font-semibold text-gray-900">{selectedContract.customerName}</span>
                     </p>
@@ -231,108 +235,90 @@ export function PaymentRequests() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Chi tiết phiếu đặt cọc */}
+              <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Chi tiết phiếu đặt cọc</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Loại thanh toán</label>
-                    <select
-                      required
-                      value={formData.paymentType}
-                      onChange={(e) => setFormData({ ...formData, paymentType: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    >
-                      <option value="tien_coc">Tiền cọc phòng</option>
-                      <option value="tien_thue">Tiền thuê phòng tháng</option>
-                      <option value="dich_vu">Phí dịch vụ sinh hoạt</option>
-                      <option value="thu_them">Thu thêm đối soát</option>
-                    </select>
+                    <span className="text-gray-500 block mb-0.5">Khách đặt cọc:</span>
+                    <span className="font-medium text-gray-900">{selectedContract.customerName}</span>
                   </div>
-
-                  {formData.paymentType === "tien_coc" ? (
-                    <div className="md:col-span-2">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Calculator className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm font-semibold text-gray-700">Công thức tính cọc</span>
-                        <span className="text-xs text-gray-400 ml-auto">= (Tiền thuê 2 tháng) × (Số giường thuê)</span>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Phòng dự kiến:</span>
+                    <span className="font-medium text-gray-900">{selectedContract.roomName}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Số giường cọc:</span>
+                    <span className="font-medium text-gray-900 block mb-1">{selectedContract.bedCount} giường</span>
+                    {selectedContract.bedNames && selectedContract.bedNames.length > 0 && (
+                      <div className="grid grid-cols-2 gap-1.5 w-full sm:max-w-[280px] mt-2">
+                        {selectedContract.bedNames.map((bed, idx) => (
+                          <span key={idx} className="px-2 py-1 bg-violet-50 border border-violet-200 text-violet-750 rounded-lg text-xs font-semibold text-center shadow-sm">
+                            {bed}
+                          </span>
+                        ))}
                       </div>
-                      <div className="flex items-end gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Đơn giá (VNĐ/tháng)</label>
-                          <input
-                            type="number"
-                            required
-                            min="0"
-                            value={depositCalc.rentPrice}
-                            onChange={(e) => setDepositCalc({ ...depositCalc, rentPrice: Number(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                        </div>
-                        <span className="text-gray-400 font-bold pb-2.5">×</span>
-                        <div className="w-20">
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Số tháng</label>
-                          <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-center font-semibold text-gray-700">
-                            2
-                          </div>
-                        </div>
-                        <span className="text-gray-400 font-bold pb-2.5">×</span>
-                        <div className="w-24">
-                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Số giường</label>
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            value={depositCalc.bedCount}
-                            onChange={(e) => setDepositCalc({ ...depositCalc, bedCount: Number(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                        </div>
-                        <span className="text-gray-400 font-bold pb-2.5">=</span>
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-blue-700 mb-1.5">Tổng tiền cọc</label>
-                          <div className="px-3 py-2 bg-white rounded-lg border-2 border-blue-300 text-blue-700 font-bold text-sm">
-                            {(depositCalc.rentPrice * 2 * depositCalc.bedCount).toLocaleString()} VNĐ
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Số tiền (VNĐ)</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        value={formData.amount}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        placeholder="Nhập số tiền"
-                      />
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-0.5">Đơn giá thuê (VNĐ/tháng):</span>
+                    <span className="font-semibold text-gray-950">{selectedContract.monthlyRent.toLocaleString()} VNĐ</span>
+                  </div>
+                </div>
+              </div>
 
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="border border-blue-200 rounded-xl overflow-hidden mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 flex flex-col sm:flex-row items-end gap-3">
+                  <div className="flex-1 w-full">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Đơn giá (VNĐ/tháng)</label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={depositCalc.rentPrice}
+                      onChange={(e) => setDepositCalc({ ...depositCalc, rentPrice: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                    />
+                  </div>
+                  <span className="text-gray-400 font-bold pb-2.5 hidden sm:inline">×</span>
+                  <div className="w-20 w-full sm:w-20">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Số tháng</label>
+                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-center font-semibold text-gray-700">
+                      2
+                    </div>
+                  </div>
+                  <span className="text-gray-400 font-bold pb-2.5 hidden sm:inline">×</span>
+                  <div className="w-24 w-full sm:w-24">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Số giường</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={depositCalc.bedCount}
+                      onChange={(e) => setDepositCalc({ ...depositCalc, bedCount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                    />
+                  </div>
+                  <span className="text-gray-400 font-bold pb-2.5 hidden sm:inline">=</span>
+                  <div className="flex-1 w-full">
+                    <label className="block text-xs font-medium text-blue-700 mb-1.5">Tổng tiền cọc</label>
+                    <div className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-blue-700 font-bold text-sm text-center">
+                      {Number(formData.amount).toLocaleString()} VNĐ
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Hạn chót thanh toán</label>
                     <input
-                      type="date"
+                      type="datetime-local"
                       required
                       value={formData.dueDate}
                       onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     />
                   </div>
-
-                  {(formData.paymentType === "tien_thue" || formData.paymentType === "dich_vu") && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Kỳ thanh toán (Tháng/Năm)</label>
-                      <input
-                        type="month"
-                        required
-                        value={formData.billingCycle}
-                        onChange={(e) => setFormData({ ...formData, billingCycle: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      />
-                    </div>
-                  )}
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -375,8 +361,11 @@ export function PaymentRequests() {
       {/* Sent Requests List */}
       {(() => {
         const filteredSentRequests = sentRequests.filter((request) => {
+          // 0. Only show deposit invoices (tien_coc)
+          if (request.invoiceType !== "tien_coc") return false;
+
           // 1. Search term filter
-          const matchesSearch = 
+          const matchesSearch =
             request.invoiceId.toLowerCase().includes(sentSearchTerm.toLowerCase()) ||
             request.customerName.toLowerCase().includes(sentSearchTerm.toLowerCase()) ||
             (request.roomName && request.roomName.toLowerCase().includes(sentSearchTerm.toLowerCase()));
@@ -384,7 +373,7 @@ export function PaymentRequests() {
           if (!matchesSearch) return false;
           if (sentStatusFilter === "all") return true;
 
-          const isExpired = (request.dueDate && new Date(request.dueDate) < new Date() && request.status === "cho_thanh_toan") || request.status === "huy";
+          const isExpired = (request.dueDate && new Date(request.dueDate) < new Date() && request.status === "cho_thanh_toan") || request.status === "huy" || request.status === "het_han";
 
           if (sentStatusFilter === "da_thanh_toan") {
             return request.status === "da_thanh_toan";
@@ -404,7 +393,6 @@ export function PaymentRequests() {
             <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Danh sách yêu cầu thanh toán đã phát hành</h2>
-                <p className="text-sm text-gray-500">Quản lý và theo dõi các yêu cầu thanh toán đã gửi</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -468,14 +456,13 @@ export function PaymentRequests() {
                         </div>
                         <div>
                           <p className="text-gray-600">Trạng thái</p>
-                          <span className={`px-2 py-0.5 inline-block text-xs font-semibold rounded-full ${
-                            request.status === "da_thanh_toan" ? "bg-green-100 text-green-800"
-                            : (request.status === "huy" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "bg-red-100 text-red-800"
-                            : "bg-orange-100 text-orange-800"
-                          }`}>
+                          <span className={`px-2 py-0.5 inline-block text-xs font-semibold rounded-full ${request.status === "da_thanh_toan" ? "bg-green-100 text-green-800"
+                            : (request.status === "huy" || request.status === "het_han" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "bg-red-100 text-red-800"
+                              : "bg-orange-100 text-orange-800"
+                            }`}>
                             {request.status === "da_thanh_toan" ? "Đã thanh toán"
-                            : (request.status === "huy" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "Đã hủy / Quá hạn"
-                            : "Chờ thanh toán"}
+                              : (request.status === "huy" || request.status === "het_han" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "Đã hủy / Quá hạn"
+                                : "Chờ thanh toán"}
                           </span>
                         </div>
                       </div>

@@ -23,5 +23,6 @@ public interface IAccountantService
     // Reconciliation
     Task<List<ReconciliationListItemDto>> GetReconciliationsAsync();
     Task SaveReconciliationDeductionsAsync(SaveReconciliationDeductionsDto dto, string accountantId);
+    Task SubmitReconciliationToManagerAsync(string reconciliationId);
     Task ProcessRefundAsync(ProcessRefundDto dto, string accountantId);
 }
