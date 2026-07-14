@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { roomService, type ResidenceRule } from "../../services/system-admin/roomService";
+import { roomService, type ResidenceRule, type Room } from "../../services/system-admin/roomService";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   AlertCircle,
@@ -27,6 +27,7 @@ import {
   type CustomerCheckoutDetail,
   type CustomerContractDetail,
   type CustomerHandoverDetail,
+  type CustomerServiceItem,
   type CustomerRoomContext,
   type CustomerRoomSummary,
   type DepositRequestDetail,
@@ -36,7 +37,7 @@ import {
 type RoomTab = "viewed" | "deposited" | "renting";
 
 const roomTabs: Array<{ value: RoomTab; label: string }> = [
-  { value: "viewed", label: "Đã xem" },
+  { value: "viewed", label: "Lịch xem" },
   { value: "deposited", label: "Đã đặt cọc" },
   { value: "renting", label: "Đang thuê" },
 ];
@@ -184,9 +185,11 @@ export function CustomerRooms() {
           bed: room.bedNumber ? `Giường ${room.bedNumber.toString().padStart(2, "0")}` : "Nguyên phòng",
           branch: room.branchName,
           price: `${room.monthlyRent.toLocaleString("vi-VN")} đ/tháng`,
-          date: `Đã xem ${new Date(room.viewedAt).toLocaleDateString("vi-VN")}`,
+          date: `${room.viewingStatus === "hoan_thanh" ? "Đã xem" : room.viewingStatus === "dang_xem" ? "Đang xem" : "Lịch hẹn"} ${new Date(room.viewedAt).toLocaleString("vi-VN")}`,
           applicationId: room.applicationId,
           applicationStatus: room.applicationStatus,
+          scheduleId: room.scheduleId,
+          viewingStatus: room.viewingStatus,
         }))
       : summaryRooms.map((room) => ({
           id: room.roomId,
@@ -246,6 +249,19 @@ export function CustomerRooms() {
                     Yêu cầu đặt cọc
                   </button>
                 )}
+                {tab === "viewed" && room.viewingStatus === "dang_xem" && (
+                  <button onClick={() => navigate(`/customer/viewings/${room.scheduleId}`)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    Xem thông tin phòng đang xem
+                  </button>
+                )}
+                {tab === "viewed" && room.viewingStatus === "sap_den" && (
+                  <button
+                    onClick={() => navigate(`/customer/viewings/${room.scheduleId}`)}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    Xem lịch hẹn
+                  </button>
+                )}
                 {tab === "viewed" && ["cho_sale_ra_soat_coc", "cho_quan_ly_xac_nhan_coc", "cho_khach_thanh_toan_coc", "cho_ke_toan_xac_nhan_coc"].includes(room.applicationStatus) && (
                   <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Yêu cầu đặt cọc đang được xử lý</span>
                 )}
@@ -283,6 +299,124 @@ export function CustomerRooms() {
           </article>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ViewingAppointment() {
+  const navigate = useNavigate();
+  const { scheduleId } = useParams();
+  const [viewing, setViewing] = useState<ViewedRoom | null>(null);
+  const [room, setRoom] = useState<Room | null>(null);
+  const [rules, setRules] = useState<ResidenceRule[]>([]);
+  const [services, setServices] = useState<CustomerServiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [startingViewing, setStartingViewing] = useState(false);
+  useEffect(() => {
+    customerWorkflowService
+      .getViewedRooms()
+      .then(async (items) => {
+        const item = items.find((entry) => entry.scheduleId === scheduleId) ?? null;
+        setViewing(item);
+        if (!item) return;
+        const [rooms, residenceRules, serviceItems] = await Promise.all([roomService.getAll(), roomService.getResidenceRules(item.roomId), customerWorkflowService.getAvailableServices()]);
+        setRoom(rooms.find((entry) => entry.roomId === item.roomId) ?? null);
+        setRules(residenceRules);
+        setServices(serviceItems);
+      })
+      .catch(() => setLoadError("Không thể tải chi tiết lịch xem phòng."))
+      .finally(() => setLoading(false));
+  }, [scheduleId]);
+  if (loading) return <p className="text-gray-500">Đang tải lịch xem phòng...</p>;
+  if (loadError) return <StatusBanner tone="amber">{loadError}</StatusBanner>;
+  if (!viewing || !room) return <StatusBanner tone="amber">Không tìm thấy lịch xem phòng.</StatusBanner>;
+  if (viewing.viewingStatus === "sap_den")
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader title="Chi tiết lịch hẹn xem phòng" backTo="/customer/my-rooms?tab=viewed" />
+        <Section title="Thông tin lịch hẹn">
+          <InfoRow label="Ngày giờ xem" value={new Date(viewing.viewedAt).toLocaleString("vi-VN")} />
+          <InfoRow label="Phòng sẽ xem" value={room.roomName} />
+          <InfoRow label="Hình thức" value={room.roomType === "ghep" ? "Giường ở ghép" : "Nguyên phòng"} />
+          <InfoRow label="Chi nhánh" value={room.branchName} />
+          <InfoRow label="Khu vực" value={room.area ?? "—"} />
+          <InfoRow label="Trạng thái" value="Sắp đến" />
+          {loadError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</p>}
+          <button
+            disabled={startingViewing}
+            onClick={async () => {
+              if (!scheduleId) return;
+              setStartingViewing(true);
+              setLoadError("");
+              try {
+                await customerWorkflowService.confirmRoomInformationViewed(scheduleId);
+                setViewing({ ...viewing, viewingStatus: "dang_xem" });
+              } catch (requestError) {
+                setLoadError(requestError instanceof Error ? requestError.message : "Không thể xác nhận xem thông tin phòng.");
+                setStartingViewing(false);
+              }
+            }}
+            className="mt-5 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:bg-gray-300"
+          >
+            {startingViewing ? "Đang xác nhận..." : "Xác nhận xem được thông tin phòng"}
+          </button>
+        </Section>
+      </div>
+    );
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      <PageHeader title={viewing.viewingStatus === "hoan_thanh" ? "Phòng đã xem" : "Phòng đang xem"} backTo="/customer/my-rooms?tab=viewed" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section title={`${room.roomName} — ${room.branchName}`}>
+          <InfoRow label="Hình thức" value={room.roomType === "ghep" ? "Thuê giường ở ghép" : "Thuê nguyên phòng"} />
+          <InfoRow label="Giá thuê" value={`${viewing.monthlyRent.toLocaleString("vi-VN")} đ/tháng`} />
+          <InfoRow label="Sức chứa tối đa" value={`${room.capacity} người`} />
+          <InfoRow label="Khu vực" value={room.area ?? "—"} />
+          <InfoRow label="Điều hòa" value={room.hasAirConditioner ? "Có" : "Không"} />
+          <InfoRow label="Gửi xe" value={room.hasParking ? "Có" : "Không"} />
+        </Section>
+        <Section title="Đặt cọc và giữ phòng">
+          <div className="mt-4 rounded-lg bg-blue-50 p-4 text-blue-800">
+            <strong>Cọc dự kiến: {(viewing.monthlyRent * 2).toLocaleString("vi-VN")} đ</strong>
+          </div>
+        </Section>
+      </div>
+      <Section title="Chi phí điện, nước và dịch vụ đi kèm">
+        <div className="overflow-hidden rounded-lg border">
+          <div className="grid grid-cols-3 bg-gray-50 px-4 py-3 text-sm font-semibold">
+            <span>Dịch vụ</span>
+            <span>Đơn vị</span>
+            <span className="text-right">Đơn giá</span>
+          </div>
+          {services.map((item) => (
+            <div key={item.serviceId} className="grid grid-cols-3 border-t px-4 py-3 text-sm">
+              <span>{item.serviceName}</span>
+              <span>{item.unit}</span>
+              <span className="text-right">{item.unitPrice.toLocaleString("vi-VN")} đ</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Section title="Nội quy và quy định lưu trú">
+        <div className="space-y-3">
+          {rules.map((rule) => (
+            <div key={rule.residenceRuleId} className="rounded-lg bg-gray-50 p-4 text-sm">
+              <strong>{rule.title}</strong>
+              <p className="mt-1 text-gray-600">{rule.content}</p>
+            </div>
+          ))}
+        </div>
+        {viewing.viewingStatus === "hoan_thanh" ? (
+          <button onClick={() => navigate(`/customer/deposit-requests/${viewing.applicationId}__${viewing.roomId}`)} className="mt-5 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
+            Yêu cầu đặt cọc
+          </button>
+        ) : (
+          <button disabled className="mt-5 w-full rounded-lg bg-gray-200 px-5 py-3 font-semibold text-gray-500">
+            Chờ Sale xác nhận hoàn thành xem phòng
+          </button>
+        )}
+      </Section>
     </div>
   );
 }
@@ -786,26 +920,46 @@ export function HandoverConfirmation() {
       <PageHeader title="Biên bản bàn giao" backTo="/customer/my-rooms?tab=deposited" />
       <Section title={detail ? `${detail.roomName} — ${detail.handoverId}` : "Đang tải biên bản..."}>
         <div className="grid gap-x-8 md:grid-cols-2">
-          <div><InfoRow label="Hợp đồng" value={detail?.contractId ?? "—"} /><InfoRow label="Quản lý bàn giao" value={detail?.managerName ?? "—"} /><InfoRow label="Ngày bàn giao" value={detail?.handoverDate ? new Date(detail.handoverDate).toLocaleDateString("vi-VN") : "—"} /></div>
-          <div><InfoRow label="Hiện trạng" value={detail?.roomCondition ?? "—"} /><InfoRow label="Điện đầu kỳ" value={`${(detail?.initialElectricityReading ?? 0).toLocaleString("vi-VN")} kWh`} /><InfoRow label="Nước đầu kỳ" value={`${(detail?.initialWaterReading ?? 0).toLocaleString("vi-VN")} m³`} /></div>
+          <div>
+            <InfoRow label="Hợp đồng" value={detail?.contractId ?? "—"} />
+            <InfoRow label="Quản lý bàn giao" value={detail?.managerName ?? "—"} />
+            <InfoRow label="Ngày bàn giao" value={detail?.handoverDate ? new Date(detail.handoverDate).toLocaleDateString("vi-VN") : "—"} />
+          </div>
+          <div>
+            <InfoRow label="Hiện trạng" value={detail?.roomCondition ?? "—"} />
+            <InfoRow label="Điện đầu kỳ" value={`${(detail?.initialElectricityReading ?? 0).toLocaleString("vi-VN")} kWh`} />
+            <InfoRow label="Nước đầu kỳ" value={`${(detail?.initialWaterReading ?? 0).toLocaleString("vi-VN")} m³`} />
+          </div>
         </div>
         <h3 className="mb-3 mt-5 font-semibold text-gray-900">Tài sản bàn giao</h3>
         <div className="grid gap-3 md:grid-cols-2">
           {(detail?.assets ?? []).map((asset) => (
             <div key={asset.assetId} className="flex items-center gap-2 rounded-lg bg-gray-50 p-3 text-sm">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span><strong>{asset.assetName}</strong>: {asset.quantity} — {asset.condition === "tot" ? "Tốt" : asset.condition}</span>
+              <span>
+                <strong>{asset.assetName}</strong>: {asset.quantity} — {asset.condition === "tot" ? "Tốt" : asset.condition}
+              </span>
             </div>
           ))}
         </div>
         <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{detail?.note ?? "Đang tải hướng dẫn..."}</div>
         {error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button disabled={!detail || confirming} onClick={async () => {
-          if (!roomId) return;
-          setConfirming(true); setError("");
-          try { await customerWorkflowService.confirmHandover(roomId); navigate("/customer/my-rooms?tab=renting"); }
-          catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Không thể xác nhận bàn giao."); setConfirming(false); }
-        }} className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white disabled:bg-gray-300">
+        <button
+          disabled={!detail || confirming}
+          onClick={async () => {
+            if (!roomId) return;
+            setConfirming(true);
+            setError("");
+            try {
+              await customerWorkflowService.confirmHandover(roomId);
+              navigate("/customer/my-rooms?tab=renting");
+            } catch (requestError) {
+              setError(requestError instanceof Error ? requestError.message : "Không thể xác nhận bàn giao.");
+              setConfirming(false);
+            }
+          }}
+          className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white disabled:bg-gray-300"
+        >
           {confirming ? "Đang xác nhận..." : "Xác nhận nhận phòng"}
         </button>
       </Section>
@@ -929,7 +1083,11 @@ export function CheckoutReconciliation() {
               className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"
             />
           </label>
-          <button disabled={!liquidationSignature.trim()} onClick={() => navigate("/customer/my-rooms?tab=renting")} className="mt-4 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300">
+          <button
+            disabled={!liquidationSignature.trim()}
+            onClick={() => navigate("/customer/my-rooms?tab=renting")}
+            className="mt-4 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+          >
             {(detail?.additionalPaymentAmount ?? 0) > 0 ? "Thanh toán khoản phát sinh và ký thanh lý" : "Ký xác nhận thanh lý hợp đồng"}
           </button>
         </div>

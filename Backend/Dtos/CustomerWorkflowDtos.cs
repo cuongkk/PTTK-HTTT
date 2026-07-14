@@ -1,21 +1,25 @@
 namespace Backend.Dtos;
 
 public record CreateCustomerRentalApplicationRequest(
-    string RoomId,
-    string FullName,
-    string Phone,
+    string? RoomId,
+    string? FullName,
+    string? Phone,
     string? Email,
     short NumberOfPeople,
-    string Gender,
-    string Nationality,
-    string DocumentType,
-    string DocumentNumber,
-    string DocumentImageUrl,
+    string? Gender,
+    string? Nationality,
+    string? DocumentType,
+    string? DocumentNumber,
+    string? DocumentImageUrl,
     DateOnly? DateOfBirth,
     string? PermanentAddress,
     string? FinancialDocumentUrl,
     DateOnly ExpectedMoveInDate,
     short ExpectedRentalMonths,
+    string? DesiredArea,
+    string? DesiredRoomType,
+    decimal? MinimumPrice,
+    decimal? MaximumPrice,
     string? LivingSchedule,
     bool RequiresQuietLifestyle,
     bool RequiresParking,
@@ -97,6 +101,7 @@ public record CustomerContractDetailDto(string RoomId, string RoomName, string B
 
 public record CustomerReconciliationCostDto(string CostType, string Description, decimal Amount);
 public record CustomerHandoverAssetDto(string AssetId, string AssetName, short Quantity, string Condition, string? Note);
+public record CustomerServiceItemDto(string ServiceId, string ServiceName, string Unit, decimal UnitPrice, string? Description);
 public record CustomerHandoverDetailDto(string HandoverId, string ContractId, string RoomId, string RoomName, DateOnly HandoverDate, string ManagerName, string? RoomCondition, decimal? InitialElectricityReading, decimal? InitialWaterReading, string? Note, List<CustomerHandoverAssetDto> Assets);
 public record CustomerCheckoutDetailDto(
     string RoomId, string RoomName, string ContractId, string ContractStatus,

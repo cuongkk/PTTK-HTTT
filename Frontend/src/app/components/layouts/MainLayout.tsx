@@ -167,7 +167,7 @@ export function MainLayout() {
 
   const roleNavigation = {
     customer: [
-      { name: "Tìm phòng", path: "/customer/rooms", icon: Search },
+      { name: "Đăng ký thuê", path: "/customer/register", icon: Search },
       { name: "Phòng của tôi", path: "/customer/my-rooms", icon: Building2 },
       { name: "Thanh toán", path: "/customer/payments", icon: CreditCard },
       { name: "Thông báo", path: "/customer/notifications", icon: Bell },

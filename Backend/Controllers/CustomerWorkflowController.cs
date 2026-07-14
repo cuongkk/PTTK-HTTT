@@ -22,6 +22,16 @@ public class CustomerWorkflowController : ControllerBase
     [HttpGet("viewed-rooms")]
     public async Task<ActionResult<List<ViewedRoomDto>>> GetViewedRooms() => Ok(await _service.GetViewedRoomsAsync(User.GetAccountId()));
 
+    [HttpGet("services")]
+    public async Task<ActionResult<List<CustomerServiceItemDto>>> GetServices() => Ok(await _service.GetAvailableServicesAsync());
+
+    [HttpPost("viewing-schedules/{scheduleId}/confirm-room-information")]
+    public async Task<IActionResult> ConfirmRoomInformationViewed(string scheduleId)
+    {
+        await _service.ConfirmRoomInformationViewedAsync(User.GetAccountId(), scheduleId);
+        return NoContent();
+    }
+
     [HttpGet("deposited-rooms")]
     public async Task<ActionResult<List<CustomerRoomSummaryDto>>> GetDepositedRooms() => Ok(await _service.GetDepositedRoomsAsync(User.GetAccountId()));
 
