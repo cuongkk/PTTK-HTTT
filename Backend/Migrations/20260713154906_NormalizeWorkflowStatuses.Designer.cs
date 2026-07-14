@@ -4,6 +4,7 @@ using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713154906_NormalizeWorkflowStatuses")]
+    partial class NormalizeWorkflowStatuses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1237,11 +1240,6 @@ namespace Backend.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasColumnName("khu_vuc_mong_muon");
 
-                    b.Property<string>("DesiredRoomId")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
-                        .HasColumnName("ma_phong_mong_muon");
-
                     b.Property<string>("DesiredRoomType")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)")
@@ -1316,8 +1314,6 @@ namespace Backend.Migrations
                         .HasName("pk_ho_so");
 
                     b.HasIndex("CustomerId");
-
-                    b.HasIndex("DesiredRoomId");
 
                     b.HasIndex("SalesEmployeeId");
 
@@ -1411,7 +1407,7 @@ namespace Backend.Migrations
 
                     b.ToTable("hop_dong_thue", null, t =>
                         {
-                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','cho_xac_nhan_ban_giao','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
+                            t.HasCheckConstraint("chk_hd_trangthai", "[trang_thai] IN ('cho_ky','cho_thanh_toan_nhan_phong','cho_xac_nhan_thanh_toan','hieu_luc','cho_tra_phong','cho_kiem_tra_tra_phong','cho_doi_soat','cho_khach_xac_nhan','cho_hoan_coc','het_han','thanh_ly')");
                         });
                 });
 
@@ -2356,12 +2352,6 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_hoso_kh");
 
-                    b.HasOne("Backend.Models.Room", "DesiredRoom")
-                        .WithMany()
-                        .HasForeignKey("DesiredRoomId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_hoso_phong_mong_muon");
-
                     b.HasOne("Backend.Models.Employee", "SalesEmployee")
                         .WithMany()
                         .HasForeignKey("SalesEmployeeId")
@@ -2369,8 +2359,6 @@ namespace Backend.Migrations
                         .HasConstraintName("fk_hoso_sale");
 
                     b.Navigation("Customer");
-
-                    b.Navigation("DesiredRoom");
 
                     b.Navigation("SalesEmployee");
                 });

@@ -40,7 +40,7 @@ export function SalesDashboard() {
     name: r.customerName,
     room: `${r.desiredArea} · ${r.desiredRoomType === "ghep" ? "Ở ghép" : "Nguyên căn"} · ${r.minPrice?.toLocaleString("vi-VN") ?? "0"} - ${r.maxPrice?.toLocaleString("vi-VN") ?? "0"} đ`,
     date: new Date(r.createdAt).toLocaleDateString("vi-VN"),
-    status: r.status === "moi" ? "Chờ sắp lịch" : r.status === "da_xem_phong" ? "Đã xem" : r.status === "cho_ra_soat_coc" ? "Chờ rà soát cọc" : r.status,
+    status: r.status === "moi" ? "Chờ sắp lịch" : r.status === "da_xem_phong" ? "Đã xem" : r.status === "cho_sale_ra_soat_coc" ? "Chờ Sale rà soát cọc" : r.status,
     statusColor: r.status === "moi" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700",
   })) ?? [];
 

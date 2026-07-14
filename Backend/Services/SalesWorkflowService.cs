@@ -178,6 +178,15 @@ public class SalesWorkflowService : ISalesWorkflowService
                     }
                 }
             }
+            else if (!string.IsNullOrEmpty(app.DesiredRoomId))
+            {
+                var desiredRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == app.DesiredRoomId);
+                if (desiredRoom != null)
+                {
+                    roomName = desiredRoom.RoomName;
+                    roomId = desiredRoom.RoomId;
+                }
+            }
 
             var priceRangeStr = "Chưa rõ";
             if (app.MinimumPrice == 0 && app.MaximumPrice <= 1500000) priceRangeStr = "Dưới 1.5 triệu";
@@ -544,7 +553,7 @@ public class SalesWorkflowService : ISalesWorkflowService
         };
         _db.Invoices.Add(invoice);
 
-        app.Status = "cho_ra_soat_coc"; // remains in review stage for manager
+        app.Status = "cho_khach_thanh_toan_coc";
         await _db.SaveChangesAsync();
 
         // Notify Accountant

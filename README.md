@@ -96,6 +96,8 @@ sqlcmd -S "(localdb)\MSSQLLocalDB" -d homestay_dorm -E -Q "SELECT name FROM sys.
 
 # Phạm vi 4 UC nghiệp vụ và các UC hệ thống
 
+Đặc tả riêng cho tác nhân Khách hàng và sơ đồ Mermaid được lưu tại [Tasks/DacTa_UC_HeThong_KhachHang.md](Tasks/DacTa_UC_HeThong_KhachHang.md).
+
 Mỗi mục lớn dưới đây là một **UC nghiệp vụ** mô tả mục tiêu đầu-cuối của tổ chức. Các chức năng nhỏ bên trong là **UC hệ thống** mà từng tác nhân thực hiện trên phần mềm. Một UC nghiệp vụ có thể bắt đầu từ hoạt động tra cứu/tạo yêu cầu của khách, đi qua nhiều nhân viên và kết thúc khi trạng thái nghiệp vụ đã được cập nhật.
 
 Các trường được đánh dấu **Bắt buộc** là dữ liệu được nhắc trực tiếp trong đề hoặc cần thiết để hoàn thành giao dịch. **Nên thêm** là dữ liệu giúp vận hành, truy vết và demo rõ ràng hơn.
