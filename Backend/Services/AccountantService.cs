@@ -14,6 +14,8 @@ namespace Backend.Services;
 public class AccountantService : IAccountantService
 {
     private readonly AppDbContext _dbContext;
+    private static readonly HashSet<string> _calculatedReconciliationIds = new();
+    private static readonly HashSet<string> _submittedReconciliationIds = new();
 
     public AccountantService(AppDbContext dbContext)
     {
@@ -43,7 +45,9 @@ public class AccountantService : IAccountantService
             if (!hasActiveInvoice)
             {
                 var roomName = "Chưa xếp phòng";
-                var firstBed = dep.Beds.FirstOrDefault();
+                decimal monthlyRent = 0;
+                int bedCount = dep.Beds?.Count ?? 0;
+                var firstBed = dep.Beds?.FirstOrDefault();
                 if (firstBed != null)
                 {
                     var bed = await _dbContext.Beds.Include(b => b.Room)
@@ -51,6 +55,7 @@ public class AccountantService : IAccountantService
                     if (bed != null)
                     {
                         roomName = bed.Room.RoomName;
+                        monthlyRent = bed.Room.RoomType == "nguyen_can" ? (bed.Room.RoomPrice ?? 0) : bed.MonthlyRent;
                     }
                 }
 
@@ -60,36 +65,12 @@ public class AccountantService : IAccountantService
                     ContractId = dep.DepositId,
                     CustomerId = dep.Application.CustomerId,
                     CustomerName = dep.Application.Customer.FullName,
-                    RoomName = roomName
+                    RoomName = roomName,
+                    MonthlyRent = monthlyRent,
+                    BedCount = bedCount
                 });
             }
         }
-
-        // Lấy danh sách hợp đồng thuê chưa có hóa đơn tiền thuê phòng kỳ đầu
-        var rentalContracts = await _dbContext.RentalContracts
-            .Include(c => c.Customer)
-            .Include(c => c.Room)
-            .Where(c => c.Status == "hieu_luc")
-            .ToListAsync();
-
-        foreach (var c in rentalContracts)
-        {
-            var hasFirstMonthInvoice = await _dbContext.Invoices
-                .AnyAsync(i => i.ContractId == c.ContractId && i.InvoiceType == "tien_thue");
-
-            if (!hasFirstMonthInvoice)
-            {
-                result.Add(new ContractInvoiceInfoDto
-                {
-                    Id = c.ContractId,
-                    ContractId = c.ContractId,
-                    CustomerId = c.CustomerId,
-                    CustomerName = c.Customer.FullName,
-                    RoomName = c.Room.RoomName
-                });
-            }
-        }
-
         return result;
     }
 
@@ -99,6 +80,9 @@ public class AccountantService : IAccountantService
             ?? throw new NotFoundException($"Không tìm thấy khách hàng '{request.CustomerId}'.");
 
         var employeeId = await GetEmployeeIdFromAccountIdAsync(accountantId);
+
+        var now = DateTime.UtcNow;
+        var dueDate = request.DueDate ?? now.AddHours(24);
 
         var invoice = new Invoice
         {
@@ -113,19 +97,9 @@ public class AccountantService : IAccountantService
             TotalAmount = request.TotalAmount,
             Status = "cho_thanh_toan",
             BillingPeriod = request.BillingCycle,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             Note = request.Notes
         };
-
-        // Nếu là hóa đơn tiền cọc, tự động cập nhật hạn thanh toán cọc (ngay_lap + 24h)
-        if (request.InvoiceType == "tien_coc" && !string.IsNullOrEmpty(request.DepositId))
-        {
-            var deposit = await _dbContext.DepositSlips.FindAsync(request.DepositId);
-            if (deposit != null)
-            {
-                invoice.Note = (invoice.Note ?? "") + $"\nHạn thanh toán cọc: {deposit.PaymentDueAt:dd/MM/yyyy HH:mm}";
-            }
-        }
 
         await _dbContext.Invoices.AddAsync(invoice);
 
@@ -150,6 +124,9 @@ public class AccountantService : IAccountantService
 
     public async Task<List<InvoiceDto>> GetSentRequestsAsync()
     {
+        // On-demand: kiểm tra và tự động hủy hóa đơn quá hạn 24h
+        await CancelExpiredInvoicesAsync();
+
         var invoices = await _dbContext.Invoices
             .Join(_dbContext.Customers,
                 i => i.CustomerId,
@@ -211,12 +188,76 @@ public class AccountantService : IAccountantService
                 CreatedAt = invoice.CreatedAt,
                 PaidAt = invoice.PaidAt,
                 Status = invoice.Status,
+                DueDate = invoice.CreatedAt.AddHours(24), // Tính toán hạn thanh toán = thời điểm tạo + 24h
                 Notes = invoice.Note,
                 BillingCycle = invoice.BillingPeriod
             });
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Kiểm tra on-demand: tự động hủy các hóa đơn tiền cọc quá hạn 24h và giải phóng giường.
+    /// Chạy mỗi khi Kế toán mở danh sách yêu cầu thanh toán.
+    /// </summary>
+    private async Task CancelExpiredInvoicesAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        var expiredInvoices = await _dbContext.Invoices
+            .Where(i => i.Status == "cho_thanh_toan"
+                     && i.InvoiceType == "tien_coc"
+                     && i.CreatedAt.AddHours(24) < now)
+            .ToListAsync();
+
+        if (expiredInvoices.Count == 0) return;
+
+        foreach (var invoice in expiredInvoices)
+        {
+            invoice.Status = "huy";
+            invoice.Note = (invoice.Note ?? "") + $"\n[Hệ thống] Tự động hủy do quá hạn thanh toán 24h ({now:dd/MM/yyyy HH:mm} UTC).";
+
+            // Giải phóng giường đã cọc
+            if (!string.IsNullOrEmpty(invoice.DepositId))
+            {
+                var deposit = await _dbContext.DepositSlips
+                    .Include(d => d.Beds)
+                    .FirstOrDefaultAsync(d => d.DepositId == invoice.DepositId);
+
+                if (deposit != null)
+                {
+                    deposit.Status = "huy";
+
+                    foreach (var depositBed in deposit.Beds)
+                    {
+                        var bed = await _dbContext.Beds.FindAsync(depositBed.BedId);
+                        if (bed != null && bed.Status == "da_coc")
+                        {
+                            bed.Status = "trong";
+                        }
+                    }
+                }
+            }
+
+            // Gửi thông báo cho khách hàng
+            var customerAccount = await _dbContext.Accounts
+                .FirstOrDefaultAsync(a => a.CustomerId == invoice.CustomerId);
+            if (customerAccount != null)
+            {
+                var notification = new Notification
+                {
+                    NotificationId = IdGenerator.Generate("TB", 12),
+                    SenderAccountId = null,
+                    RecipientAccountId = customerAccount.AccountId,
+                    Title = "Yêu cầu thanh toán đã bị hủy",
+                    Content = $"Yêu cầu thanh toán {invoice.InvoiceId} đã bị tự động hủy do quá hạn 24 giờ. Vui lòng liên hệ kế toán nếu cần hỗ trợ."
+                };
+                await _dbContext.Notifications.AddAsync(notification);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
     }
 
     // ==========================================
@@ -358,11 +399,10 @@ public class AccountantService : IAccountantService
                 }
                 else
                 {
-                    // Lấy ra các giường được cọc thông qua phiếu đặt cọc liên kết với hợp đồng
                     var deposit = await _dbContext.DepositSlips
                         .Include(d => d.Beds)
                         .FirstOrDefaultAsync(d => d.DepositId == contract.DepositId);
-                    
+
                     if (deposit != null)
                     {
                         var bedIds = deposit.Beds.Select(b => b.BedId).ToList();
@@ -431,25 +471,29 @@ public class AccountantService : IAccountantService
 
     public async Task<List<CheckInContractDto>> GetPendingCheckInContractsAsync()
     {
-        // Lấy danh sách hợp đồng đã ký nhưng chưa được kế toán tính phí nhận phòng kỳ đầu
+        var eligibleStatuses = new[] { "cho_thanh_toan_nhan_phong"};
+
+        // Lấy danh sách hợp đồng có phiếu cọc đã hoàn thành và đang ở các trạng thái chờ nhận phòng,
+        // nhưng chưa được kế toán phát hành khoản thu nhận phòng kỳ đầu.
         var contracts = await _dbContext.RentalContracts
             .Include(c => c.Customer)
             .Include(c => c.Room).ThenInclude(r => r.Beds)
             .Include(c => c.Deposit)
-            .Where(c => c.Status == "hieu_luc")
+            .Where(c => eligibleStatuses.Contains(c.Status)
+                        && c.Deposit != null
+                        && c.Deposit.Status == "hoan_thanh")
             .OrderBy(c => c.StartDate)
             .ToListAsync();
 
         var result = new List<CheckInContractDto>();
         foreach (var c in contracts)
         {
-            // Kiểm tra xem đã có hóa đơn thuê/dịch vụ kỳ đầu được tạo chưa
+            // Chỉ hiển thị hợp đồng khi chưa có hóa đơn tiền thuê nhận phòng do kế toán tạo.
             var hasCharges = await _dbContext.Invoices
                 .AnyAsync(i => i.ContractId == c.ContractId && i.InvoiceType == "tien_thue");
 
             if (!hasCharges)
             {
-                // Giả định phí dịch vụ nền
                 var serviceFee = 200000m;
                 var isComplete = c.NumberOfBeds > 0 && c.MonthlyRent > 0;
 
@@ -558,6 +602,19 @@ public class AccountantService : IAccountantService
 
             if (contract == null) continue;
 
+            var checkoutRequest = await _dbContext.CheckoutRequests
+                .FirstOrDefaultAsync(cr => cr.ContractId == contract.ContractId);
+
+            // Bỏ qua nếu đối soát chưa được Quản lý bàn giao/chuyển qua cho Kế toán (theo đúng quy trình phòng 31 -> 32)
+            if (checkoutRequest != null && 
+                checkoutRequest.Status != "cho_doi_soat" && 
+                checkoutRequest.Status != "cho_khach_xac_nhan" &&
+                checkoutRequest.Status != "cho_hoan_tien" && 
+                checkoutRequest.Status != "hoan_tat")
+            {
+                continue;
+            }
+
             var additionalCosts = await _dbContext.AdditionalCosts
                 .Where(c => c.ReconciliationId == r.ReconciliationId)
                 .ToListAsync();
@@ -587,6 +644,15 @@ public class AccountantService : IAccountantService
                 accountNumber = refundInvoice.BankAccountNumber;
             }
 
+            var relInvoice = await _dbContext.Invoices
+                .FirstOrDefaultAsync(i => i.ReconciliationId == r.ReconciliationId && (i.InvoiceType == "hoan_coc" || i.InvoiceType == "thu_them"));
+
+            string statusStr;
+            bool isCalculated;
+
+            statusStr = r.Status == "cho_xac_nhan" ? "Chờ tính toán" : (r.Status == "da_xac_nhan" ? "Chờ xử lý" : "Đã hoàn thành");
+            isCalculated = _calculatedReconciliationIds.Contains(r.ReconciliationId) || r.Status == "da_xac_nhan";
+
             result.Add(new ReconciliationListItemDto
             {
                 ReconciliationId = r.ReconciliationId,
@@ -595,7 +661,10 @@ public class AccountantService : IAccountantService
                 CustomerName = contract.Customer.FullName,
                 RoomName = contract.Room.RoomName,
                 MoveInDate = contract.StartDate.ToString("dd/MM/yyyy"),
-                MoveOutDate = checkoutReport?.CheckoutDate.ToString("dd/MM/yyyy") ?? "Chưa trả",
+                MoveOutDate = checkoutRequest?.RequestedCheckoutAt.ToString("dd/MM/yyyy") ?? (checkoutReport?.CheckoutDate.ToString("dd/MM/yyyy") ?? "Chưa trả"),
+                ContractEndDate = contract.EndDate?.ToString("dd/MM/yyyy") ?? "",
+                ContractStatus = contract.Status,
+                SignedDate = contract.SignedDate.ToString("dd/MM/yyyy"),
                 Deposit = r.OriginalDeposit,
                 MonthlyRent = contract.MonthlyRent,
                 RefundRate = r.RefundRate,
@@ -609,10 +678,87 @@ public class AccountantService : IAccountantService
                 RefundAmount = (r.AdditionalPaymentAmount > 0)
                     ? -r.AdditionalPaymentAmount.Value
                     : (r.RefundAmount ?? (r.BaseRefund - r.TotalDeductions)),
-                Status = r.Status == "cho_xac_nhan" ? "Chờ tính toán" : (r.Status == "da_xac_nhan" ? "Chờ xử lý" : "Đã hoàn thành"),
+                Status = statusStr,
                 RefundMethod = refundMethod,
                 BankName = bankName,
-                AccountNumber = accountNumber
+                AccountNumber = accountNumber,
+                RoomCondition = checkoutReport?.RoomCondition,
+                FinalElectricityReading = checkoutReport?.FinalElectricityReading,
+                FinalWaterReading = checkoutReport?.FinalWaterReading,
+                IsCalculated = isCalculated,
+                InvoiceStatus = relInvoice?.Status,
+                InvoiceHasProof = !string.IsNullOrEmpty(relInvoice?.ProofImageUrl),
+                InvoiceId = relInvoice?.InvoiceId,
+                IsDepositRefund = false
+            });
+        }
+
+        // Lấy thêm các phiếu cọc hoàn tiền trước khi ký hợp đồng (PHONG_22, PHONG_24)
+        var depositRefundList = await _dbContext.DepositSlips
+            .Include(d => d.Application).ThenInclude(a => a.Customer)
+            .Where(d => d.Status == "cho_doi_soat_hoan_coc" || d.Status == "cho_hoan_tien" || d.Status == "da_hoan_coc")
+            .ToListAsync();
+
+        foreach (var dep in depositRefundList)
+        {
+            var roomName = "Chưa xếp phòng";
+            // Tìm phòng từ lịch xem phòng
+            var scheduleRoom = await _dbContext.RoomViewingSchedules
+                .Where(s => s.ApplicationId == dep.ApplicationId)
+                .Join(_dbContext.RoomViewingScheduleRooms,
+                    s => s.ScheduleId,
+                    sr => sr.ScheduleId,
+                    (s, sr) => sr)
+                .FirstOrDefaultAsync();
+            if (scheduleRoom != null)
+            {
+                var room = await _dbContext.Rooms.FindAsync(scheduleRoom.RoomId);
+                if (room != null) roomName = room.RoomName;
+            }
+
+            var statusStr = dep.Status switch
+            {
+                "cho_doi_soat_hoan_coc" => "Chờ tính toán",
+                "cho_hoan_tien" => "Chờ xử lý",
+                _ => "Đã hoàn thành"
+            };
+
+            // Hóa đơn hoàn cọc của phiếu cọc nếu có
+            var depRefundInvoice = await _dbContext.Invoices
+                .FirstOrDefaultAsync(i => i.DepositId == dep.DepositId && i.InvoiceType == "hoan_coc");
+
+            result.Add(new ReconciliationListItemDto
+            {
+                ReconciliationId = dep.DepositId,
+                ContractId = "Phiếu đặt cọc",
+                CustomerId = dep.Application.CustomerId,
+                CustomerName = dep.Application.Customer.FullName,
+                RoomName = roomName,
+                MoveInDate = dep.CreatedAt.ToString("dd/MM/yyyy"),
+                MoveOutDate = dep.RefundRequestedAt?.ToString("dd/MM/yyyy") ?? "Chưa trả",
+                ContractEndDate = "",
+                ContractStatus = "chua_ky",
+                SignedDate = "",
+                Deposit = dep.DepositAmount,
+                MonthlyRent = 0,
+                RefundRate = dep.RefundRate ?? 80,
+                BaseRefundAmount = dep.RefundAmount ?? (dep.DepositAmount * 0.8m),
+                Damages = 0,
+                UnpaidUtilities = 0,
+                RentArrears = 0,
+                ViolationFines = 0,
+                OtherDeductions = 0,
+                OtherDeductionsNote = dep.RefundReason,
+                RefundAmount = dep.RefundAmount ?? (dep.DepositAmount * 0.8m),
+                Status = statusStr,
+                RefundMethod = depRefundInvoice?.PaymentMethod,
+                BankName = depRefundInvoice?.BankName,
+                AccountNumber = depRefundInvoice?.BankAccountNumber,
+                IsCalculated = _calculatedReconciliationIds.Contains(dep.DepositId),
+                InvoiceStatus = depRefundInvoice?.Status,
+                InvoiceHasProof = !string.IsNullOrEmpty(depRefundInvoice?.ProofImageUrl),
+                InvoiceId = depRefundInvoice?.InvoiceId,
+                IsDepositRefund = true
             });
         }
 
@@ -622,8 +768,25 @@ public class AccountantService : IAccountantService
     public async Task SaveReconciliationDeductionsAsync(SaveReconciliationDeductionsDto dto, string accountantId)
     {
         var recon = await _dbContext.Reconciliations
-            .FirstOrDefaultAsync(r => r.ReconciliationId == dto.ReconciliationId)
-            ?? throw new NotFoundException($"Không tìm thấy bản ghi đối soát '{dto.ReconciliationId}'.");
+            .FirstOrDefaultAsync(r => r.ReconciliationId == dto.ReconciliationId);
+
+        if (recon == null)
+        {
+            // Kiểm tra xem đây có phải là mã phiếu đặt cọc hoàn tiền trước khi ký hợp đồng không
+            var deposit = await _dbContext.DepositSlips
+                .FirstOrDefaultAsync(d => d.DepositId == dto.ReconciliationId);
+            if (deposit != null)
+            {
+                deposit.RefundRate = dto.RefundRate;
+                deposit.RefundAmount = Math.Round(deposit.DepositAmount * (dto.RefundRate / 100m));
+                
+                _calculatedReconciliationIds.Add(deposit.DepositId);
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
+            throw new NotFoundException($"Không tìm thấy bản ghi đối soát hoặc phiếu cọc '{dto.ReconciliationId}'.");
+        }
 
         // Xóa chi phí phát sinh cũ
         var existingCosts = await _dbContext.AdditionalCosts
@@ -706,7 +869,7 @@ public class AccountantService : IAccountantService
             recon.AdditionalPaymentAmount = -finalAmt;
         }
 
-        recon.Status = "da_xac_nhan"; // Chờ xử lý thanh toán hoàn hoặc thu thêm
+        _calculatedReconciliationIds.Add(recon.ReconciliationId);
         recon.AccountantEmployeeId = (await GetEmployeeIdFromAccountIdAsync(accountantId)) ?? accountantId;
 
         await _dbContext.SaveChangesAsync();
@@ -715,8 +878,73 @@ public class AccountantService : IAccountantService
     public async Task ProcessRefundAsync(ProcessRefundDto dto, string accountantId)
     {
         var recon = await _dbContext.Reconciliations
-            .FirstOrDefaultAsync(r => r.ReconciliationId == dto.ReconciliationId)
-            ?? throw new NotFoundException($"Không tìm thấy bản ghi đối soát '{dto.ReconciliationId}'.");
+            .FirstOrDefaultAsync(r => r.ReconciliationId == dto.ReconciliationId);
+
+        if (recon == null)
+        {
+            // Kiểm tra xem có phải phiếu đặt cọc hoàn cọc trước khi ký hợp đồng không (PHONG_24)
+            var deposit = await _dbContext.DepositSlips
+                .Include(d => d.Beds)
+                .Include(d => d.Application)
+                .FirstOrDefaultAsync(d => d.DepositId == dto.ReconciliationId);
+
+            if (deposit != null)
+            {
+                var depEmployeeId = await GetEmployeeIdFromAccountIdAsync(accountantId);
+                var depFinalAmt = deposit.RefundAmount ?? (deposit.DepositAmount * 0.8m);
+
+                string depPaymentMethod = dto.Method == "transfer" ? "chuyen_khoan" : "tien_mat";
+
+                if (depFinalAmt > 0)
+                {
+                    // Tạo hóa đơn hoàn cọc (thuộc phiếu cọc)
+                    var depRefundInvoice = new Invoice
+                    {
+                        InvoiceId = IdGenerator.Generate("HD", 12),
+                        CustomerId = deposit.Application.CustomerId,
+                        AccountantEmployeeId = depEmployeeId,
+                        DepositId = deposit.DepositId,
+                        InvoiceType = "hoan_coc",
+                        DocumentType = "chi",
+                        TotalAmount = depFinalAmt,
+                        PaymentMethod = depPaymentMethod,
+                        BankName = dto.BankName,
+                        BankAccountNumber = dto.AccountNumber,
+                        BankAccountHolder = dto.AccountName,
+                        TransactionId = dto.Method == "transfer" ? "TXN-" + IdGenerator.Generate(string.Empty, 8) : null,
+                        Status = "da_thanh_toan",
+                        PaidAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        Note = $"Hoàn tiền cọc trước khi ký hợp đồng cho phiếu cọc {deposit.DepositId}."
+                    };
+                    await _dbContext.Invoices.AddAsync(depRefundInvoice);
+                }
+
+                deposit.Status = "da_hoan_coc";
+
+                // Giải phóng phòng/giường liên quan sang trống
+                var depBedsIds = deposit.Beds.Select(b => b.BedId).ToList();
+                var depBedsList = await _dbContext.Beds.Where(b => depBedsIds.Contains(b.BedId)).ToListAsync();
+                foreach (var bed in depBedsList)
+                {
+                    bed.Status = "trong";
+                    bed.UpdatedAt = DateTime.UtcNow;
+                }
+
+                var depRoomIds = depBedsList.Select(b => b.RoomId).Distinct().ToList();
+                var depRoomsList = await _dbContext.Rooms.Where(r => depRoomIds.Contains(r.RoomId)).ToListAsync();
+                foreach (var depRoom in depRoomsList.Where(r => r.RoomType == RoomType.Whole))
+                {
+                    depRoom.Status = "trong";
+                    depRoom.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
+            throw new NotFoundException($"Không tìm thấy bản ghi đối soát hoặc phiếu cọc '{dto.ReconciliationId}'.");
+        }
 
         var contract = await _dbContext.RentalContracts
             .FirstOrDefaultAsync(c => c.ContractId == recon.ContractId)
@@ -822,6 +1050,33 @@ public class AccountantService : IAccountantService
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
+
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task SubmitReconciliationToManagerAsync(string reconciliationId)
+    {
+        _submittedReconciliationIds.Add(reconciliationId);
+
+        var recon = await _dbContext.Reconciliations
+            .FirstOrDefaultAsync(r => r.ReconciliationId == reconciliationId);
+
+        if (recon == null)
+        {
+            var deposit = await _dbContext.DepositSlips
+                .FirstOrDefaultAsync(d => d.DepositId == reconciliationId);
+            if (deposit != null)
+            {
+                // Chuyển trạng thái sang chờ khách xác nhận theo đúng sơ đồ luồng
+                deposit.Status = "cho_khach_xac_nhan_hoan_coc";
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
+            throw new NotFoundException($"Không tìm thấy bản ghi đối soát hoặc phiếu cọc '{reconciliationId}'.");
+        }
+
+        recon.Status = "da_xac_nhan";
 
         await _dbContext.SaveChangesAsync();
     }
