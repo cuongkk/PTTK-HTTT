@@ -110,17 +110,6 @@ export interface SalesRentalContract {
 export const salesApi = {
   getDashboard: () => apiClient.get<SalesDashboardData>("/sales/dashboard"),
   getApplications: () => apiClient.get<SalesApplication[]>("/sales/applications"),
-  createApplication: (data: {
-    name: string;
-    phone: string;
-    email: string;
-    gender?: string;
-    genderRequirement?: string;
-    area?: string;
-    capacity?: number;
-    priceRange?: string;
-    note: string;
-  }) => apiClient.post<SalesApplication>("/sales/applications", data),
 
   createSchedule: (applicationId: string, data: {
     roomId: string;

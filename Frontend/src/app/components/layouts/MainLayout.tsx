@@ -98,6 +98,27 @@ export function MainLayout() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
+    if (currentRole === "sales") {
+      if (normalizedText.includes("tra phong") || normalizedText.includes("hoan coc")) {
+        return "/sales/registrations?tab=checkout";
+      }
+      if (normalizedText.includes("lap hop dong") || normalizedText.includes("lap hd") || normalizedText.includes("du dieu kien nhan phong")) {
+        return "/sales/registrations?tab=deposits";
+      }
+      if (normalizedText.includes("nhan phong") || normalizedText.includes("dang ky") || /HS[a-zA-Z0-9]+/.test(content)) {
+        return "/sales/registrations?tab=registrations";
+      }
+      if (normalizedText.includes("coc") || n.notificationType === "dat_coc") {
+        if (normalizedText.includes("qua han") || normalizedText.includes("huy phieu") || normalizedText.includes("thanh toan")) {
+          return "/sales/registrations?tab=deposits";
+        }
+        return "/sales/registrations?tab=registrations";
+      }
+      if (normalizedText.includes("hop dong") || normalizedText.includes("hd thue")) {
+        return "/sales/registrations?tab=contracts";
+      }
+    }
+
     if (n.notificationType === "dang_ky_thue" || /HS[a-zA-Z0-9]+/.test(content)) {
       return `/${currentRole}/registrations`;
     }
@@ -202,10 +223,8 @@ export function MainLayout() {
       { name: "Thông báo", path: "/customer/notifications", icon: Bell },
     ],
     sales: [
-      { name: "Xử lý GD", path: "/sales/registrations", icon: Users },
+      { name: "Công việc của tôi", path: "/sales/registrations", icon: Users },
       { name: "Tra cứu phòng", path: "/sales/rooms", icon: Search },
-      { name: "Lập phiếu đặt cọc", path: "/sales/deposit-contract", icon: Sparkles },
-      { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileText },
       { name: "Thông báo", path: "/sales/notifications", icon: Bell },
     ],
     accountant: [

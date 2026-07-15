@@ -1,35 +1,31 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
-  Users, Calendar, CheckCircle, X, Send, Search, ArrowRight, Building2,
-  AlertTriangle, RefreshCw, FileText, Sparkles, DoorOpen, FileCheck,
-  ChevronRight, AlertCircle, Tag
+  Users, Calendar, CheckCircle, X, Send, Search, ArrowRight, ArrowLeft, Building2,
+  AlertTriangle, FileText, Sparkles, DoorOpen, FileCheck,
+  ChevronRight, AlertCircle
 } from "lucide-react";
 import { salesApi, type SalesApplication, type SalesDepositSlip, type SalesRentalContract } from "../../services/sales/salesApi";
 import { roomService, type Room } from "../../services/system-admin/roomService";
 import { toast } from "sonner";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { CreateDepositContract } from "./CreateDepositContract";
+import { CreateRentalContract } from "./CreateRentalContract";
 
-type MainTab = "registrations" | "deposits" | "contracts" | "checkout";
-type CheckoutSubTab = "all" | "hoan_coc" | "tra_phong";
+type MainTab = "registrations" | "deposits" | "create_deposit" | "create_contract" | "contracts" | "checkout";
 type RegistrationActionFilter =
-  | "all"
   | "schedule"
   | "confirm_viewing"
   | "review_deposit"
   | "create_deposit"
-  | "review_checkin"
-  | "create_contract"
-  | "waiting";
+  | "review_checkin";
+type RegistrationStageFilter = "all" | RegistrationActionFilter;
 
 export function RegistrationManagement() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mainTab, setMainTab] = useState<MainTab>("registrations");
-  const [checkoutSubTab, setCheckoutSubTab] = useState<CheckoutSubTab>("all");
-  const [registrationActionFilter, setRegistrationActionFilter] = useState<RegistrationActionFilter>("all");
-  const [showForm, setShowForm] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -61,11 +57,10 @@ export function RegistrationManagement() {
 
   // Filters
   const [areas, setAreas] = useState<string[]>([]);
-  const [capacities, setCapacities] = useState<number[]>([]);
-  const [priceRanges, setPriceRanges] = useState<string[]>([]);
 
   // Search states per tab
   const [searchReg, setSearchReg] = useState("");
+  const [registrationStageFilter, setRegistrationStageFilter] = useState<RegistrationStageFilter>("all");
   const [searchDeposit, setSearchDeposit] = useState("");
   const [searchContract, setSearchContract] = useState("");
   const [searchCheckout, setSearchCheckout] = useState("");
@@ -74,12 +69,6 @@ export function RegistrationManagement() {
   const [selectedReg, setSelectedReg] = useState<SalesApplication | null>(null);
   const [selectedDepositDetail, setSelectedDepositDetail] = useState<SalesDepositSlip | null>(null);
   const [selectedRentalDetail, setSelectedRentalDetail] = useState<SalesRentalContract | null>(null);
-
-  // Form state
-  const [form, setForm] = useState({
-    name: "", phone: "", email: "", gender: "", genderReq: "",
-    area: "", capacity: "", priceRange: "", note: ""
-  });
 
   // Data
   const [regs, setRegs] = useState<SalesApplication[]>([]);
@@ -91,7 +80,14 @@ export function RegistrationManagement() {
 
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get("tab");
-    if (tab === "registrations" || tab === "deposits" || tab === "contracts" || tab === "checkout") {
+    if (
+      tab === "registrations" ||
+      tab === "deposits" ||
+      tab === "create_deposit" ||
+      tab === "create_contract" ||
+      tab === "contracts" ||
+      tab === "checkout"
+    ) {
       setMainTab(tab);
     }
   }, [location.search]);
@@ -133,11 +129,7 @@ export function RegistrationManagement() {
       setContracts(rentalContracts);
 
       const distinctAreas = Array.from(new Set(roomsData.map(r => r.area).filter(Boolean))) as string[];
-      const distinctCapacities = Array.from(new Set(roomsData.map(r => r.capacity))).sort((a, b) => a - b);
-      const priceOpts = ["Dưới 1.5 triệu", "1.5 – 2 triệu", "Trên 2 triệu"];
       setAreas(distinctAreas);
-      setCapacities(distinctCapacities);
-      setPriceRanges(priceOpts);
       setVacantRooms(roomsData.filter(r => r.status === "trong"));
     } catch (err) {
       console.error(err);
@@ -151,43 +143,9 @@ export function RegistrationManagement() {
     loadData();
   }, [loadData]);
 
-  const f = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
-
-  const handleSubmit = async () => {
-    if (!form.name || !form.phone || !form.email) {
-      toast.warning("Vui lòng điền đủ thông tin bắt buộc (Tên, SĐT, Email).");
-      return;
-    }
-    try {
-      const result = await salesApi.createApplication({
-        name: form.name, phone: form.phone, email: form.email,
-        gender: form.gender || undefined, genderRequirement: form.genderReq || undefined,
-        area: form.area || undefined, capacity: form.capacity ? parseInt(form.capacity) : undefined,
-        priceRange: form.priceRange || undefined, note: form.note,
-      });
-      setForm({ name: "", phone: "", email: "", gender: "", genderReq: "", area: "", capacity: "", priceRange: "", note: "" });
-      setShowForm(false);
-      toast.success(`Đã ghi nhận đăng ký cho ${result.customerName}.\nMã hồ sơ: ${result.applicationId}`);
-      await loadData();
-    } catch {
-      toast.error("Tạo hồ sơ đăng ký thất bại.");
-    }
-  };
-
   // Trigger navigate to deposit contract page with prefilled regRef
   const triggerCreateDepositTab = (reg: SalesApplication) => {
     navigate(`/sales/deposit-contract?regRef=${reg.applicationId}`);
-  };
-
-  // Trigger navigate to rental contract page with prefilled depositRef (from application)
-  const triggerCreateRentalTab = (reg: SalesApplication) => {
-    // Find deposit for this application
-    const dep = deposits.find(d => d.customerName === reg.customerName && d.status === "hoan_thanh");
-    if (dep) {
-      navigate(`/sales/rental-contract?depositRef=${dep.depositId}`);
-    } else {
-      navigate(`/sales/rental-contract`);
-    }
   };
 
   // Trigger navigate to rental contract page with prefilled depositRef (from deposit slip)
@@ -282,26 +240,80 @@ export function RegistrationManagement() {
   const isDepositOverdue = (deposit: SalesDepositSlip) =>
     deposit.status === "cho_thanh_toan" && new Date(deposit.holdUntil).getTime() < Date.now();
 
-  const getRegistrationActionFilter = (reg: SalesApplication): RegistrationActionFilter => {
+  const getApplicationForDeposit = (deposit: SalesDepositSlip) =>
+    regs.find(reg => reg.applicationId === deposit.applicationId);
+
+  const canCreateRentalFromDeposit = (deposit: SalesDepositSlip) => {
+    const application = getApplicationForDeposit(deposit);
+    return (
+      deposit.status === "hoan_thanh" &&
+      !deposit.hasContract &&
+      application?.status === "du_dieu_kien_nhan_phong" &&
+      !application.hasContract
+    );
+  };
+
+  const getRegistrationActionFilter = (reg: SalesApplication): RegistrationActionFilter | null => {
     if (reg.status === "moi" && !reg.appointmentSent) return "schedule";
     if (reg.status === "moi" && reg.appointmentSent && reg.scheduleId) return "confirm_viewing";
     if (reg.status === "cho_sale_ra_soat_coc") return "review_deposit";
     if (reg.status === "cho_khach_thanh_toan_coc" && !reg.hasContract && !hasActiveDeposit(reg.applicationId)) return "create_deposit";
     if (reg.status === "cho_sale_doi_chieu_nhan_phong") return "review_checkin";
-    if (reg.status === "du_dieu_kien_nhan_phong" && !reg.hasContract) return "create_contract";
-    return "waiting";
+    return null;
   };
+  const needsSalesRegistrationAction = (reg: SalesApplication) => {
+    const action = getRegistrationActionFilter(reg);
+    return action !== null;
+  };
+  const needsSalesRefundDepositAction = (deposit: SalesDepositSlip) =>
+    deposit.status === "cho_tiep_nhan_hoan_coc" && !deposit.hasContract;
+  const needsSalesDepositAction = (deposit: SalesDepositSlip) =>
+    canCreateRentalFromDeposit(deposit) ||
+    deposit.status === "het_han" ||
+    isDepositOverdue(deposit);
+  const needsSalesCheckoutContractAction = (contract: SalesRentalContract) =>
+    contract.checkoutRequest?.status === "cho_tiep_nhan";
+  const actionableRegs = regs.filter(needsSalesRegistrationAction);
+  const actionableDeposits = deposits.filter(needsSalesDepositAction);
+  const actionableRefundDeposits = deposits.filter(needsSalesRefundDepositAction);
+  const actionableCheckoutContracts = contracts.filter(needsSalesCheckoutContractAction);
 
-  const registrationActionFilters: { id: RegistrationActionFilter; label: string; count: number }[] = [
-    { id: "all", label: "Tất cả", count: regs.length },
-    { id: "schedule", label: "Sắp lịch", count: regs.filter(r => getRegistrationActionFilter(r) === "schedule").length },
-    { id: "confirm_viewing", label: "Xác nhận đã xem", count: regs.filter(r => getRegistrationActionFilter(r) === "confirm_viewing").length },
-    { id: "review_deposit", label: "Rà soát cọc", count: regs.filter(r => getRegistrationActionFilter(r) === "review_deposit").length },
-    { id: "create_deposit", label: "Lập phiếu cọc", count: regs.filter(r => getRegistrationActionFilter(r) === "create_deposit").length },
-    { id: "review_checkin", label: "Đối chiếu nhận phòng", count: regs.filter(r => getRegistrationActionFilter(r) === "review_checkin").length },
-    { id: "create_contract", label: "Lập HĐ thuê", count: regs.filter(r => getRegistrationActionFilter(r) === "create_contract").length },
-    { id: "waiting", label: "Đang chờ", count: regs.filter(r => getRegistrationActionFilter(r) === "waiting").length },
-  ];
+  const renderDepositReviewDetails = (reg: SalesApplication) => {
+    const room = vacantRooms.find(item => item.roomId === reg.roomId);
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {[
+            ["Mã hồ sơ", reg.applicationId],
+            ["Khách hàng", reg.customerName],
+            ["Số điện thoại", reg.phoneNumber],
+            ["Email", reg.email || "Chưa có"],
+            ["Phòng đề xuất", reg.roomName || "Chưa chọn phòng"],
+            ["Khu vực", room?.area ?? reg.area ?? "Chưa rõ"],
+            ["Sức chứa yêu cầu", `${reg.capacity} người`],
+            ["Giới tính", reg.gender || "Chưa rõ"],
+            ["Mức giá mong muốn", reg.priceRange || "Chưa rõ"],
+            ["Ngày đăng ký", new Date(reg.createdAt).toLocaleDateString("vi-VN")],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase text-gray-400">{label}</p>
+              <p className="mt-0.5 font-semibold text-gray-900">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {reg.appointmentAt && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+            Khách đã xem phòng theo lịch: <span className="font-semibold">{new Date(reg.appointmentAt).toLocaleString("vi-VN")}</span>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+          Sau khi xác nhận rà soát, hồ sơ sẽ chuyển sang Quản lý để kiểm tra phòng còn trống trước khi Sales lập phiếu đặt cọc.
+        </div>
+      </div>
+    );
+  };
 
   const renderCheckinReviewDetails = (reg: SalesApplication) => {
     const tenants = reg.tenants ?? [];
@@ -349,60 +361,36 @@ export function RegistrationManagement() {
     );
   };
 
-  const filteredRegs = regs.filter(r => {
+  const filteredRegs = actionableRegs.filter(r => {
+    const action = getRegistrationActionFilter(r);
+    const matchesStage = registrationStageFilter === "all" || action === registrationStageFilter;
     const matchesSearch =
       r.customerName.toLowerCase().includes(searchReg.toLowerCase()) ||
       r.applicationId.toLowerCase().includes(searchReg.toLowerCase()) ||
       r.phoneNumber.includes(searchReg) ||
       r.roomName.toLowerCase().includes(searchReg.toLowerCase());
-    const matchesAction = registrationActionFilter === "all" || getRegistrationActionFilter(r) === registrationActionFilter;
-    return matchesSearch && matchesAction;
+    return matchesStage && matchesSearch;
   });
 
-  const visibleDeposits = deposits.filter(d => !d.hasContract);
-
-  const filteredDeposits = visibleDeposits.filter(d =>
+  const filteredDeposits = actionableDeposits.filter(d =>
     d.customerName.toLowerCase().includes(searchDeposit.toLowerCase()) ||
     d.depositId.toLowerCase().includes(searchDeposit.toLowerCase()) ||
     d.phoneNumber.includes(searchDeposit) ||
     d.roomName.toLowerCase().includes(searchDeposit.toLowerCase())
   );
-
   const filteredContracts = contracts.filter(c =>
     c.customerName.toLowerCase().includes(searchContract.toLowerCase()) ||
     c.contractId.toLowerCase().includes(searchContract.toLowerCase()) ||
     c.phoneNumber.includes(searchContract) ||
     c.roomName.toLowerCase().includes(searchContract.toLowerCase())
   );
-
-  // Checkout tab: contracts with checkout request OR deposit slips pending refund
-  const checkoutContractStatuses = new Set([
-    "cho_tra_phong",
-    "cho_kiem_tra_tra_phong",
-    "cho_doi_soat",
-    "cho_khach_xac_nhan",
-    "cho_hoan_coc",
-    "thanh_ly",
-  ]);
-  const refundDepositStatuses = new Set([
-    "cho_tiep_nhan_hoan_coc",
-    "dang_xac_nhan_hoan_coc",
-    "cho_doi_soat_hoan_coc",
-    "cho_khach_xac_nhan_hoan_coc",
-    "cho_hoan_tien",
-    "da_hoan_coc",
-  ]);
-  const checkoutContracts = contracts.filter(c => checkoutContractStatuses.has(c.status) || c.checkoutRequest);
-  const refundDeposits = deposits.filter(d => refundDepositStatuses.has(d.status) && !d.hasContract);
-
-  const filteredCheckoutContracts = checkoutContracts.filter(c =>
+  const filteredCheckoutContracts = actionableCheckoutContracts.filter(c =>
     c.customerName.toLowerCase().includes(searchCheckout.toLowerCase()) ||
     c.contractId.toLowerCase().includes(searchCheckout.toLowerCase()) ||
     c.phoneNumber.includes(searchCheckout) ||
     c.roomName.toLowerCase().includes(searchCheckout.toLowerCase())
   );
-
-  const filteredRefundDeposits = refundDeposits.filter(d =>
+  const filteredRefundDeposits = actionableRefundDeposits.filter(d =>
     d.customerName.toLowerCase().includes(searchCheckout.toLowerCase()) ||
     d.depositId.toLowerCase().includes(searchCheckout.toLowerCase()) ||
     d.phoneNumber.includes(searchCheckout) ||
@@ -413,27 +401,88 @@ export function RegistrationManagement() {
     { id: "registrations", label: "Hồ sơ đăng ký" },
     { id: "deposits", label: "Phiếu đặt cọc" },
     { id: "contracts", label: "HĐ thuê phòng" },
+    { id: "create_deposit", label: "Lập phiếu đặt cọc" },
+    { id: "create_contract", label: "Lập HĐ thuê" },
     { id: "checkout", label: "Trả phòng & Hoàn cọc" },
   ];
+  const hasSelectedWork = new URLSearchParams(location.search).has("tab");
+  const selectedWork = tabConfig.find(tab => tab.id === mainTab);
+  const workCards = [
+    {
+      label: "Hồ sơ đăng ký",
+      to: "/sales/registrations?tab=registrations",
+      icon: Users,
+      className: "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
+    },
+    {
+      label: "Phiếu đặt cọc",
+      to: "/sales/registrations?tab=deposits",
+      icon: FileText,
+      className: "from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+    },
+    {
+      label: "HĐ thuê phòng",
+      to: "/sales/registrations?tab=contracts",
+      icon: FileCheck,
+      className: "from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700",
+    },
+    {
+      label: "Lập phiếu đặt cọc",
+      to: "/sales/registrations?tab=create_deposit",
+      icon: Sparkles,
+      className: "from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
+    },
+    {
+      label: "Lập HĐ thuê",
+      to: "/sales/registrations?tab=create_contract",
+      icon: FileText,
+      className: "from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700",
+    },
+    {
+      label: "Trả phòng & Hoàn cọc",
+      to: "/sales/registrations?tab=checkout",
+      icon: DoorOpen,
+      className: "from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700",
+    },
+  ];
+
+  if (!hasSelectedWork) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Công việc của tôi</h1>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {workCards.map(({ label, to, icon: Icon, className }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`bg-gradient-to-br ${className} text-white rounded-xl p-6 hover:shadow-md transition-all flex flex-col min-h-[140px] shadow-sm`}
+            >
+              <Icon className="w-8 h-8" />
+              <h3 className="text-lg font-semibold mt-4 h-14">{label}</h3>
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-0.5">Quản lý giao dịch Sales</h1>
-          <p className="text-sm text-gray-500">Theo dõi và xử lý hồ sơ, phiếu cọc, hợp đồng, trả phòng</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedWork?.label ?? "Công việc của tôi"}</h1>
+          <p className="text-sm text-gray-500">Màn hình xử lý công việc của nhân viên Sales.</p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button onClick={loadData} className="p-2 border border-gray-300 hover:bg-gray-100 rounded-xl text-gray-600 transition-colors" title="Làm mới">
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          {mainTab === "registrations" && (
-            <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
-              + Nhập đăng ký mới
-            </button>
-          )}
-        </div>
+        <Link
+          to="/sales/registrations"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+        >
+          <ArrowLeft className="h-4 w-4" /> Quay lại trang công việc
+        </Link>
       </div>
 
       {error && (
@@ -443,57 +492,32 @@ export function RegistrationManagement() {
         </div>
       )}
 
-      {/* Main Tabs */}
-      <div className="flex gap-1 bg-gray-100/80 rounded-2xl p-1.5">
-        {tabConfig.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setMainTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${mainTab === tab.id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-              }`}
-          >
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── TAB: HỒ SƠ ĐĂNG KÝ ── */}
       {mainTab === "registrations" && (
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchReg}
-              onChange={e => setSearchReg(e.target.value)}
-              placeholder="Tìm theo tên khách, mã đăng ký, SĐT, phòng..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm"
-            />
+          <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchReg}
+                onChange={e => setSearchReg(e.target.value)}
+                placeholder="Tìm theo tên khách, mã đăng ký, SĐT, phòng..."
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm"
+              />
+            </div>
+            <select
+              value={registrationStageFilter}
+              onChange={e => setRegistrationStageFilter(e.target.value as RegistrationStageFilter)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm"
+            >
+              <option value="all">Tất cả lịch hồ sơ</option>
+              <option value="schedule">Sắp lịch xem phòng</option>
+              <option value="confirm_viewing">Xác nhận xem phòng</option>
+              <option value="review_deposit">Rà soát cọc</option>
+              <option value="create_deposit">Lập phiếu đặt cọc</option>
+              <option value="review_checkin">Đối chiếu nhận phòng</option>
+            </select>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {registrationActionFilters.map(filter => (
-              <button
-                key={filter.id}
-                onClick={() => setRegistrationActionFilter(filter.id)}
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
-                  registrationActionFilter === filter.id
-                    ? "border-blue-200 bg-blue-50 text-blue-700 shadow-sm"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Tag className="h-3 w-3" />
-                {filter.label}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                  registrationActionFilter === filter.id ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
-                }`}>
-                  {filter.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="divide-y divide-gray-100">
               {loading ? (
@@ -517,11 +541,10 @@ export function RegistrationManagement() {
                           <p className="text-xs text-gray-400">Mã ĐK: <span className="font-mono">{reg.applicationId}</span> · {new Date(reg.createdAt).toLocaleDateString("vi-VN")}</p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs ml-12">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs ml-12">
                         <div><p className="text-gray-400">Khu vực</p><p className="font-medium text-gray-800">{reg.area || "—"}</p></div>
                         <div><p className="text-gray-400">Giới tính</p><p className="font-medium text-gray-800">{reg.gender || "—"}</p></div>
                         <div><p className="text-gray-400">Sức chứa</p><p className="font-medium text-gray-800">{reg.capacity} người</p></div>
-                        <div><p className="text-gray-400">Mức giá</p><p className="font-medium text-gray-800">{reg.priceRange || "—"}</p></div>
                         <div><p className="text-gray-400">Phòng</p><p className="font-medium text-gray-800 truncate">{reg.roomName}</p></div>
                       </div>
                       {reg.appointmentAt && (
@@ -532,10 +555,6 @@ export function RegistrationManagement() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${statusColor[reg.status] ?? "bg-gray-100 text-gray-600 border border-gray-200"}`}>
-                        {getStatusLabel(reg.status)}
-                      </span>
-
                       {/* Action: Sắp lịch xem phòng */}
                       {reg.status === "moi" && !reg.appointmentSent && (
                         <button
@@ -604,7 +623,8 @@ export function RegistrationManagement() {
                           onClick={() => setConfirmDialog({
                             open: true,
                             title: "Rà soát hồ sơ cọc",
-                            message: "Xác nhận hồ sơ khách đủ điều kiện để tiến hành lập phiếu đặt cọc?",
+                            message: "Kiểm tra thông tin hồ sơ trước khi chuyển Quản lý xác nhận phòng còn trống.",
+                            details: renderDepositReviewDetails(reg),
                             onConfirm: async () => {
                               setConfirmDialog(prev => ({ ...prev, open: false }));
                               try {
@@ -665,12 +685,12 @@ export function RegistrationManagement() {
                         </>
                       )}
 
-                      {reg.status === "cho_khach_thanh_toan_coc" && !reg.hasContract && !hasActiveDeposit(reg.applicationId) && (
+                      {getRegistrationActionFilter(reg) === "create_deposit" && (
                         <button
                           onClick={() => triggerCreateDepositTab(reg)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                         >
-                          <Sparkles className="w-3 h-3" /> Lập phiếu đặt cọc →
+                          <Sparkles className="w-3 h-3" /> Lập phiếu đặt cọc
                         </button>
                       )}
 
@@ -743,15 +763,7 @@ export function RegistrationManagement() {
                         </>
                       )}
 
-                      {reg.status === "du_dieu_kien_nhan_phong" && !reg.hasContract && (
-                        <button
-                          onClick={() => triggerCreateRentalTab(reg)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-                        >
-                          <FileText className="w-3 h-3" /> Lập HĐ thuê →
-                        </button>
-                      )}
-                    </div>
+                                          </div>
                   </div>
                 </div>
               ))}
@@ -760,7 +772,14 @@ export function RegistrationManagement() {
         </div>
       )}
 
-      {/* ── TAB: PHIẾU ĐẶT CỌC ── */}
+      {mainTab === "create_deposit" && (
+        <CreateDepositContract />
+      )}
+
+      {mainTab === "create_contract" && (
+        <CreateRentalContract />
+      )}
+
       {mainTab === "deposits" && (
         <div className="space-y-4">
           <div className="relative">
@@ -780,7 +799,7 @@ export function RegistrationManagement() {
             ) : filteredDeposits.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">Không tìm thấy phiếu đặt cọc nào</p>
+                <p className="text-sm">Không có phiếu đặt cọc nào cần Sales xử lý</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -829,8 +848,7 @@ export function RegistrationManagement() {
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex justify-end gap-2">
-                            {/* Lập HĐ thuê — chỉ hiện khi hoàn thành cọc và chưa có HĐ */}
-                            {d.status === "hoan_thanh" && !d.hasContract && (
+                            {canCreateRentalFromDeposit(d) && (
                               <button
                                 onClick={() => triggerCreateRentalTabFromDeposit(d)}
                                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
@@ -916,7 +934,7 @@ export function RegistrationManagement() {
             ) : filteredContracts.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <FileText className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">Không tìm thấy hợp đồng thuê nào</p>
+                <p className="text-sm">Chưa có hợp đồng thuê nào</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -961,8 +979,12 @@ export function RegistrationManagement() {
                           </span>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                          </div>
+                          <button
+                            onClick={() => setSelectedRentalDetail(c)}
+                            className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition-all"
+                          >
+                            Chi tiết
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -977,42 +999,8 @@ export function RegistrationManagement() {
       {/* ── TAB: TRẢ PHÒNG & HOÀN CỌC ── */}
       {mainTab === "checkout" && (
         <div className="space-y-4">
-          {/* Sub-tabs */}
-          <div className="flex gap-2 items-center">
-            {([
-              { id: "all" as CheckoutSubTab, label: "Tất cả" },
-              { id: "tra_phong" as CheckoutSubTab, label: "Trả phòng" },
-              { id: "hoan_coc" as CheckoutSubTab, label: "Hoàn cọc" },
-            ]).map(sub => (
-              <button
-                key={sub.id}
-                onClick={() => setCheckoutSubTab(sub.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${checkoutSubTab === sub.id
-                    ? "bg-white border-gray-300 text-gray-900 shadow-sm"
-                    : "bg-gray-100 border-transparent text-gray-500 hover:bg-gray-200"
-                  }`}
-              >
-                <Tag className="w-3 h-3" />
-                {sub.label}
-              </button>
-            ))}
-
-            <div className="ml-auto relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                value={searchCheckout}
-                onChange={e => setSearchCheckout(e.target.value)}
-                placeholder="Tìm theo tên, mã HĐ, phòng..."
-                className="pl-8 pr-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white shadow-sm w-64"
-              />
-            </div>
-          </div>
-
           {/* Trả phòng section */}
-          {(checkoutSubTab === "all" || checkoutSubTab === "tra_phong") && (
-            <div className="space-y-3">
-              {checkoutSubTab === "all" && (
+          <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="h-px flex-1 bg-gray-200" />
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
@@ -1020,8 +1008,7 @@ export function RegistrationManagement() {
                   </span>
                   <div className="h-px flex-1 bg-gray-200" />
                 </div>
-              )}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                 {filteredCheckoutContracts.length === 0 ? (
                   <div className="text-center py-10 text-gray-400">
                     <DoorOpen className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
@@ -1121,205 +1108,105 @@ export function RegistrationManagement() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+          </div>
 
           {/* Hoàn cọc section */}
-          {(checkoutSubTab === "all" || checkoutSubTab === "hoan_coc") && (
-            <div className="space-y-3">
-              {checkoutSubTab === "all" && (
-                <div className="flex items-center gap-2">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-                    <ChevronRight className="w-3.5 h-3.5" /> Hoàn cọc
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                <ChevronRight className="w-3.5 h-3.5" /> Hoàn cọc
+              </span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              {filteredRefundDeposits.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  <Sparkles className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
+                  <p className="text-xs">Không có yêu cầu hoàn cọc nào</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left text-gray-600">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50/80 border-b border-gray-200">
+                      <tr>
+                        <th className="px-5 py-3.5 font-bold">Mã phiếu cọc</th>
+                        <th className="px-5 py-3.5 font-bold">Khách hàng</th>
+                        <th className="px-5 py-3.5 font-bold">Phòng</th>
+                        <th className="px-5 py-3.5 font-bold">Số tiền cọc</th>
+                        <th className="px-5 py-3.5 font-bold">Lý do hoàn</th>
+                        <th className="px-5 py-3.5 font-bold">Trạng thái</th>
+                        <th className="px-5 py-3.5 text-right font-bold">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredRefundDeposits.map(d => (
+                        <tr key={d.depositId} className="hover:bg-gray-50/70 transition-colors">
+                          <td className="px-5 py-4">
+                            <span className="font-mono text-xs font-bold text-gray-700">{d.depositId}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-gray-900">{d.customerName}</p>
+                            <p className="text-xs text-gray-500">{d.phoneNumber}</p>
+                          </td>
+                          <td className="px-5 py-4 font-medium text-gray-800">{d.roomName}</td>
+                          <td className="px-5 py-4 font-bold text-gray-900">
+                            {d.depositAmount.toLocaleString("vi-VN")} đ
+                          </td>
+                          <td className="px-5 py-4 text-xs text-gray-600 max-w-[180px] truncate">
+                            {d.refundReason || "—"}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="px-2.5 py-1 text-xs font-semibold rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+                              {getDepositStatusLabel(d.status)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <button
+                              onClick={() => setConfirmDialog({
+                                open: true,
+                                title: "Xác nhận tiếp nhận hoàn cọc",
+                                message: "Kiểm tra thông tin yêu cầu hoàn cọc trước khi chuyển sang Quản lý xác nhận điều kiện hoàn.",
+                                details: (
+                                  <div className="space-y-2 text-sm">
+                                    {[
+                                      ["Mã phiếu cọc", d.depositId],
+                                      ["Khách hàng", d.customerName],
+                                      ["Số điện thoại", d.phoneNumber],
+                                      ["Phòng", d.roomName],
+                                      ["Số tiền cọc", `${d.depositAmount.toLocaleString("vi-VN")} đ`],
+                                      ["Lý do hoàn", d.refundReason || "Không có"],
+                                      ["Sau xác nhận", "Chuyển Quản lý xác nhận điều kiện hoàn"],
+                                    ].map(([label, value]) => (
+                                      <div key={label} className="flex justify-between gap-4 border-b border-gray-200/70 pb-2 last:border-0 last:pb-0">
+                                        <span className="shrink-0 text-gray-500">{label}</span>
+                                        <span className="text-right font-semibold text-gray-900">{value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ),
+                                onConfirm: async () => {
+                                  setConfirmDialog(prev => ({ ...prev, open: false }));
+                                  try {
+                                    await salesApi.acceptDepositRefund(d.depositId);
+                                    toast.success("Đã tiếp nhận yêu cầu hoàn cọc. Quản lý sẽ xác nhận điều kiện hoàn.");
+                                    await loadData();
+                                  } catch {
+                                    toast.error("Tiếp nhận hoàn cọc thất bại.");
+                                  }
+                                }
+                              })}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm inline-flex items-center gap-1"
+                            >
+                              <CheckCircle className="w-3 h-3" /> Tiếp nhận hoàn cọc
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                {filteredRefundDeposits.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400">
-                    <Sparkles className="w-8 h-8 mx-auto mb-1.5 opacity-40" />
-                    <p className="text-xs">Không có yêu cầu hoàn cọc nào</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-600">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50/80 border-b border-gray-200">
-                        <tr>
-                          <th className="px-5 py-3.5 font-bold">Mã phiếu cọc</th>
-                          <th className="px-5 py-3.5 font-bold">Khách hàng</th>
-                          <th className="px-5 py-3.5 font-bold">Phòng</th>
-                          <th className="px-5 py-3.5 font-bold">Số tiền cọc</th>
-                          <th className="px-5 py-3.5 font-bold">Lý do hoàn</th>
-                          <th className="px-5 py-3.5 font-bold">Trạng thái hoàn cọc</th>
-                          <th className="px-5 py-3.5 text-right font-bold">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {filteredRefundDeposits.map(d => (
-                          <tr key={d.depositId} className="hover:bg-gray-50/70 transition-colors">
-                            <td className="px-5 py-4">
-                              <span className="font-mono text-xs font-bold text-gray-700">{d.depositId}</span>
-                            </td>
-                            <td className="px-5 py-4">
-                              <p className="font-semibold text-gray-900">{d.customerName}</p>
-                              <p className="text-xs text-gray-500">{d.phoneNumber}</p>
-                            </td>
-                            <td className="px-5 py-4 font-medium text-gray-800">{d.roomName}</td>
-                            <td className="px-5 py-4 font-bold text-gray-900">
-                              {d.depositAmount.toLocaleString("vi-VN")} đ
-                            </td>
-                            <td className="px-5 py-4 text-xs text-gray-600 max-w-[160px] truncate">
-                              {d.refundReason || "—"}
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${d.status === "cho_tiep_nhan_hoan_coc" ? "bg-purple-100 text-purple-800 border-purple-200" :
-                                    d.status === "da_hoan_coc" ? "bg-gray-100 text-gray-600 border-gray-200" :
-                                      "bg-blue-50 text-blue-700 border-blue-200"
-                                  }`}>
-                                  {getDepositStatusLabel(d.status)}
-                                </span>
-                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                                  <Sparkles className="w-2.5 h-2.5" /> Hoàn cọc
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 text-right">
-                              <div className="flex justify-end gap-2">
-                                {d.status === "cho_tiep_nhan_hoan_coc" && (
-                                  <button
-                                    onClick={() => setConfirmDialog({
-                                      open: true,
-                                      title: "Xác nhận tiếp nhận hoàn cọc",
-                                      message: "Kiểm tra thông tin yêu cầu hoàn cọc trước khi chuyển hồ sơ sang Quản lý xác nhận điều kiện hoàn.",
-                                      details: (
-                                        <div className="space-y-2 text-sm">
-                                          {[
-                                            ["Mã phiếu cọc", d.depositId],
-                                            ["Khách hàng", d.customerName],
-                                            ["Số điện thoại", d.phoneNumber],
-                                            ["Phòng", d.roomName],
-                                            ["Số tiền cọc", `${d.depositAmount.toLocaleString("vi-VN")} đ`],
-                                            ["Lý do hoàn", d.refundReason || "Không có"],
-                                            ["Trạng thái hiện tại", getDepositStatusLabel(d.status)],
-                                            ["Sau xác nhận", "Chuyển Quản lý xác nhận điều kiện hoàn"],
-                                          ].map(([label, value]) => (
-                                            <div key={label} className="flex justify-between gap-4 border-b border-gray-200/70 pb-2 last:border-0 last:pb-0">
-                                              <span className="shrink-0 text-gray-500">{label}</span>
-                                              <span className="text-right font-semibold text-gray-900">{value}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ),
-                                      onConfirm: async () => {
-                                        setConfirmDialog(prev => ({ ...prev, open: false }));
-                                        try {
-                                          await salesApi.acceptDepositRefund(d.depositId);
-                                          toast.success("Đã tiếp nhận yêu cầu hoàn cọc. Quản lý sẽ xác nhận điều kiện hoàn.");
-                                          await loadData();
-                                        } catch {
-                                          toast.error("Tiếp nhận hoàn cọc thất bại.");
-                                        }
-                                      }
-                                    })}
-                                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-                                  >
-                                    <CheckCircle className="w-3 h-3" /> Tiếp nhận hoàn cọc
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── MODAL: Nhập đăng ký mới ── */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto pt-[6vh] md:pt-[10vh]">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900">Nhập thông tin đăng ký thuê</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Thông tin khách hàng</p>
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên <span className="text-red-500">*</span></label>
-                  <input value={form.name} onChange={e => f("name", e.target.value)} placeholder="Nhập họ tên khách hàng" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại <span className="text-red-500">*</span></label>
-                    <input value={form.phone} onChange={e => f("phone", e.target.value)} placeholder="09xxxxxxxx" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Giới tính</label>
-                    <select value={form.gender} onChange={e => f("gender", e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                      <option value="">-- Không chọn --</option>
-                      <option>Nam</option>
-                      <option>Nữ</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
-                  <input value={form.email} onChange={e => f("email", e.target.value)} placeholder="email@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide pt-2">Yêu cầu thuê</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Khu vực</label>
-                  <select value={form.area} onChange={e => f("area", e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Không chọn --</option>
-                    {areas.map(a => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Số người</label>
-                  <select value={form.capacity} onChange={e => f("capacity", e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Không chọn --</option>
-                    {capacities.map(c => <option key={c} value={c}>{c} người</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Giới tính yêu cầu</label>
-                  <select value={form.genderReq} onChange={e => f("genderReq", e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Không chọn --</option>
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Không giới hạn">Không giới hạn</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mức giá mong muốn</label>
-                  <select value={form.priceRange} onChange={e => f("priceRange", e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                    <option value="">-- Không chọn --</option>
-                    {priceRanges.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                  <textarea value={form.note} onChange={e => f("note", e.target.value)} rows={2} placeholder="Yêu cầu đặc biệt, thời gian xem phòng mong muốn..." className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-white" />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 pb-6">
-              <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors">Hủy</button>
-              <button onClick={handleSubmit} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                <CheckCircle className="w-4 h-4" /> Ghi nhận đăng ký
-              </button>
             </div>
           </div>
         </div>
@@ -1336,14 +1223,12 @@ export function RegistrationManagement() {
             <div className="p-6 space-y-3 text-sm">
               {[
                 ["Mã đăng ký", selectedReg.applicationId],
-                ["Trạng thái", getStatusLabel(selectedReg.status)],
                 ["Khách hàng", selectedReg.customerName],
                 ["Điện thoại", selectedReg.phoneNumber],
                 ["Email", selectedReg.email ?? "Chưa rõ"],
                 ["Giới tính", selectedReg.gender || "Chưa rõ"],
                 ["Khu vực yêu cầu", selectedReg.area || "Chưa rõ"],
                 ["Sức chứa", `${selectedReg.capacity} người`],
-                ["Mức giá", selectedReg.priceRange || "Chưa rõ"],
                 ["Phòng dự kiến", selectedReg.roomName],
                 ["Lịch hẹn", selectedReg.appointmentAt ? new Date(selectedReg.appointmentAt).toLocaleString("vi-VN") : "Chưa gửi"],
                 ["Ngày đăng ký", new Date(selectedReg.createdAt).toLocaleDateString("vi-VN")],
@@ -1409,7 +1294,7 @@ export function RegistrationManagement() {
               ))}
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              {selectedDepositDetail.status === "hoan_thanh" && !selectedDepositDetail.hasContract && (
+              {canCreateRentalFromDeposit(selectedDepositDetail) && (
                 <button
                   onClick={() => { setSelectedDepositDetail(null); triggerCreateRentalTabFromDeposit(selectedDepositDetail); }}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5"

@@ -49,13 +49,6 @@ public class SalesWorkflowController : ControllerBase
         return Ok(contracts);
     }
 
-    [HttpPost("applications")]
-    public async Task<ActionResult<SalesApplicationDto>> CreateApplication([FromBody] CreateApplicationRequest request)
-    {
-        var app = await _salesService.CreateApplicationAsync(request);
-        return Ok(app);
-    }
-
     [HttpPost("applications/{applicationId}/schedules")]
     public async Task<ActionResult<SalesApplicationDto>> CreateViewingSchedule(string applicationId, [FromBody] CreateViewingScheduleRequest request)
     {
