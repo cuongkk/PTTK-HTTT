@@ -102,6 +102,13 @@ public class AccountantController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("reconciliations/{reconciliationId}/submit")]
+    public async Task<IActionResult> SubmitReconciliation(string reconciliationId)
+    {
+        await _accountantService.SubmitReconciliationToManagerAsync(reconciliationId);
+        return Ok();
+    }
+
     [HttpPost("reconciliations/refund")]
     public async Task<IActionResult> ProcessRefund([FromBody] ProcessRefundDto dto)
     {

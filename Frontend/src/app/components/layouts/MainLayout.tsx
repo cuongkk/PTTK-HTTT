@@ -24,6 +24,7 @@ import {
   Sparkles,
   FilePlus,
   DoorOpen,
+  RefreshCcw,
 } from "lucide-react";
 import { logout } from "../../services/system-admin/authService";
 import { getStoredUser, mapRoleIdToPath, mapRoleIdToRootPath } from "../../services/authStorage";
@@ -193,7 +194,7 @@ export function MainLayout() {
 
   const roleNavigation = {
     customer: [
-      { name: "Tìm phòng", path: "/customer/rooms", icon: Search },
+      { name: "Đăng ký thuê", path: "/customer/register", icon: Search },
       { name: "Phòng của tôi", path: "/customer/my-rooms", icon: Building2 },
       { name: "Thanh toán", path: "/customer/payments", icon: CreditCard },
       { name: "Thông báo", path: "/customer/notifications", icon: Bell },
@@ -207,10 +208,11 @@ export function MainLayout() {
     ],
     accountant: [
       { name: "Trang chủ", path: "/accountant", icon: Home },
-      { name: "Yêu cầu thanh toán", path: "/accountant/payment-requests", icon: DollarSign },
+      { name: "Yêu cầu thanh toán cọc", path: "/accountant/payment-requests", icon: DollarSign },
       { name: "Khoản thu nhận phòng", path: "/accountant/check-in-charges", icon: ClipboardList },
       { name: "Xác nhận thanh toán", path: "/accountant/payment-confirmation", icon: CheckCircle },
-      { name: "Đối soát trả phòng", path: "/accountant/reconciliation", icon: Calculator },
+      { name: "Lập đối soát", path: "/accountant/create-reconciliation", icon: Calculator },
+      { name: "Hoàn cọc", path: "/accountant/perform-refund", icon: RefreshCcw },
       { name: "Thông báo", path: "/accountant/notifications", icon: Bell },
     ],
     manager: [

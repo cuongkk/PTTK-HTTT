@@ -52,9 +52,14 @@ export interface DepositRequestDetail {
 
 export interface SubmitDepositRequest {
   primaryTenant: {
-    gender: string; nationality: string;
+    gender: string; nationality: string; documentType: string; documentNumber: string; documentImageUrl: string;
+    dateOfBirth: string; permanentAddress: string; occupationOrSchool: string; financialDocumentUrl?: string;
   };
-  accompanyingTenants: Array<{ fullName: string; gender: string; nationality: string }>;
+  accompanyingTenants: Array<{
+    fullName: string; gender: string; nationality: string; documentType: string; documentNumber: string;
+    documentImageUrl: string; dateOfBirth: string; permanentAddress: string; occupationOrSchool: string;
+    financialDocumentUrl?: string; relationshipToPrimary: string;
+  }>;
 }
 
 export interface CustomerRoomSummary {
@@ -75,16 +80,20 @@ export interface CustomerCheckoutDetail { roomId: string; roomName: string; cont
 export interface CustomerHandoverDetail { handoverId: string; contractId: string; roomId: string; roomName: string; handoverDate: string; managerName: string; roomCondition: string | null; initialElectricityReading: number | null; initialWaterReading: number | null; note: string | null; assets: Array<{ assetId: string; assetName: string; quantity: number; condition: string; note: string | null }>; }
 export interface CustomerRoomContext { roomId: string; roomName: string; branchName: string; roomType: string; monthlyRent: number; roomStatus: string; customerName: string; phone: string; email: string | null; nationalId: string | null; gender: string | null; nationality: string | null; dateOfBirth: string | null; address: string | null; applicationId: string | null; applicationStatus: string | null; numberOfPeople: number | null; expectedMoveInDate: string | null; expectedRentalMonths: number | null; depositId: string | null; depositStatus: string | null; depositAmount: number | null; contractId: string | null; contractStatus: string | null; invoiceId: string | null; invoiceStatus: string | null; invoiceAmount: number | null; tenants: Array<{ fullName: string; gender: string | null; nationality: string | null; dateOfBirth: string | null; nationalId: string | null; documentImageUrl: string | null; permanentAddress: string | null; occupationOrSchool: string | null; }>; }
 export interface CustomerPayment { invoiceId: string; paymentType: string; roomId: string; roomName: string; amount: number; createdAt: string; paidAt: string | null; status: string; paymentMethod: string; bankName: string | null; bankAccountNumber: string | null; bankAccountHolder: string | null; transferContent: string; proofImageUrl: string | null; }
+export interface CustomerServiceItem { serviceId: string; serviceName: string; unit: string; unitPrice: number; description: string | null; }
 
 export const customerWorkflowService = {
   createRentalApplication: (request: {
-    roomId: string; fullName: string; phone: string; email?: string; numberOfPeople: number; gender: string;
-    nationality: string; documentType: string; documentNumber: string; documentImageUrl: string;
+    roomId?: string; fullName?: string; phone?: string; email?: string; numberOfPeople: number; gender?: string;
+    nationality?: string; documentType?: string; documentNumber?: string; documentImageUrl?: string;
     dateOfBirth?: string; permanentAddress?: string; financialDocumentUrl?: string; expectedMoveInDate: string;
     expectedRentalMonths: number; livingSchedule?: string; requiresQuietLifestyle: boolean; requiresParking: boolean;
-    requiresAirConditioner: boolean; otherRequirements?: string;
+    requiresAirConditioner: boolean; otherRequirements?: string; desiredArea?: string; desiredRoomType?: string;
+    minimumPrice?: number; maximumPrice?: number;
   }) => apiClient.post<{ applicationId: string; status: string; message: string }>("/customer-workflow/rental-applications", request),
   getViewedRooms: () => apiClient.get<ViewedRoom[]>("/customer-workflow/viewed-rooms"),
+  getAvailableServices: () => apiClient.get<CustomerServiceItem[]>("/customer-workflow/services"),
+  confirmRoomInformationViewed: (scheduleId: string) => apiClient.post<void>(`/customer-workflow/viewing-schedules/${scheduleId}/confirm-room-information`, {}),
   getDepositedRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/deposited-rooms"),
   getRentingRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/renting-rooms"),
   getDepositRequest: (applicationId: string, roomId: string) => apiClient.get<DepositRequestDetail>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`),

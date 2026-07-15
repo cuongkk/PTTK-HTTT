@@ -29,6 +29,7 @@ export function PaymentConfirmation() {
   const [confirmedTodayCount, setConfirmedTodayCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actioning, setActioning] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
 
   async function loadConfirmations() {
     try {
@@ -114,52 +115,47 @@ export function PaymentConfirmation() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Xác nhận thanh toán</h1>
-        <p className="text-gray-600">Kiểm tra và phê duyệt minh chứng thanh toán của khách hàng</p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Xác nhận thanh toán</h1>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Chờ xác nhận</p>
-          <p className="text-2xl font-bold text-gray-900">{pendingPayments.length}</p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Tổng số tiền</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {pendingPayments.reduce((sum, p) => sum + p.totalAmount, 0).toLocaleString()} VNĐ
-          </p>
-        </div>
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-600 mb-1">Đã xác nhận hôm nay</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {confirmedTodayCount}
-          </p>
-        </div>
-      </div>
 
       {/* Pending Payments */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-xl font-bold text-gray-900">Danh sách chờ xác nhận</h2>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên hoặc số phòng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên hoặc số phòng..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto"
+            >
+              <option value="all">Tất cả loại thu</option>
+              <option value="tien_coc">Tiền cọc phòng</option>
+              <option value="tien_thue">Tiền thuê phòng tháng</option>
+              <option value="dich_vu">Phí dịch vụ sinh hoạt</option>
+              <option value="thu_them">Thu thêm đối soát</option>
+            </select>
           </div>
         </div>
         <div className="divide-y divide-gray-200">
           {pendingPayments
             .filter(
               (p) =>
-                p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.roomName.toLowerCase().includes(searchTerm.toLowerCase())
+                p.documentType === "thu" &&
+                (typeFilter === "all" || p.invoiceType === typeFilter) &&
+                (p.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  p.roomName.toLowerCase().includes(searchTerm.toLowerCase()))
             )
             .map((payment) => (
               <div key={payment.invoiceId} className="p-6 hover:bg-gray-50 transition-colors">

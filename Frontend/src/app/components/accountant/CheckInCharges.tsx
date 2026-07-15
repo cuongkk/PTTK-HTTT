@@ -87,9 +87,8 @@ export function CheckInCharges() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Khoản thu nhận phòng</h1>
-        <p className="text-gray-600">Tính toán và lập hóa đơn thu phí ban đầu cho khách thuê mới nhận phòng</p>
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Khoản thu nhận phòng</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

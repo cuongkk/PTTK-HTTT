@@ -11,6 +11,8 @@ public interface ICustomerWorkflowService
 {
     Task<CreateCustomerRentalApplicationResponse> CreateRentalApplicationAsync(string accountId, CreateCustomerRentalApplicationRequest request);
     Task<List<ViewedRoomDto>> GetViewedRoomsAsync(string accountId);
+    Task ConfirmRoomInformationViewedAsync(string accountId, string scheduleId);
+    Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync();
     Task<List<CustomerRoomSummaryDto>> GetDepositedRoomsAsync(string accountId);
     Task<List<CustomerRoomSummaryDto>> GetRentingRoomsAsync(string accountId);
     Task<DepositRequestDetailDto> GetDepositRequestDetailAsync(string accountId, string applicationId, string roomId);
@@ -33,37 +35,38 @@ public class CustomerWorkflowService : ICustomerWorkflowService
     {
         var customerId = await GetCustomerIdAsync(accountId);
         var customer = await _db.Customers.FirstAsync(x => x.CustomerId == customerId);
-        var room = await _db.Rooms.FirstOrDefaultAsync(x => x.RoomId == request.RoomId)
-            ?? throw new NotFoundException("Không tìm thấy phòng/giường đã chọn.");
-        if (room.Status != RoomBedStatus.Empty)
-            throw new ConflictException("Phòng/giường này hiện không còn nhận đăng ký mới.");
-        if (request.NumberOfPeople < 1 || request.NumberOfPeople > room.Capacity)
-            throw new ValidationException("Số người đăng ký không phù hợp sức chứa của phòng.");
-        if (await _db.RentalApplications.AnyAsync(x => x.CustomerId == customerId && x.DesiredRoomId == request.RoomId && x.Status != "huy"))
-            throw new ConflictException("Bạn đã có hồ sơ đang xử lý cho phòng này.");
+        Room? room = null;
+        if (!string.IsNullOrWhiteSpace(request.RoomId))
+        {
+            room = await _db.Rooms.FirstOrDefaultAsync(x => x.RoomId == request.RoomId)
+                ?? throw new NotFoundException("Không tìm thấy phòng/giường đã chọn.");
+            if (room.Status != RoomBedStatus.Empty) throw new ConflictException("Phòng/giường này hiện không còn nhận đăng ký mới.");
+            if (request.NumberOfPeople > room.Capacity) throw new ValidationException("Số người đăng ký không phù hợp sức chứa của phòng.");
+        }
+        if (request.NumberOfPeople < 1) throw new ValidationException("Số người đăng ký phải lớn hơn 0.");
 
-        customer.FullName = request.FullName.Trim();
-        customer.PhoneNumber = request.Phone.Trim();
-        customer.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
-        customer.Gender = request.Gender;
-        customer.Nationality = request.Nationality;
-        customer.NationalId = request.DocumentNumber.Trim();
-        customer.DateOfBirth = request.DateOfBirth;
-        customer.Address = request.PermanentAddress;
+        if (!string.IsNullOrWhiteSpace(request.FullName)) customer.FullName = request.FullName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Phone)) customer.PhoneNumber = request.Phone.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Email)) customer.Email = request.Email.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Gender)) customer.Gender = request.Gender;
+        if (!string.IsNullOrWhiteSpace(request.Nationality)) customer.Nationality = request.Nationality;
+        if (!string.IsNullOrWhiteSpace(request.DocumentNumber)) customer.NationalId = request.DocumentNumber.Trim();
+        if (request.DateOfBirth is not null) customer.DateOfBirth = request.DateOfBirth;
+        if (!string.IsNullOrWhiteSpace(request.PermanentAddress)) customer.Address = request.PermanentAddress;
 
         var application = new RentalApplication
         {
             ApplicationId = IdGenerator.Generate("HS", 12),
             CustomerId = customerId,
-            DesiredRoomId = room.RoomId,
+            DesiredRoomId = room?.RoomId,
             NumberOfPeople = request.NumberOfPeople,
             ExpectedMoveInDate = request.ExpectedMoveInDate,
             ExpectedRentalMonths = request.ExpectedRentalMonths,
-            DesiredArea = room.Area,
-            DesiredRoomType = room.RoomType,
-            MinimumPrice = room.RoomPrice,
-            MaximumPrice = room.RoomPrice,
-            Gender = request.Gender,
+            DesiredArea = room?.Area ?? request.DesiredArea,
+            DesiredRoomType = room?.RoomType ?? request.DesiredRoomType,
+            MinimumPrice = room?.RoomPrice ?? request.MinimumPrice,
+            MaximumPrice = room?.RoomPrice ?? request.MaximumPrice,
+            Gender = request.Gender ?? customer.Gender,
             LivingSchedule = request.LivingSchedule,
             RequiresQuietLifestyle = request.RequiresQuietLifestyle,
             RequiresParking = request.RequiresParking,
@@ -83,8 +86,8 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             Gender = customer.Gender,
             Nationality = customer.Nationality,
             DateOfBirth = customer.DateOfBirth,
-            DocumentType = request.DocumentType,
-            DocumentImageUrl = request.DocumentImageUrl,
+            DocumentType = request.DocumentType ?? "CCCD",
+            DocumentImageUrl = request.DocumentImageUrl ?? "/demo/demo-document.png",
             FinancialDocumentUrl = request.FinancialDocumentUrl,
             PermanentAddress = customer.Address,
             IsPrimaryTenant = true,
@@ -93,7 +96,7 @@ public class CustomerWorkflowService : ICustomerWorkflowService
 
         var salesAccount = await _db.Accounts
             .Include(x => x.Employee)
-            .Where(x => x.RoleId == EmployeePosition.Sales && x.Status == AccountStatus.Active && x.Employee!.BranchId == room.BranchId)
+            .Where(x => x.RoleId == EmployeePosition.Sales && x.Status == AccountStatus.Active && (room == null || x.Employee!.BranchId == room.BranchId))
             .OrderBy(x => x.AccountId)
             .FirstOrDefaultAsync();
         if (salesAccount != null)
@@ -102,7 +105,7 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                 NotificationId = IdGenerator.Generate("NT", 12),
                 RecipientAccountId = salesAccount.AccountId,
                 Title = "Có đăng ký thuê mới cần xếp lịch",
-                Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} quan tâm {room.RoomName} và đang chờ xếp lịch xem phòng.",
+                Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} đã gửi nhu cầu thuê và đang chờ Sale tìm phòng phù hợp, xếp lịch xem.",
                 NotificationType = "dang_ky_thue",
                 CreatedAt = DateTime.UtcNow
             });
@@ -121,8 +124,8 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             join scheduleRoom in _db.RoomViewingScheduleRooms on schedule.ScheduleId equals scheduleRoom.ScheduleId
             join room in _db.Rooms on scheduleRoom.RoomId equals room.RoomId
             join branch in _db.Branches on room.BranchId equals branch.BranchId
-            where application.CustomerId == customerId && schedule.Status == "hoan_thanh"
-                && (application.Status == "da_xem_phong" || application.Status == "cho_sale_ra_soat_coc"
+            where application.CustomerId == customerId && schedule.Status != "huy"
+                && (application.Status == "moi" || application.Status == "da_xem_phong" || application.Status == "cho_sale_ra_soat_coc"
                     || application.Status == "cho_quan_ly_xac_nhan_coc" || application.Status == "cho_khach_thanh_toan_coc"
                     || application.Status == "cho_ke_toan_xac_nhan_coc")
             orderby schedule.AppointmentAt descending
@@ -173,6 +176,8 @@ public class CustomerWorkflowService : ICustomerWorkflowService
     {
         var viewed = (await GetViewedRoomsAsync(accountId)).FirstOrDefault(x => x.ApplicationId == applicationId && x.RoomId == roomId)
             ?? throw new ValidationException("Chỉ phòng/giường đã hoàn thành xem phòng mới được yêu cầu đặt cọc.");
+        if (viewed.ViewingStatus != "hoan_thanh")
+            throw new ValidationException("Sale chưa xác nhận hoàn thành buổi xem phòng.");
         if (viewed.ApplicationStatus is "da_dat_coc" or "cho_sale_ra_soat_coc" or "cho_quan_ly_xac_nhan_coc"
             or "cho_khach_thanh_toan_coc" or "cho_ke_toan_xac_nhan_coc")
             throw new ConflictException("Hồ sơ này đã gửi yêu cầu đặt cọc.");
@@ -196,12 +201,15 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         if (room.AllowedGender is "nam" or "nu")
         {
             var requiredGender = room.AllowedGender == "nam" ? "Nam" : "Nu";
-            if (request.PrimaryTenant.Gender != requiredGender)
-                throw new ValidationException("Giới tính người ở không phù hợp điều kiện của phòng.");
+            if (request.PrimaryTenant.Gender != requiredGender || request.AccompanyingTenants.Any(x => x.Gender != requiredGender))
+                throw new ValidationException("Giới tính của một hoặc nhiều người ở không phù hợp điều kiện của phòng.");
         }
 
         customer.Gender = request.PrimaryTenant.Gender;
         customer.Nationality = request.PrimaryTenant.Nationality;
+        customer.NationalId = request.PrimaryTenant.DocumentNumber;
+        customer.DateOfBirth = request.PrimaryTenant.DateOfBirth;
+        customer.Address = request.PrimaryTenant.PermanentAddress;
         application.Status = "cho_sale_ra_soat_coc";
 
         var oldMembers = await _db.TenantMembers.Where(x => x.ApplicationId == applicationId && x.ContractId == null).ToListAsync();
@@ -214,12 +222,13 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         _db.TenantMembers.Add(member);
         member.NationalId = customer.NationalId;
         member.Gender = request.PrimaryTenant.Gender;
-        member.DateOfBirth = customer.DateOfBirth;
+        member.DateOfBirth = request.PrimaryTenant.DateOfBirth;
         member.Nationality = request.PrimaryTenant.Nationality;
-        member.DocumentType = "CCCD";
-        member.DocumentImageUrl = null;
-        member.PermanentAddress = customer.Address;
-        member.OccupationOrSchool = null;
+        member.DocumentType = request.PrimaryTenant.DocumentType;
+        member.DocumentImageUrl = request.PrimaryTenant.DocumentImageUrl;
+        member.PermanentAddress = request.PrimaryTenant.PermanentAddress;
+        member.OccupationOrSchool = request.PrimaryTenant.OccupationOrSchool;
+        member.FinancialDocumentUrl = request.PrimaryTenant.FinancialDocumentUrl;
         member.IsEligible = true;
         member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
         foreach (var person in request.AccompanyingTenants)
@@ -241,6 +250,15 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                 Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} đã gửi yêu cầu đặt cọc phòng {room.RoomName} và đang chờ Sale rà soát.",
                 NotificationType = "dat_coc",
                 CreatedAt = DateTime.UtcNow
+            _db.TenantMembers.Add(new TenantMember
+            {
+                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
+                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
+                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
+                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
+                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
+                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
+                IsPrimaryTenant = false, IsEligible = true
             });
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");
@@ -286,6 +304,25 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             reconciliation?.ReconciliationId, reconciliation?.CreatedDate, reconciliation?.Status,
             reconciliation?.RefundRate, reconciliation?.OriginalDeposit, reconciliation?.BaseRefund, reconciliation?.TotalDeductions,
             reconciliation?.RefundAmount, reconciliation?.AdditionalPaymentAmount, invoice?.Status, costs);
+    }
+
+    public async Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync() => await _db.Services
+        .Where(x => x.IsActive)
+        .OrderBy(x => x.ServiceName)
+        .Select(x => new CustomerServiceItemDto(x.ServiceId, x.ServiceName, x.Unit, x.UnitPrice, x.Description))
+        .ToListAsync();
+
+    public async Task ConfirmRoomInformationViewedAsync(string accountId, string scheduleId)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        var schedule = await _db.RoomViewingSchedules
+            .Include(x => x.Application)
+            .FirstOrDefaultAsync(x => x.ScheduleId == scheduleId && x.Application.CustomerId == customerId)
+            ?? throw new NotFoundException("Không tìm thấy lịch xem phòng của khách hàng.");
+        if (schedule.Status != "sap_den")
+            throw new ConflictException("Chỉ lịch sắp đến mới có thể xác nhận xem thông tin phòng.");
+        schedule.Status = "dang_xem";
+        await _db.SaveChangesAsync();
     }
 
     public async Task<CustomerHandoverDetailDto> GetHandoverDetailAsync(string accountId, string roomId)
