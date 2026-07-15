@@ -74,18 +74,6 @@ public record SalesTenantMemberDto(
     string? Note
 );
 
-public record CreateApplicationRequest(
-    string Name,
-    string Phone,
-    string Email,
-    string? Gender,
-    string? GenderRequirement,
-    string? Area,
-    int? Capacity,
-    string? PriceRange,
-    string Note
-);
-
 public record CreateViewingScheduleRequest(
     string RoomId,
     DateTime AppointmentAt,

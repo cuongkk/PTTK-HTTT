@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { AlertCircle, ArrowLeft, CheckCircle, FileText, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { salesApi, type SalesApplication } from "../../services/sales/salesApi";
 import { roomService, type Room } from "../../services/system-admin/roomService";
@@ -21,7 +21,7 @@ export function CreateDepositContract() {
   const [showPreview, setShowPreview] = useState(false);
 
   const df = (key: string, value: string) => setDepositForm((prev) => ({ ...prev, [key]: value }));
-  const backToTransactions = () => navigate("/sales/registrations?tab=deposits");
+  const backToTransactions = () => navigate("/sales/registrations?tab=registrations");
   const holdUntilTomorrow = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const findSelectedRoom = async (application: SalesApplication) => {
     if (!application.roomId) return undefined;
@@ -91,13 +91,7 @@ export function CreateDepositContract() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={backToTransactions}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Quay lại Xử lý giao dịch
-        </button>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 rounded-full text-purple-700 text-xs font-semibold border border-purple-100">
           <Sparkles className="w-3.5 h-3.5" />
           Màn hình lập phiếu đặt cọc
