@@ -1325,7 +1325,7 @@ namespace Backend.Migrations
                         {
                             t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0");
 
-                            t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_sale_ra_soat_coc','cho_quan_ly_xac_nhan_coc','cho_khach_thanh_toan_coc','cho_ke_toan_xac_nhan_coc','da_dat_coc','cho_sale_doi_chieu_nhan_phong','cho_quan_ly_duyet_nhan_phong','du_dieu_kien_nhan_phong','huy')");
+                            t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_sale_ra_soat_coc','cho_quan_ly_xac_nhan_coc','cho_khach_xac_nhan_dieu_kien_coc','cho_ke_toan_tinh_tien_coc','cho_khach_thanh_toan_coc','cho_ke_toan_xac_nhan_coc','da_dat_coc','cho_sale_doi_chieu_nhan_phong','cho_quan_ly_duyet_nhan_phong','du_dieu_kien_nhan_phong','huy')");
                         });
                 });
 

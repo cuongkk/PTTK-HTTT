@@ -75,34 +75,6 @@ public record DepositRequestDetailDto(
     string DepositFormula,
     string PaymentDueDescription);
 
-public record PrimaryTenantRequest(
-    string Gender,
-    string Nationality,
-    string DocumentType,
-    string DocumentNumber,
-    string DocumentImageUrl,
-    DateOnly DateOfBirth,
-    string PermanentAddress,
-    string OccupationOrSchool,
-    string? FinancialDocumentUrl);
-
-public record AccompanyingTenantRequest(
-    string FullName,
-    string Gender,
-    string Nationality,
-    string DocumentType,
-    string DocumentNumber,
-    string DocumentImageUrl,
-    DateOnly DateOfBirth,
-    string PermanentAddress,
-    string OccupationOrSchool,
-    string? FinancialDocumentUrl,
-    string RelationshipToPrimary);
-
-public record SubmitDepositRequest(
-    PrimaryTenantRequest PrimaryTenant,
-    List<AccompanyingTenantRequest> AccompanyingTenants);
-
 public record SubmitDepositResponse(string ApplicationId, string Status, string Message);
 
 public record CustomerRoomSummaryDto(
@@ -131,6 +103,8 @@ public record CustomerCheckoutDetailDto(
     decimal? RefundRate, decimal? OriginalDeposit, decimal? BaseRefund, decimal? TotalDeductions,
     decimal? RefundAmount, decimal? AdditionalPaymentAmount, string? InvoiceStatus,
     List<CustomerReconciliationCostDto> Costs);
+
+public record ConfirmCheckoutReconciliationRequest(string SignerName);
 
 public record CustomerTenantDto(string FullName, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? NationalId, string? DocumentImageUrl, string? PermanentAddress, string? OccupationOrSchool);
 public record CustomerRoomContextDto(string RoomId, string RoomName, string BranchName, string RoomType, decimal MonthlyRent, string RoomStatus, string CustomerName, string Phone, string? Email, string? NationalId, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? Address, string? ApplicationId, string? ApplicationStatus, short? NumberOfPeople, DateOnly? ExpectedMoveInDate, short? ExpectedRentalMonths, string? DepositId, string? DepositStatus, decimal? DepositAmount, string? ContractId, string? ContractStatus, string? InvoiceId, string? InvoiceStatus, decimal? InvoiceAmount, List<CustomerTenantDto> Tenants);

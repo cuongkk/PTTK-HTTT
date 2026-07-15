@@ -41,6 +41,8 @@ public static class DbSeeder
         var checkInStates = new[] { "chua_bo_sung", "cho_sale_doi_chieu", "cho_quan_ly_duyet", "cho_sale_lap_hop_dong", "cho_khach_ky", "cho_khach_thanh_toan", "cho_ke_toan_xac_nhan", "dang_thue" };
         for (var i = 0; i < checkInStates.Length; i++) AddRoom($"PHONG_{i + 11}", $"Phòng {i + 11} - {checkInStates[i]}", RoomBedStatus.Deposited);
         AddRoom("PHONG_41", "Phòng 41 - đã xác nhận bàn giao, đang thuê", RoomBedStatus.Rented);
+        AddRoom("PHONG_42", "Phòng 42 - chờ khách xác nhận điều kiện thuê", RoomBedStatus.Empty);
+        AddRoom("PHONG_43", "Phòng 43 - chờ Kế toán tính tiền cọc", RoomBedStatus.Empty);
 
         var refundStates = new[] { "hoan_thanh", "cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc", "cho_doi_soat_hoan_coc", "cho_khach_xac_nhan_hoan_coc", "cho_hoan_tien", "da_hoan_coc", "huy" };
         for (var i = 0; i < refundStates.Length; i++) AddRoom($"PHONG_{i + 19}", $"Phòng {i + 19} - {refundStates[i]}", refundStates[i] == "da_hoan_coc" ? RoomBedStatus.Empty : refundStates[i] is "hoan_thanh" or "huy" ? RoomBedStatus.Deposited : "cho_hoan_coc");
@@ -63,6 +65,44 @@ public static class DbSeeder
             }
             var bedId = $"G{room.RoomId.Replace("_", "")}1";
             if (!await db.Beds.AnyAsync(x => x.BedId == bedId)) db.Beds.Add(new Bed { BedId = bedId, RoomId = room.RoomId, BedNumber = 1, MonthlyRent = room.RoomPrice!.Value, Status = room.Status });
+        }
+        await db.SaveChangesAsync();
+
+        // UC2 bổ sung: sau Quản lý duyệt, khách xác nhận điều kiện thuê/nội quy trước khi chuyển Kế toán tính cọc.
+        var depositTermDemos = new[]
+        {
+            new { RoomId = "PHONG_42", ApplicationId = "HSDCOC000042", ScheduleId = "LXDCOC000042", Status = "cho_khach_xac_nhan_dieu_kien_coc" },
+            new { RoomId = "PHONG_43", ApplicationId = "HSDCOC000043", ScheduleId = "LXDCOC000043", Status = "cho_ke_toan_tinh_tien_coc" }
+        };
+        foreach (var demo in depositTermDemos)
+        {
+            var application = await db.RentalApplications.FirstOrDefaultAsync(x => x.ApplicationId == demo.ApplicationId);
+            if (application is null)
+            {
+                application = new RentalApplication
+                {
+                    ApplicationId = demo.ApplicationId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003",
+                    NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6,
+                    DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, MinimumPrice = 2500000, MaximumPrice = 3500000,
+                    Gender = "Nam", LivingSchedule = "Về trước 23:00", RequiresQuietLifestyle = true,
+                    RequiresParking = true, RequiresAirConditioner = true, Status = demo.Status,
+                    CreatedAt = new DateTime(2026, 7, 14, 8, 0, 0, DateTimeKind.Utc)
+                };
+                db.RentalApplications.Add(application);
+            }
+            else application.Status = demo.Status;
+            await db.SaveChangesAsync();
+
+            if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == demo.ScheduleId))
+                db.RoomViewingSchedules.Add(new RoomViewingSchedule
+                {
+                    ScheduleId = demo.ScheduleId, ApplicationId = demo.ApplicationId, SalesEmployeeId = "NV00000003",
+                    AppointmentAt = new DateTime(2026, 7, 14, 9, 0, 0), Status = "hoan_thanh",
+                    Note = "Khách đã xem phòng; Sale và Quản lý đã rà soát"
+                });
+            await db.SaveChangesAsync();
+            if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == demo.ScheduleId && x.RoomId == demo.RoomId))
+                db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = demo.ScheduleId, RoomId = demo.RoomId });
         }
         await db.SaveChangesAsync();
 
@@ -151,7 +191,7 @@ public static class DbSeeder
         await db.SaveChangesAsync();
         const string handoverId = "BBGPHONG0018";
         if (!await db.HandoverReports.AnyAsync(x => x.HandoverId == handoverId))
-            db.HandoverReports.Add(new HandoverReport { HandoverId = handoverId, ContractId = "HDNHAN000007", ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 8, 1), RoomCondition = "Phòng sạch, hệ thống điện nước và thiết bị hoạt động bình thường", InitialElectricityReading = 1245, InitialWaterReading = 382, Note = "Đã hướng dẫn sử dụng tiện ích chung, lối thoát hiểm, phòng cháy chữa cháy và quy định an toàn." });
+            db.HandoverReports.Add(new HandoverReport { HandoverId = handoverId, ContractId = "HDNHAN000007", ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 8, 1), RoomCondition = "Phòng sạch, hệ thống điện nước và thiết bị hoạt động bình thường", InitialElectricityReading = 1245, InitialWaterReading = 382 });
         await db.SaveChangesAsync();
         foreach (var asset in handoverAssets)
             if (!await db.HandoverDetails.AnyAsync(x => x.HandoverId == handoverId && x.AssetId == asset.AssetId))

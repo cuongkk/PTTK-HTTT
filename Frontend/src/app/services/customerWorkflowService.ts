@@ -50,18 +50,6 @@ export interface DepositRequestDetail {
   paymentDueDescription: string;
 }
 
-export interface SubmitDepositRequest {
-  primaryTenant: {
-    gender: string; nationality: string; documentType: string; documentNumber: string; documentImageUrl: string;
-    dateOfBirth: string; permanentAddress: string; occupationOrSchool: string; financialDocumentUrl?: string;
-  };
-  accompanyingTenants: Array<{
-    fullName: string; gender: string; nationality: string; documentType: string; documentNumber: string;
-    documentImageUrl: string; dateOfBirth: string; permanentAddress: string; occupationOrSchool: string;
-    financialDocumentUrl?: string; relationshipToPrimary: string;
-  }>;
-}
-
 export interface CustomerRoomSummary {
   roomId: string;
   roomName: string;
@@ -97,9 +85,12 @@ export const customerWorkflowService = {
   getDepositedRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/deposited-rooms"),
   getRentingRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/renting-rooms"),
   getDepositRequest: (applicationId: string, roomId: string) => apiClient.get<DepositRequestDetail>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`),
-  submitDepositRequest: (applicationId: string, roomId: string, request: SubmitDepositRequest) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`, request),
+  submitDepositRequest: (applicationId: string, roomId: string) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`, {}),
+  getDepositTerms: (applicationId: string, roomId: string) => apiClient.get<ViewedRoom>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-terms`),
+  confirmDepositTerms: (applicationId: string, roomId: string) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-terms/confirm`, {}),
   getContractDetail: (roomId: string) => apiClient.get<CustomerContractDetail>(`/customer-workflow/rooms/${roomId}/contract`),
   getCheckoutDetail: (roomId: string) => apiClient.get<CustomerCheckoutDetail>(`/customer-workflow/rooms/${roomId}/checkout`),
+  confirmCheckoutReconciliation: (roomId: string, signerName: string) => apiClient.post<void>(`/customer-workflow/rooms/${roomId}/checkout/confirm`, { signerName }),
   getHandoverDetail: (roomId: string) => apiClient.get<CustomerHandoverDetail>(`/customer-workflow/rooms/${roomId}/handover`),
   confirmHandover: (roomId: string) => apiClient.post<void>(`/customer-workflow/rooms/${roomId}/handover/confirm`, {}),
   getRoomContext: (roomId: string) => apiClient.get<CustomerRoomContext>(`/customer-workflow/rooms/${roomId}/context`),

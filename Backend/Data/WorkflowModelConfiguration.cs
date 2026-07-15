@@ -20,7 +20,7 @@ public static class WorkflowModelConfiguration
 
         modelBuilder.Entity<RentalApplication>(e =>
         {
-            e.ToTable("ho_so_dang_ky", t => { t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0"); t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_sale_ra_soat_coc','cho_quan_ly_xac_nhan_coc','cho_khach_thanh_toan_coc','cho_ke_toan_xac_nhan_coc','da_dat_coc','cho_sale_doi_chieu_nhan_phong','cho_quan_ly_duyet_nhan_phong','du_dieu_kien_nhan_phong','huy')"); });
+            e.ToTable("ho_so_dang_ky", t => { t.HasCheckConstraint("chk_hoso_songuoi", "[so_nguoi] > 0"); t.HasCheckConstraint("chk_hoso_trangthai", "[trang_thai] IN ('moi','da_xem_phong','cho_sale_ra_soat_coc','cho_quan_ly_xac_nhan_coc','cho_khach_xac_nhan_dieu_kien_coc','cho_ke_toan_tinh_tien_coc','cho_khach_thanh_toan_coc','cho_ke_toan_xac_nhan_coc','da_dat_coc','cho_sale_doi_chieu_nhan_phong','cho_quan_ly_duyet_nhan_phong','du_dieu_kien_nhan_phong','huy')"); });
             e.HasKey(x => x.ApplicationId).HasName("pk_ho_so");
             e.Property(x => x.ApplicationId).HasColumnName("ma_ho_so").HasMaxLength(12); e.Property(x => x.CustomerId).HasColumnName("ma_kh").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10);
             e.Property(x => x.NumberOfPeople).HasColumnName("so_nguoi"); e.Property(x => x.ExpectedMoveInDate).HasColumnName("thoi_gian_du_kien_thue").HasColumnType("date"); e.Property(x => x.ExpectedRentalMonths).HasColumnName("thoi_han_thue_thang");
