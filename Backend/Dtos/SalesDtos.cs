@@ -55,7 +55,23 @@ public record SalesApplicationDto(
     string Status,
     DateTime CreatedAt,
     string Note,
-    bool HasContract = false
+    bool HasContract = false,
+    List<SalesTenantMemberDto>? Tenants = null
+);
+
+public record SalesTenantMemberDto(
+    string FullName,
+    string? Gender,
+    string? Nationality,
+    DateOnly? DateOfBirth,
+    string? NationalId,
+    string? DocumentType,
+    string? DocumentImageUrl,
+    string? PermanentAddress,
+    string? OccupationOrSchool,
+    bool IsPrimaryTenant,
+    bool IsEligible,
+    string? Note
 );
 
 public record CreateApplicationRequest(
@@ -134,4 +150,8 @@ public record SalesRentalContractDto(
 public record CheckoutContractRequest(
     DateTime ExpectedDate,
     string Note
+);
+
+public record SalesStatusReasonRequest(
+    string Reason
 );

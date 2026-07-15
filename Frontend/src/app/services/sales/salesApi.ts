@@ -35,6 +35,21 @@ export interface SalesDashboardData {
   pendingTasks: PendingTask[];
 }
 
+export interface SalesTenantMember {
+  fullName: string;
+  gender: string | null;
+  nationality: string | null;
+  dateOfBirth: string | null;
+  nationalId: string | null;
+  documentType: string | null;
+  documentImageUrl: string | null;
+  permanentAddress: string | null;
+  occupationOrSchool: string | null;
+  isPrimaryTenant: boolean;
+  isEligible: boolean;
+  note: string | null;
+}
+
 export interface SalesApplication {
   applicationId: string;
   customerName: string;
@@ -53,6 +68,7 @@ export interface SalesApplication {
   createdAt: string;
   note: string;
   hasContract: boolean;
+  tenants?: SalesTenantMember[] | null;
 }
 
 export interface SalesDepositSlip {
@@ -113,6 +129,9 @@ export const salesApi = {
   }) => apiClient.post<SalesApplication>(`/sales/applications/${applicationId}/schedules`, data),
 
   completeSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/complete`, {}),
+  cancelSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/cancel`, {}),
+  cancelApplication: (applicationId: string, reason: string) => apiClient.post<void>(`/sales/applications/${applicationId}/cancel`, { reason }),
+  requestApplicationRevision: (applicationId: string, reason: string) => apiClient.post<void>(`/sales/applications/${applicationId}/request-revision`, { reason }),
 
   createDepositSlip: (data: {
     applicationId: string;
@@ -122,6 +141,8 @@ export const salesApi = {
   }) => apiClient.post<SalesDepositSlip>("/sales/deposit-slips", data),
 
   getDepositSlips: () => apiClient.get<SalesDepositSlip[]>("/sales/deposit-slips"),
+  expireDepositSlip: (depositId: string, reason: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/expire`, { reason }),
+  cancelDepositSlip: (depositId: string, reason: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/cancel`, { reason }),
 
   getContracts: () => apiClient.get<SalesRentalContract[]>("/sales/contracts"),
 

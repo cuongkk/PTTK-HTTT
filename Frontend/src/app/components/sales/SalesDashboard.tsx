@@ -62,9 +62,9 @@ export function SalesDashboard() {
     if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
       if (depositMatch) {
-        return `/sales/contracts?action=checkin&ref=${depositMatch[0]}`;
+        return `/sales/registrations?tab=contracts&ref=${depositMatch[0]}`;
       }
-      return "/sales/contracts";
+      return "/sales/registrations?tab=contracts";
     }
     if (title.includes("trả phòng") || content.toLowerCase().includes("trả phòng")) {
       const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
@@ -74,7 +74,7 @@ export function SalesDashboard() {
       return "/sales/checkout-contract";
     }
     if (title.includes("cọc") || content.toLowerCase().includes("cọc")) {
-      return "/sales/contracts";
+      return "/sales/registrations?tab=deposits";
     }
     if (title.includes("đăng ký") || content.toLowerCase().includes("đăng ký")) {
       return "/sales/registrations";

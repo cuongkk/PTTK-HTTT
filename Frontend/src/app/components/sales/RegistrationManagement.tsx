@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   Users, Calendar, CheckCircle, X, Send, Search, ArrowRight, Building2,
   AlertTriangle, RefreshCw, FileText, Sparkles, DoorOpen, FileCheck,
@@ -25,13 +25,39 @@ type RegistrationActionFilter =
 
 export function RegistrationManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mainTab, setMainTab] = useState<MainTab>("registrations");
   const [checkoutSubTab, setCheckoutSubTab] = useState<CheckoutSubTab>("all");
   const [registrationActionFilter, setRegistrationActionFilter] = useState<RegistrationActionFilter>("all");
   const [showForm, setShowForm] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean; title: string; message: string; details?: ReactNode; onConfirm: () => void;
+    open: boolean;
+    title: string;
+    message: string;
+    details?: ReactNode;
+    confirmLabel?: string;
+    variant?: "danger" | "warning" | "info";
+    onConfirm: () => void;
   }>({ open: false, title: "", message: "", onConfirm: () => { } });
+  const [reasonDialog, setReasonDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    placeholder: string;
+    confirmLabel: string;
+    variant: "danger" | "warning" | "info";
+    value: string;
+    onConfirm: (reason: string) => Promise<void> | void;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    placeholder: "",
+    confirmLabel: "Xác nhận",
+    variant: "warning",
+    value: "",
+    onConfirm: () => { },
+  });
 
   // Filters
   const [areas, setAreas] = useState<string[]>([]);
@@ -62,6 +88,28 @@ export function RegistrationManagement() {
   const [vacantRooms, setVacantRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get("tab");
+    if (tab === "registrations" || tab === "deposits" || tab === "contracts" || tab === "checkout") {
+      setMainTab(tab);
+    }
+  }, [location.search]);
+
+  const openReasonDialog = (config: Omit<typeof reasonDialog, "open" | "value">) => {
+    setReasonDialog({ ...config, open: true, value: "" });
+  };
+
+  const submitReasonDialog = async () => {
+    const reason = reasonDialog.value.trim();
+    if (!reason) {
+      toast.warning("Vui lòng nhập lý do trước khi xác nhận.");
+      return;
+    }
+
+    await reasonDialog.onConfirm(reason);
+    setReasonDialog(prev => ({ ...prev, open: false, value: "" }));
+  };
 
   // Room assignment states
   const [selectedRegForAssign, setSelectedRegForAssign] = useState<SalesApplication | null>(null);
@@ -229,7 +277,10 @@ export function RegistrationManagement() {
 
   // ── Filtered lists ──
   const hasActiveDeposit = (applicationId: string) =>
-    deposits.some(deposit => deposit.applicationId === applicationId && deposit.status !== "huy");
+    deposits.some(deposit => deposit.applicationId === applicationId && deposit.status !== "huy" && deposit.status !== "het_han");
+
+  const isDepositOverdue = (deposit: SalesDepositSlip) =>
+    deposit.status === "cho_thanh_toan" && new Date(deposit.holdUntil).getTime() < Date.now();
 
   const getRegistrationActionFilter = (reg: SalesApplication): RegistrationActionFilter => {
     if (reg.status === "moi" && !reg.appointmentSent) return "schedule";
@@ -251,6 +302,52 @@ export function RegistrationManagement() {
     { id: "create_contract", label: "Lập HĐ thuê", count: regs.filter(r => getRegistrationActionFilter(r) === "create_contract").length },
     { id: "waiting", label: "Đang chờ", count: regs.filter(r => getRegistrationActionFilter(r) === "waiting").length },
   ];
+
+  const renderCheckinReviewDetails = (reg: SalesApplication) => {
+    const tenants = reg.tenants ?? [];
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+          <p><span className="font-semibold text-gray-800">Hồ sơ:</span> {reg.applicationId}</p>
+          <p><span className="font-semibold text-gray-800">Phòng:</span> {reg.roomName}</p>
+          <p><span className="font-semibold text-gray-800">Số người đăng ký:</span> {reg.capacity}</p>
+          <p><span className="font-semibold text-gray-800">Số người đã khai:</span> {tenants.length || 0}</p>
+        </div>
+        {tenants.length === 0 ? (
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
+            Chưa có danh sách người ở trong hồ sơ. Sale cần yêu cầu khách bổ sung trước khi chuyển Quản lý duyệt.
+          </div>
+        ) : (
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {tenants.map((tenant, index) => (
+              <div key={`${tenant.fullName}-${index}`} className="rounded-lg border border-gray-200 bg-white p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-gray-900">{tenant.fullName}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tenant.isPrimaryTenant ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+                    {tenant.isPrimaryTenant ? "Người đại diện" : "Thành viên"}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                  <p>Giới tính: <span className="font-medium text-gray-800">{tenant.gender ?? "Chưa rõ"}</span></p>
+                  <p>Quốc tịch: <span className="font-medium text-gray-800">{tenant.nationality ?? "Chưa rõ"}</span></p>
+                  <p>CCCD/Giấy tờ: <span className="font-medium text-gray-800">{tenant.nationalId ?? "Chưa bổ sung"}</span></p>
+                  <p>Loại giấy tờ: <span className="font-medium text-gray-800">{tenant.documentType ?? "Chưa rõ"}</span></p>
+                  <p>Ngày sinh: <span className="font-medium text-gray-800">{tenant.dateOfBirth ? new Date(tenant.dateOfBirth).toLocaleDateString("vi-VN") : "Chưa bổ sung"}</span></p>
+                  <p>Nghề nghiệp/trường: <span className="font-medium text-gray-800">{tenant.occupationOrSchool ?? "Chưa bổ sung"}</span></p>
+                  <p className="sm:col-span-2">Địa chỉ thường trú: <span className="font-medium text-gray-800">{tenant.permanentAddress ?? "Chưa bổ sung"}</span></p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {tenants.length !== reg.capacity && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            Số người đã khai chưa khớp số người đăng ký. Kiểm tra kỹ trước khi xác nhận đối chiếu.
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const filteredRegs = regs.filter(r => {
     const matchesSearch =
@@ -454,30 +551,55 @@ export function RegistrationManagement() {
 
                       {/* Action: Xác nhận đã xem phòng */}
                       {reg.status === "moi" && reg.appointmentSent && reg.scheduleId && (
-                        <button
-                          onClick={() => setConfirmDialog({
-                            open: true,
-                            title: "Xác nhận xem phòng",
-                            message: "Xác nhận khách hàng đã xem phòng xong?",
-                            onConfirm: async () => {
-                              setConfirmDialog(prev => ({ ...prev, open: false }));
-                              try {
-                                await salesApi.completeSchedule(reg.scheduleId!);
-                                toast.success("Đã ghi nhận kết quả xem phòng.");
-                                await loadData();
-                              } catch {
-                                toast.error("Không thể xác nhận kết quả xem phòng.");
+                        <>
+                          <button
+                            onClick={() => setConfirmDialog({
+                              open: true,
+                              title: "Xác nhận xem phòng",
+                              message: "Xác nhận khách hàng đã xem phòng xong?",
+                              onConfirm: async () => {
+                                setConfirmDialog(prev => ({ ...prev, open: false }));
+                                try {
+                                  await salesApi.completeSchedule(reg.scheduleId!);
+                                  toast.success("Đã ghi nhận kết quả xem phòng.");
+                                  await loadData();
+                                } catch {
+                                  toast.error("Không thể xác nhận kết quả xem phòng.");
+                                }
                               }
-                            }
-                          })}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-                        >
-                          <CheckCircle className="w-3 h-3" /> Xác nhận đã xem
-                        </button>
+                            })}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                          >
+                            <CheckCircle className="w-3 h-3" /> Xác nhận đã xem
+                          </button>
+                          <button
+                            onClick={() => setConfirmDialog({
+                              open: true,
+                              title: "Khách không đến xem phòng",
+                              message: "Ghi nhận khách không đến theo lịch hẹn? Hồ sơ sẽ quay lại trạng thái có thể sắp lịch xem phòng mới.",
+                              variant: "danger",
+                              confirmLabel: "Ghi nhận",
+                              onConfirm: async () => {
+                                setConfirmDialog(prev => ({ ...prev, open: false }));
+                                try {
+                                  await salesApi.cancelSchedule(reg.scheduleId!);
+                                  toast.success("Đã ghi nhận khách không đến. Có thể sắp lịch xem phòng mới.");
+                                  await loadData();
+                                } catch {
+                                  toast.error("Không thể ghi nhận khách không đến.");
+                                }
+                              }
+                            })}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                          >
+                            <X className="w-3 h-3" /> Khách không đến
+                          </button>
+                        </>
                       )}
 
                       {/* Action: Rà soát cọc */}
                       {reg.status === "cho_sale_ra_soat_coc" && (
+                        <>
                         <button
                           onClick={() => setConfirmDialog({
                             open: true,
@@ -498,9 +620,51 @@ export function RegistrationManagement() {
                         >
                           <FileCheck className="w-3 h-3" /> Rà soát cọc
                         </button>
+                        <button
+                          onClick={() => openReasonDialog({
+                            title: "Yêu cầu bổ sung hồ sơ",
+                            message: "Nhập lý do để khách biết cần bổ sung hoặc chỉnh sửa thông tin nào.",
+                            placeholder: "Ví dụ: thiếu giấy tờ tùy thân, thông tin người ở chưa rõ...",
+                            confirmLabel: "Gửi yêu cầu",
+                            variant: "warning",
+                            onConfirm: async (reason) => {
+                              try {
+                                await salesApi.requestApplicationRevision(reg.applicationId, reason);
+                                toast.success("Đã trả hồ sơ về bước khách bổ sung.");
+                                await loadData();
+                              } catch {
+                                toast.error("Không thể yêu cầu bổ sung hồ sơ.");
+                              }
+                            }
+                          })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                        >
+                          <AlertTriangle className="w-3 h-3" /> Yêu cầu bổ sung
+                        </button>
+                        <button
+                          onClick={() => openReasonDialog({
+                            title: "Hủy hồ sơ thuê",
+                            message: "Nhập lý do hủy hồ sơ. Lý do này sẽ được lưu vào ghi chú xử lý.",
+                            placeholder: "Ví dụ: khách không còn nhu cầu, hồ sơ không đủ điều kiện...",
+                            confirmLabel: "Hủy hồ sơ",
+                            variant: "danger",
+                            onConfirm: async (reason) => {
+                              try {
+                                await salesApi.cancelApplication(reg.applicationId, reason);
+                                toast.success("Đã hủy hồ sơ.");
+                                await loadData();
+                              } catch {
+                                toast.error("Không thể hủy hồ sơ.");
+                              }
+                            }
+                          })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                        >
+                          <X className="w-3 h-3" /> Hủy hồ sơ
+                        </button>
+                        </>
                       )}
 
-                      {/* Action: Lập phiếu đặt cọc */}
                       {reg.status === "cho_khach_thanh_toan_coc" && !reg.hasContract && !hasActiveDeposit(reg.applicationId) && (
                         <button
                           onClick={() => triggerCreateDepositTab(reg)}
@@ -512,11 +676,13 @@ export function RegistrationManagement() {
 
                       {/* Action: Đối chiếu nhận phòng */}
                       {reg.status === "cho_sale_doi_chieu_nhan_phong" && (
+                        <>
                         <button
                           onClick={() => setConfirmDialog({
                             open: true,
                             title: "Đối chiếu nhận phòng",
                             message: "Xác nhận đã đối chiếu hồ sơ khách đủ điều kiện nhận phòng?",
+                            details: renderCheckinReviewDetails(reg),
                             onConfirm: async () => {
                               setConfirmDialog(prev => ({ ...prev, open: false }));
                               try {
@@ -532,9 +698,51 @@ export function RegistrationManagement() {
                         >
                           <FileCheck className="w-3 h-3" /> Đối chiếu nhận phòng
                         </button>
+                        <button
+                          onClick={() => openReasonDialog({
+                            title: "Yêu cầu bổ sung hồ sơ nhận phòng",
+                            message: "Nhập lý do để khách bổ sung lại danh sách thành viên hoặc giấy tờ nhận phòng.",
+                            placeholder: "Ví dụ: thiếu CCCD thành viên, số người chưa khớp đăng ký...",
+                            confirmLabel: "Gửi yêu cầu",
+                            variant: "warning",
+                            onConfirm: async (reason) => {
+                              try {
+                                await salesApi.requestApplicationRevision(reg.applicationId, reason);
+                                toast.success("Đã trả hồ sơ nhận phòng về bước khách bổ sung.");
+                                await loadData();
+                              } catch {
+                                toast.error("Không thể yêu cầu bổ sung hồ sơ nhận phòng.");
+                              }
+                            }
+                          })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                        >
+                          <AlertTriangle className="w-3 h-3" /> Yêu cầu bổ sung
+                        </button>
+                        <button
+                          onClick={() => openReasonDialog({
+                            title: "Hủy hồ sơ nhận phòng",
+                            message: "Nhập lý do hủy hồ sơ nhận phòng. Lý do này sẽ được lưu vào ghi chú xử lý.",
+                            placeholder: "Ví dụ: thành viên không đạt điều kiện, khách không tiếp tục thuê...",
+                            confirmLabel: "Hủy hồ sơ",
+                            variant: "danger",
+                            onConfirm: async (reason) => {
+                              try {
+                                await salesApi.cancelApplication(reg.applicationId, reason);
+                                toast.success("Đã hủy hồ sơ.");
+                                await loadData();
+                              } catch {
+                                toast.error("Không thể hủy hồ sơ.");
+                              }
+                            }
+                          })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                        >
+                          <X className="w-3 h-3" /> Hủy hồ sơ
+                        </button>
+                        </>
                       )}
 
-                      {/* Action: Lập HĐ thuê — chỉ hiện khi chưa có hợp đồng */}
                       {reg.status === "du_dieu_kien_nhan_phong" && !reg.hasContract && (
                         <button
                           onClick={() => triggerCreateRentalTab(reg)}
@@ -628,6 +836,52 @@ export function RegistrationManagement() {
                                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
                               >
                                 <FileText className="w-3 h-3" /> Lập HĐ thuê
+                              </button>
+                            )}
+                            {isDepositOverdue(d) && (
+                              <button
+                                onClick={() => openReasonDialog({
+                                  title: "Đánh dấu phiếu cọc quá hạn",
+                                  message: "Nhập lý do đánh dấu quá hạn. Hệ thống sẽ hủy hóa đơn chờ thanh toán liên quan.",
+                                  placeholder: "Ví dụ: quá 24 giờ khách chưa thanh toán...",
+                                  confirmLabel: "Đánh dấu quá hạn",
+                                  variant: "warning",
+                                  onConfirm: async (reason) => {
+                                    try {
+                                      await salesApi.expireDepositSlip(d.depositId, reason);
+                                      toast.success("Đã đánh dấu phiếu cọc quá hạn.");
+                                      await loadData();
+                                    } catch {
+                                      toast.error("Không thể đánh dấu quá hạn phiếu cọc.");
+                                    }
+                                  }
+                                })}
+                                className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                              >
+                                <AlertTriangle className="w-3 h-3" /> Quá hạn
+                              </button>
+                            )}
+                            {(d.status === "cho_thanh_toan" || d.status === "het_han") && (
+                              <button
+                                onClick={() => openReasonDialog({
+                                  title: "Hủy phiếu cọc",
+                                  message: "Nhập lý do hủy phiếu cọc. Lý do này sẽ được lưu vào ghi chú xử lý.",
+                                  placeholder: "Ví dụ: khách đổi ý, chọn phòng khác, lập sai phiếu...",
+                                  confirmLabel: "Hủy phiếu",
+                                  variant: "danger",
+                                  onConfirm: async (reason) => {
+                                    try {
+                                      await salesApi.cancelDepositSlip(d.depositId, reason);
+                                      toast.success("Đã hủy phiếu cọc.");
+                                      await loadData();
+                                    } catch {
+                                      toast.error("Không thể hủy phiếu cọc.");
+                                    }
+                                  }
+                                })}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                              >
+                                <X className="w-3 h-3" /> Hủy phiếu
                               </button>
                             )}
                           </div>
@@ -1100,6 +1354,26 @@ export function RegistrationManagement() {
                   <span className="font-medium text-gray-900 text-right">{v}</span>
                 </div>
               ))}
+              {(selectedReg.tenants?.length ?? 0) > 0 && (
+                <div className="pt-2">
+                  <p className="mb-2 text-xs font-bold uppercase text-gray-500">Danh sách người ở</p>
+                  <div className="space-y-2">
+                    {selectedReg.tenants!.map((tenant, index) => (
+                      <div key={`${tenant.fullName}-${index}`} className="rounded-lg border border-gray-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-gray-900">{tenant.fullName}</p>
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                            {tenant.isPrimaryTenant ? "Người đại diện" : "Thành viên"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {tenant.gender ?? "Chưa rõ"} · {tenant.nationality ?? "Chưa rõ"} · CCCD: {tenant.nationalId ?? "Chưa bổ sung"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="px-6 pb-6">
               <button onClick={() => setSelectedReg(null)} className="w-full px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors">Đóng</button>
@@ -1325,9 +1599,7 @@ export function RegistrationManagement() {
                     <label className="block text-[10px] text-gray-500 mb-0.5">Khu vực</label>
                     <select value={assignFilterArea} onChange={e => setAssignFilterArea(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white">
                       <option value="all">Tất cả</option>
-                      <option value="Khu A">Khu A</option>
-                      <option value="Khu B">Khu B</option>
-                      <option value="Khu C">Khu C</option>
+                      {areas.map(area => <option key={area} value={area}>{area}</option>)}
                     </select>
                   </div>
                   <div>
@@ -1372,13 +1644,69 @@ export function RegistrationManagement() {
         </div>
       )}
 
+      {reasonDialog.open && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setReasonDialog(prev => ({ ...prev, open: false }))} />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <button
+              onClick={() => setReasonDialog(prev => ({ ...prev, open: false }))}
+              className="absolute right-3 top-3 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="p-6">
+              <div className="mb-4 flex items-start gap-4">
+                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${
+                  reasonDialog.variant === "danger" ? "bg-red-100" :
+                    reasonDialog.variant === "warning" ? "bg-yellow-100" : "bg-blue-100"
+                }`}>
+                  <AlertTriangle className={`h-6 w-6 ${
+                    reasonDialog.variant === "danger" ? "text-red-500" :
+                      reasonDialog.variant === "warning" ? "text-yellow-500" : "text-blue-500"
+                  }`} />
+                </div>
+                <div className="pt-1">
+                  <h3 className="text-base font-bold text-gray-900">{reasonDialog.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-gray-500">{reasonDialog.message}</p>
+                </div>
+              </div>
+              <textarea
+                value={reasonDialog.value}
+                onChange={(e) => setReasonDialog(prev => ({ ...prev, value: e.target.value }))}
+                placeholder={reasonDialog.placeholder}
+                rows={4}
+                className="w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                autoFocus
+              />
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={() => setReasonDialog(prev => ({ ...prev, open: false }))}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={submitReasonDialog}
+                  className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-colors ${
+                    reasonDialog.variant === "danger" ? "bg-red-600 hover:bg-red-700" :
+                      reasonDialog.variant === "warning" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {reasonDialog.confirmLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         open={confirmDialog.open}
         title={confirmDialog.title}
         message={confirmDialog.message}
         details={confirmDialog.details}
-        confirmLabel="Xác nhận"
-        variant="info"
+        confirmLabel={confirmDialog.confirmLabel ?? "Xác nhận"}
+        variant={confirmDialog.variant ?? "info"}
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
       />

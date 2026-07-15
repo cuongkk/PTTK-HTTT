@@ -20,6 +20,30 @@ public class SalesWorkflowService : ISalesWorkflowService
         _db = db;
     }
 
+    private static string AppendStatusNote(string? currentNote, string label, string reason)
+    {
+        var cleanReason = string.IsNullOrWhiteSpace(reason) ? "Không ghi rõ lý do." : reason.Trim();
+        var newNote = $"{DateTime.UtcNow:dd/MM/yyyy HH:mm} - {label}: {cleanReason}";
+        return string.IsNullOrWhiteSpace(currentNote) ? newNote : $"{currentNote}\n{newNote}";
+    }
+
+    private async Task NotifyCustomerAsync(string customerId, string title, string content)
+    {
+        var customerAccount = await _db.Accounts.FirstOrDefaultAsync(a => a.CustomerId == customerId);
+        if (customerAccount == null) return;
+
+        _db.Notifications.Add(new Notification
+        {
+            NotificationId = IdGenerator.Generate("NT", 12),
+            RecipientAccountId = customerAccount.AccountId,
+            Title = title,
+            Content = content,
+            NotificationType = "he_thong",
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+
     public async Task<SalesDashboardDto> GetDashboardDataAsync(string salesEmployeeAccountId)
     {
         var today = DateTime.Today;
@@ -131,6 +155,7 @@ public class SalesWorkflowService : ISalesWorkflowService
 
         var applications = await _db.RentalApplications
             .Include(a => a.Customer)
+            .Include(a => a.TenantMembers)
             .Include(a => a.RoomViewingSchedules)
                 .ThenInclude(s => s.Rooms)
             .Include(a => a.DepositSlips)
@@ -150,10 +175,13 @@ public class SalesWorkflowService : ISalesWorkflowService
             string note = app.OtherRequirements ?? "";
 
             // Check if there is a deposit slip mapping to a bed and room
-            var activeDeposit = app.DepositSlips.FirstOrDefault(d => d.Status != "huy");
+            var activeDeposit = app.DepositSlips.FirstOrDefault(d => d.Status != "huy" && d.Status != "het_han");
 
-            // Look up last schedule
-            var lastSchedule = app.RoomViewingSchedules.OrderByDescending(s => s.AppointmentAt).FirstOrDefault();
+            // Look up latest active schedule. Canceled no-show schedules should allow rescheduling.
+            var lastSchedule = app.RoomViewingSchedules
+                .Where(s => s.Status != "huy")
+                .OrderByDescending(s => s.AppointmentAt)
+                .FirstOrDefault();
             if (lastSchedule != null)
             {
                 scheduleId = lastSchedule.ScheduleId;
@@ -231,7 +259,26 @@ public class SalesWorkflowService : ISalesWorkflowService
                 apptSent,
                 app.Status,
                 app.CreatedAt,
-                note
+                note,
+                HasContract: false,
+                Tenants: app.TenantMembers
+                    .OrderByDescending(t => t.IsPrimaryTenant)
+                    .ThenBy(t => t.FullName)
+                    .Select(t => new SalesTenantMemberDto(
+                        t.FullName,
+                        t.Gender,
+                        t.Nationality,
+                        t.DateOfBirth,
+                        t.NationalId,
+                        t.DocumentType,
+                        t.DocumentImageUrl,
+                        t.PermanentAddress,
+                        t.OccupationOrSchool,
+                        t.IsPrimaryTenant,
+                        t.IsEligible,
+                        t.Note
+                    ))
+                    .ToList()
             ));
         }
 
@@ -560,6 +607,98 @@ public class SalesWorkflowService : ISalesWorkflowService
         await _db.SaveChangesAsync();
     }
 
+    public async Task CancelViewingScheduleAsync(string scheduleId)
+    {
+        var schedule = await _db.RoomViewingSchedules.FirstOrDefaultAsync(s => s.ScheduleId == scheduleId)
+            ?? throw new NotFoundException("Không tìm thấy lịch xem phòng.");
+
+        if (schedule.Status == "hoan_thanh")
+            throw new ValidationException("Không thể hủy lịch xem phòng đã hoàn thành.");
+
+        schedule.Status = "huy";
+        schedule.Note = string.IsNullOrWhiteSpace(schedule.Note)
+            ? "Khách không đến theo lịch hẹn."
+            : $"{schedule.Note} | Khách không đến theo lịch hẹn.";
+
+        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == schedule.ApplicationId);
+        if (app != null && app.Status == "moi")
+        {
+            app.Status = "moi";
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task CancelApplicationAsync(string applicationId, string reason)
+    {
+        var app = await _db.RentalApplications
+            .Include(a => a.RoomViewingSchedules)
+            .Include(a => a.DepositSlips)
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
+            ?? throw new NotFoundException("Khong tim thay dang ky.");
+
+        if (app.Status == "huy")
+            throw new ValidationException("Ho so da duoc huy truoc do.");
+
+        var depositIds = app.DepositSlips.Select(d => d.DepositId).ToList();
+        var hasContract = await _db.RentalContracts.AnyAsync(c => depositIds.Contains(c.DepositId));
+        if (hasContract)
+            throw new ValidationException("Khong the huy ho so da lap hop dong thue.");
+
+        if (app.DepositSlips.Any(d => d.Status == "hoan_thanh" || d.Status.EndsWith("_hoan_coc") || d.Status == "cho_hoan_tien" || d.Status == "da_hoan_coc"))
+            throw new ValidationException("Ho so da co coc hoan thanh hoac dang xu ly hoan coc.");
+
+        app.Status = "huy";
+        app.OtherRequirements = AppendStatusNote(app.OtherRequirements, "Sale huy ho so", reason);
+
+        foreach (var schedule in app.RoomViewingSchedules.Where(s => s.Status != "hoan_thanh"))
+        {
+            schedule.Status = "huy";
+            schedule.Note = AppendStatusNote(schedule.Note, "Huy lich do ho so bi huy", reason);
+        }
+
+        foreach (var deposit in app.DepositSlips.Where(d => d.Status == "cho_thanh_toan" || d.Status == "het_han"))
+        {
+            deposit.Status = "huy";
+            deposit.RefundReason = AppendStatusNote(deposit.RefundReason, "Huy phieu theo ho so", reason);
+        }
+
+        var pendingInvoices = await _db.Invoices
+            .Where(i => i.DepositId != null && depositIds.Contains(i.DepositId) && i.Status == "cho_thanh_toan")
+            .ToListAsync();
+        foreach (var invoice in pendingInvoices)
+        {
+            invoice.Status = "huy";
+            invoice.Note = AppendStatusNote(invoice.Note, "Huy hoa don theo ho so", reason);
+        }
+
+        await NotifyCustomerAsync(app.CustomerId, "Ho so thue da duoc huy", $"Ho so {applicationId} da duoc Sale huy. Ly do: {reason}");
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task RequestApplicationRevisionAsync(string applicationId, string reason)
+    {
+        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
+            ?? throw new NotFoundException("Khong tim thay dang ky.");
+
+        var nextStatus = app.Status switch
+        {
+            "cho_sale_ra_soat_coc" => "da_xem_phong",
+            "cho_sale_doi_chieu_nhan_phong" => "da_dat_coc",
+            _ => throw new ValidationException("Chi yeu cau bo sung o buoc Sale ra soat coc hoac doi chieu nhan phong.")
+        };
+
+        var label = app.Status == "cho_sale_ra_soat_coc"
+            ? "Sale yeu cau bo sung ho so coc"
+            : "Sale yeu cau bo sung ho so nhan phong";
+
+        app.Status = nextStatus;
+        app.OtherRequirements = AppendStatusNote(app.OtherRequirements, label, reason);
+
+        await NotifyCustomerAsync(app.CustomerId, "Can bo sung ho so", $"Ho so {applicationId} can bo sung thong tin. Ly do: {reason}");
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<SalesDepositSlipDto> CreateDepositSlipAsync(CreateDepositRequest request, string salesEmployeeAccountId)
     {
         var app = await _db.RentalApplications.Include(a => a.Customer).FirstOrDefaultAsync(a => a.ApplicationId == request.ApplicationId)
@@ -568,7 +707,7 @@ public class SalesWorkflowService : ISalesWorkflowService
         if (app.Status != "cho_khach_thanh_toan_coc")
             throw new ValidationException("Chỉ lập phiếu đặt cọc sau khi Quản lý đã xác nhận điều kiện đặt cọc.");
 
-        var existingActiveDeposit = await _db.DepositSlips.AnyAsync(d => d.ApplicationId == request.ApplicationId && d.Status != "huy");
+        var existingActiveDeposit = await _db.DepositSlips.AnyAsync(d => d.ApplicationId == request.ApplicationId && d.Status != "huy" && d.Status != "het_han");
         if (existingActiveDeposit)
             throw new ConflictException("Hồ sơ này đã có phiếu đặt cọc đang xử lý.");
 
@@ -661,6 +800,74 @@ public class SalesWorkflowService : ISalesWorkflowService
             null,
             false
         );
+    }
+
+    public async Task ExpireDepositSlipAsync(string depositId, string reason)
+    {
+        var deposit = await _db.DepositSlips
+            .Include(d => d.Application)
+            .FirstOrDefaultAsync(d => d.DepositId == depositId)
+            ?? throw new NotFoundException("Khong tim thay phieu dat coc.");
+
+        if (deposit.Status != "cho_thanh_toan")
+            throw new ValidationException("Chi danh dau qua han voi phieu coc dang cho thanh toan.");
+
+        deposit.Status = "het_han";
+        deposit.RefundReason = AppendStatusNote(deposit.RefundReason, "Sale danh dau qua han", reason);
+
+        if (deposit.Application.Status == "cho_khach_thanh_toan_coc" || deposit.Application.Status == "cho_ke_toan_xac_nhan_coc")
+        {
+            deposit.Application.Status = "da_xem_phong";
+            deposit.Application.OtherRequirements = AppendStatusNote(deposit.Application.OtherRequirements, "Phieu coc qua han", reason);
+        }
+
+        var invoices = await _db.Invoices
+            .Where(i => i.DepositId == depositId && i.Status == "cho_thanh_toan")
+            .ToListAsync();
+        foreach (var invoice in invoices)
+        {
+            invoice.Status = "huy";
+            invoice.Note = AppendStatusNote(invoice.Note, "Huy do phieu coc qua han", reason);
+        }
+
+        await NotifyCustomerAsync(deposit.Application.CustomerId, "Phieu coc da qua han", $"Phieu coc {depositId} da duoc danh dau qua han. Ly do: {reason}");
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task CancelDepositSlipAsync(string depositId, string reason)
+    {
+        var deposit = await _db.DepositSlips
+            .Include(d => d.Application)
+            .FirstOrDefaultAsync(d => d.DepositId == depositId)
+            ?? throw new NotFoundException("Khong tim thay phieu dat coc.");
+
+        var hasContract = await _db.RentalContracts.AnyAsync(c => c.DepositId == depositId);
+        if (hasContract)
+            throw new ValidationException("Khong the huy phieu coc da lap hop dong.");
+
+        if (deposit.Status == "hoan_thanh" || deposit.Status.EndsWith("_hoan_coc") || deposit.Status == "cho_hoan_tien" || deposit.Status == "da_hoan_coc")
+            throw new ValidationException("Phieu coc da thanh toan hoac dang xu ly hoan coc, khong the huy truc tiep.");
+
+        deposit.Status = "huy";
+        deposit.RefundReason = AppendStatusNote(deposit.RefundReason, "Sale huy phieu coc", reason);
+
+        if (deposit.Application.Status == "cho_khach_thanh_toan_coc" || deposit.Application.Status == "cho_ke_toan_xac_nhan_coc")
+        {
+            deposit.Application.Status = "da_xem_phong";
+            deposit.Application.OtherRequirements = AppendStatusNote(deposit.Application.OtherRequirements, "Phieu coc bi huy", reason);
+        }
+
+        var invoices = await _db.Invoices
+            .Where(i => i.DepositId == depositId && i.Status == "cho_thanh_toan")
+            .ToListAsync();
+        foreach (var invoice in invoices)
+        {
+            invoice.Status = "huy";
+            invoice.Note = AppendStatusNote(invoice.Note, "Huy theo phieu coc", reason);
+        }
+
+        await NotifyCustomerAsync(deposit.Application.CustomerId, "Phieu coc da huy", $"Phieu coc {depositId} da duoc Sale huy. Ly do: {reason}");
+        await _db.SaveChangesAsync();
     }
 
     public async Task<SalesRentalContractDto> CreateRentalContractAsync(CreateRentalRequest request, string salesEmployeeAccountId)
@@ -884,11 +1091,25 @@ public class SalesWorkflowService : ISalesWorkflowService
 
     public async Task ReviewCheckInDocumentsAsync(string applicationId)
     {
-        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
+        var app = await _db.RentalApplications
+            .Include(a => a.TenantMembers)
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
             ?? throw new NotFoundException("Không tìm thấy đăng ký.");
 
         if (app.Status != "cho_sale_doi_chieu_nhan_phong")
             throw new ValidationException("Chỉ đối chiếu nhận phòng sau khi khách đã bổ sung hồ sơ nhận phòng.");
+
+        if (app.TenantMembers.Count != app.NumberOfPeople)
+            throw new ValidationException("Danh sách người ở chưa khớp với số người đăng ký.");
+
+        if (app.TenantMembers.Count(x => x.IsPrimaryTenant) != 1)
+            throw new ValidationException("Hồ sơ cần đúng một người đại diện đứng tên.");
+
+        if (app.TenantMembers.Any(x => string.IsNullOrWhiteSpace(x.NationalId)
+            || string.IsNullOrWhiteSpace(x.DocumentType)
+            || string.IsNullOrWhiteSpace(x.PermanentAddress)
+            || string.IsNullOrWhiteSpace(x.OccupationOrSchool)))
+            throw new ValidationException("Hồ sơ người ở chưa đủ giấy tờ hoặc thông tin cư trú.");
 
         app.Status = "cho_quan_ly_duyet_nhan_phong";
 

@@ -75,6 +75,8 @@ export function MainLayout() {
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [notificationsList, setNotificationsList] = useState<AppNotification[]>([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const accountInfo = getStoredUser();
 
   const toggleNotificationDropdown = async () => {
     if (!showNotificationDropdown) {
@@ -101,14 +103,14 @@ export function MainLayout() {
     }
     if (n.notificationType === "dat_coc") {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
-      return depositMatch ? `/${currentRole}/contracts` : `/${currentRole}/registrations`;
+      return depositMatch ? `/${currentRole}/registrations?tab=deposits` : `/${currentRole}/registrations`;
     }
     if (normalizedText.includes("nhan phong")) {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
       if (depositMatch) {
-        return `/${currentRole}/contracts?action=checkin&ref=${depositMatch[0]}`;
+        return `/${currentRole}/registrations?tab=contracts&ref=${depositMatch[0]}`;
       }
-      return `/${currentRole}/contracts`;
+      return `/${currentRole}/registrations?tab=contracts`;
     }
     if (normalizedText.includes("tra phong")) {
       const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
@@ -120,9 +122,9 @@ export function MainLayout() {
     if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
       if (depositMatch) {
-        return `/${currentRole}/contracts?action=checkin&ref=${depositMatch[0]}`;
+        return `/${currentRole}/registrations?tab=contracts&ref=${depositMatch[0]}`;
       }
-      return `/${currentRole}/contracts`;
+      return `/${currentRole}/registrations?tab=contracts`;
     }
     if (title.includes("trả phòng") || content.toLowerCase().includes("trả phòng")) {
       const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
@@ -132,7 +134,7 @@ export function MainLayout() {
       return `/${currentRole}/checkout-contract`;
     }
     if (title.includes("cọc") || content.toLowerCase().includes("cọc")) {
-      return `/${currentRole}/contracts`;
+      return `/${currentRole}/registrations?tab=deposits`;
     }
     if (title.includes("đăng ký") || content.toLowerCase().includes("đăng ký")) {
       return `/${currentRole}/registrations`;
@@ -358,7 +360,11 @@ export function MainLayout() {
               </div>
 
               {/* User Menu */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => setShowProfileModal(true)}
+                aria-label="Thông tin tài khoản"
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
                 <User className="w-5 h-5" />
               </button>
 
@@ -408,6 +414,17 @@ export function MainLayout() {
                 );
               })}
 
+              <button
+                onClick={() => {
+                  setShowProfileModal(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
+              >
+                <User className="w-5 h-5" />
+                <span>Thông tin tài khoản</span>
+              </button>
+
               {/* Logout Mobile */}
               <button
                 onClick={handleLogout}
@@ -425,6 +442,54 @@ export function MainLayout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowProfileModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <User className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Thông tin tài khoản</h2>
+                  <p className="text-xs text-gray-500">Tài khoản đang đăng nhập</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-5">
+              {[
+                ["Họ tên", accountInfo?.displayName || "Chưa có"],
+                ["Tên đăng nhập", accountInfo?.username || "Chưa có"],
+                ["Vai trò", accountInfo?.roleName || "Chưa có"],
+                ["Mã tài khoản", accountInfo?.accountId || "Chưa có"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 break-words">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-4">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmDialog
         open={showLogoutConfirm}
         title="Đăng xuất"
