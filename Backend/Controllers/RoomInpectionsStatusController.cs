@@ -25,14 +25,14 @@ public class RoomInspectionsStatusController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("api/manager/room-inspections-status/review/{roomId}")]
+    [HttpPut("review/{applicationId}")]
     public async Task<ActionResult<ReviewRoomStatusResultDto>> ReviewRoomStatus(
-        string roomId,
+        string applicationId,
         [FromBody] ReviewRoomStatusDto dto)
     {
-        try
+         try
         {
-            var result = await _roomInspectionStatusService.ReviewRoomStatusAsync(roomId, dto.IsApproved);
+            var result = await _roomInspectionStatusService.ReviewRoomStatusAsync(applicationId, dto.IsApproved);
             return Ok(result);
         }
         catch (KeyNotFoundException ex)
@@ -40,4 +40,5 @@ public class RoomInspectionsStatusController : ControllerBase
             return NotFound(ex.Message);
         }
     }
+
 }
