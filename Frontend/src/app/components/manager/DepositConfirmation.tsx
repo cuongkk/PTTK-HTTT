@@ -5,7 +5,8 @@ import { ArrowUpRight, Search, Building2 } from "lucide-react";
 interface Deposit {
   id: string;
   depositCode: string;       
-  customer: string;         
+  customer: string;     
+  roomId: string;    
   room: string;        
   bed: string
   branch: string;            
@@ -65,6 +66,51 @@ export function DepositConfirmation() {
       });
   }, []);
 
+
+  
+
+
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  const handleReviewDeposit = async (depositId: string, isApproved: boolean) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
+      return;
+    }
+
+    setIsReviewing(true);
+    try {
+      const res = await fetch(
+        `http://localhost:5157/api/manager/deposit-confirmation/review/${depositId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isApproved }),
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || "Cập nhật trạng thái thất bại!");
+      }
+      alert(
+        isApproved
+          ? `Duyệt thành công chứng từ mã: ${depositId}`
+          : `Từ chối chứng từ mã: ${depositId}`
+      );
+      setSelectedDeposit(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Có lỗi xảy ra, vui lòng thử lại");
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
+
   // 3. Logic lọc tìm kiếm dữ liệu cọc khách hàng
   const filteredDeposits = deposits.filter((deposit) => {
     const query = search.toLowerCase().trim();
@@ -83,7 +129,6 @@ export function DepositConfirmation() {
   // Giao diện khi đang tải hoặc lỗi hệ thống
   if (loading) return <div className="text-center py-10 text-gray-600">Đang tải dữ liệu đặt cọc...</div>;
   if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -304,21 +349,17 @@ export function DepositConfirmation() {
               </button>
 
               <button
-                onClick={() => {
-                  alert(`Từ chối chứng từ mã: ${selectedDeposit.depositCode}`);
-                  setSelectedDeposit(null);
-                }}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium"
+                onClick={() => handleReviewDeposit(selectedDeposit.id, false)}
+                disabled={isReviewing}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 Không hợp lệ
               </button>
 
               <button
-                onClick={() => {
-                  alert(`Duyệt thành công chứng từ mã: ${selectedDeposit.depositCode}`);
-                  setSelectedDeposit(null);
-                }}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                onClick={() => handleReviewDeposit(selectedDeposit.id, true)}
+                disabled={isReviewing}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
               >
                 Xác nhận hợp lệ
               </button>

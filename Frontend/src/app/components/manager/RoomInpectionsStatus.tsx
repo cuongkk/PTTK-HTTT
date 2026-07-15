@@ -78,29 +78,43 @@ export function RoomInspectionStatus() {
   if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
 
   // Xử lý button xác nhận
-  const handleConfirm = async (roomId: string) => {
+  const handleReviewRoom = async (roomId: string, isApproved: boolean) => {
   try {
     const token = localStorage.getItem("auth_token");
-    
-    // Gọi API cập nhật trạng thái phòng lên Backend
-    const res = await fetch(`http://localhost:5157/api/room-inspections-status/confirm/${roomId}`, {
-      method: "PUT", // Hoặc POST tùy theo Backend bạn viết
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+    if (!token) {
+      alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
+      return;
+    }
+
+    const res = await fetch(
+      `http://localhost:5157/api/manager/room-inspections-status/review/${roomId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isApproved }),
       }
-    });
-
-    if (!res.ok) throw new Error("Cập nhật trạng thái thất bại!");
-
-    // Nếu Backend cập nhật thành công, update lại State ở Frontend để giao diện đổi màu luôn
-    setRooms(prevRooms => 
-      prevRooms.map(room => 
-        room.id === roomId ? { ...room, condition: "Trống" } : room
-      )
     );
-    alert("Xác nhận phòng trống thành công!");
 
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.message ?? "Cập nhật trạng thái thất bại!");
+    }
+
+    const data = await res.json(); // BE trả về { newStatus: string }
+
+    // Chỉ cập nhật UI nếu BE xác nhận có đổi trạng thái
+    if (isApproved) {
+      setRooms((prev) =>
+        prev.map((room) =>
+          room.id === roomId ? { ...room, condition: data.newStatus } : room
+        )
+      );
+    }
+
+    alert(isApproved ? "Xác nhận phòng thành công!" : "Đã từ chối yêu cầu!");
   } catch (err: any) {
     alert("Lỗi: " + err.message);
   }
@@ -111,7 +125,7 @@ export function RoomInspectionStatus() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra tình trạng phòng</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Kiểm tra trạng thái phòng</h1>
       </div>
 
       {/* Search - Tích hợp y hệt đoạn code mẫu của bạn */}
@@ -186,12 +200,14 @@ export function RoomInspectionStatus() {
 
                 <div className="flex gap-3">
                   <button
+                    onClick={() => handleReviewRoom(room.id, true)}
                     className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Xác nhận
                   </button>
 
                   <button
+                    onClick={() => handleReviewRoom(room.id, false)}
                     className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
                   >
                     Từ chối

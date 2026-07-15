@@ -6,5 +6,5 @@ public interface IRoomInspectionStatusService
 {
     Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter);
 
-    Task<bool> ConfirmRoomStatusAsync(string roomId);
+    Task<ReviewRoomStatusResultDto> ReviewRoomStatusAsync(string roomId, bool isApproved);
 }

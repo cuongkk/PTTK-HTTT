@@ -18,6 +18,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
         var query = _db.Rooms
             .Include(r => r.Branch)
             .Include(r => r.Beds)
+            .Where(c => c.Status == "cho_quan_ly_xac_nhan_coc")
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(filter.BranchId))
@@ -75,23 +76,23 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
         };
     }
 
-    public async Task<bool> ConfirmRoomStatusAsync(string roomId)
+    public async Task<ReviewRoomStatusResultDto> ReviewRoomStatusAsync(string roomId, bool isApproved)
     {
-        // 1. Tìm phòng trong DB
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == roomId);
-            
-        // Nếu không tìm thấy hoặc phòng đã "Trống" sẵn rồi thì trả về false (thất bại)
-        if (room == null || room.Status == "Trống")
+        if (room is null)
+            throw new KeyNotFoundException("Không tìm thấy phòng.");
+
+        if (isApproved)
         {
-            return false;
+            room.Status = "cho_khach_thanh_toan"; // TODO: đổi đúng tên enum member
+            await _db.SaveChangesAsync();
         }
+        // Nếu từ chối: không đổi gì, giữ nguyên trạng thái hiện tại
 
-        // 2. Cập nhật trạng thái
-        room.Status = "Trống";
-
-        // 3. Lưu xuống Database
-        var rowsAffected = await _db.SaveChangesAsync();
-            
-        return rowsAffected > 0;
+        return new ReviewRoomStatusResultDto
+        {
+            RoomId = room.RoomId,
+            NewStatus = MapCondition(room.Status) // dùng lại hàm MapStatus đã có
+        };
     }
 }

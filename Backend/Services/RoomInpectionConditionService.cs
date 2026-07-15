@@ -65,7 +65,8 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
                 RoomName = r.RoomName,
                 Building = r.Branch?.BranchName ?? r.BranchId,
                 Status = MapStatus(r.Status),
-                Tenant = tenantName
+                Tenant = tenantName,
+                ContractId = contractForRoom?.ContractId
             };
         }).ToList();
     }

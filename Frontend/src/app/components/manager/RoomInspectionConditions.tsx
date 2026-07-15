@@ -7,6 +7,7 @@ interface RoomCondition {
   building: string;
   status: string;
   tenant: string;
+  contractId?: string; 
 }
 
 export function RoomInspectionConditions() {
@@ -17,6 +18,7 @@ export function RoomInspectionConditions() {
   const [rooms, setRooms] = useState<RoomCondition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contractId, setContractId] = useState<string | null>(null); // State lưu trữ hợp đồng của phòng đang chọn
 
   // ---- State cho form kiểm tra ----
   const [overallCondition, setOverallCondition] = useState("Rất tốt (Excellent)");
@@ -53,6 +55,7 @@ export function RoomInspectionConditions() {
       })
       .then((data) => {
         setRooms(data);
+        console.log("Fetched rooms:", data);
         setLoading(false);
       })
       .catch((err) => {
@@ -71,12 +74,16 @@ export function RoomInspectionConditions() {
     );
   });
 
-  // Sửa lỗi: so sánh với state, không phải chuỗi literal
   const currentSelectedRoom = rooms.find((r) => r.roomID === selectedRoomId);
 
-  // Reset form về mặc định mỗi khi mở form cho phòng mới
+  // Reset form và lấy đúng thông tin phòng được chọn
   const openInspectionForm = (roomId: string) => {
+    const targetRoom = rooms.find((r) => r.roomID === roomId);
+    
     setSelectedRoomId(roomId);
+    // Lấy contractId từ phòng được chọn (nếu không có thì để null)
+    setContractId(targetRoom?.contractId ?? null); 
+    
     setOverallCondition("Rất tốt (Excellent)");
     setCleanliness("Sạch sẽ");
     setDamageNotes("");
@@ -101,7 +108,7 @@ export function RoomInspectionConditions() {
 
     try {
       const response = await fetch(
-        "http://localhost:5157/api/manager/room-inspection-condition",
+        "http://localhost:5157/api/manager/checkout-report",
         {
           method: "POST",
           headers: {
@@ -110,6 +117,7 @@ export function RoomInspectionConditions() {
           },
           body: JSON.stringify({
             roomId: currentSelectedRoom.roomID,
+            contractId, // Gửi contractId đang được lưu trong state
             overallCondition,
             cleanliness,
             damageNotes,
@@ -130,7 +138,6 @@ export function RoomInspectionConditions() {
       alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom.roomName}!`);
       setShowInspectionForm(false);
 
-      // Cập nhật lại trạng thái phòng trong danh sách mà không cần gọi lại toàn bộ API
       setRooms((prev) =>
         prev.map((r) =>
           r.roomID === currentSelectedRoom.roomID
@@ -251,6 +258,19 @@ export function RoomInspectionConditions() {
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmitInspection}>
+              {/* PHẦN SỬA LỖI: Hiển thị Hợp đồng thuê */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Hợp đồng thuê
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={contractId ?? "Không có thông tin hợp đồng"} // Đã sửa lỗi gán null và vô hiệu hóa sửa tay vì đây là thông tin đi theo phòng
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 outline-none"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tình trạng tổng thể

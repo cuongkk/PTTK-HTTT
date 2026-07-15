@@ -25,16 +25,19 @@ public class RoomInspectionsStatusController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("confirm/{id}")]
-    public async Task<IActionResult> ConfirmRoomStatus(string id)
+    [HttpPut("api/manager/room-inspections-status/review/{roomId}")]
+    public async Task<ActionResult<ReviewRoomStatusResultDto>> ReviewRoomStatus(
+        string roomId,
+        [FromBody] ReviewRoomStatusDto dto)
     {
-        var isSuccess = await _roomInspectionStatusService.ConfirmRoomStatusAsync(id);
-        
-        if (!isSuccess)
+        try
         {
-            return BadRequest(new { message = "Xác nhận thất bại! Phòng không tồn tại hoặc đã ở trạng thái Trống." });
+            var result = await _roomInspectionStatusService.ReviewRoomStatusAsync(roomId, dto.IsApproved);
+            return Ok(result);
         }
-
-        return Ok(new { message = "Xác nhận phòng trống thành công!", roomId = id });
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
     }
 }
