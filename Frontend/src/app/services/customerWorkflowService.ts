@@ -52,9 +52,14 @@ export interface DepositRequestDetail {
 
 export interface SubmitDepositRequest {
   primaryTenant: {
-    gender: string; nationality: string;
+    gender: string; nationality: string; documentType: string; documentNumber: string; documentImageUrl: string;
+    dateOfBirth: string; permanentAddress: string; occupationOrSchool: string; financialDocumentUrl?: string;
   };
-  accompanyingTenants: Array<{ fullName: string; gender: string; nationality: string }>;
+  accompanyingTenants: Array<{
+    fullName: string; gender: string; nationality: string; documentType: string; documentNumber: string;
+    documentImageUrl: string; dateOfBirth: string; permanentAddress: string; occupationOrSchool: string;
+    financialDocumentUrl?: string; relationshipToPrimary: string;
+  }>;
 }
 
 export interface CustomerRoomSummary {

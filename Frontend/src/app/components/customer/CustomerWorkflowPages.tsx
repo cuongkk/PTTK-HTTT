@@ -454,11 +454,26 @@ export function DepositRequest() {
         primaryTenant: {
           gender: String(form.get("gender")),
           nationality: String(form.get("nationality")),
+          documentType: String(form.get("documentType")),
+          documentNumber: String(form.get("documentNumber")),
+          documentImageUrl: "/demo/demo-document.png",
+          dateOfBirth: String(form.get("dateOfBirth")),
+          permanentAddress: String(form.get("permanentAddress")),
+          occupationOrSchool: String(form.get("occupationOrSchool")),
+          financialDocumentUrl: "/demo/demo-document.png",
         },
         accompanyingTenants: Array.from({ length: detail.viewedRoom.applicant.numberOfPeople - 1 }, (_, index) => ({
           fullName: String(form.get(`member-${index}-fullName`)),
           gender: String(form.get(`member-${index}-gender`)),
           nationality: String(form.get(`member-${index}-nationality`)),
+          documentType: String(form.get(`member-${index}-documentType`)),
+          documentNumber: String(form.get(`member-${index}-documentNumber`)),
+          documentImageUrl: "/demo/demo-document.png",
+          dateOfBirth: String(form.get(`member-${index}-dateOfBirth`)),
+          permanentAddress: String(form.get(`member-${index}-permanentAddress`)),
+          occupationOrSchool: String(form.get(`member-${index}-occupationOrSchool`)),
+          financialDocumentUrl: "/demo/demo-document.png",
+          relationshipToPrimary: String(form.get(`member-${index}-relationshipToPrimary`)),
         })),
       });
       setSubmitted(true);
@@ -530,48 +545,36 @@ export function DepositRequest() {
             </div>
           </Section>
           <Section title="Thông tin cần bổ sung để đặt cọc">
-            <div className="mb-6 overflow-x-auto rounded-xl border border-gray-200">
-              <table className="w-full min-w-[600px] text-sm">
-                <thead className="bg-gray-50 text-left text-gray-600">
-                  <tr>
-                    <th className="px-3 py-3">Họ và tên</th>
-                    <th className="px-3 py-3">Giới tính</th>
-                    <th className="px-3 py-3">Quốc tịch</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t border-gray-200 align-top">
-                    <td className="p-3">
-                      <input value={viewedRoom.applicant.fullName} readOnly className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5" />
-                    </td>
-                    <td className="p-3">
-                      <select name="gender" required defaultValue={viewedRoom.applicant.gender ?? "Nam"} className="w-full rounded-lg border border-gray-300 px-3 py-2.5">
-                        <option value="Nam">Nam</option>
-                        <option value="Nu">Nữ</option>
-                      </select>
-                    </td>
-                    <td className="p-3">
-                      <input name="nationality" required defaultValue={viewedRoom.applicant.nationality ?? "Việt Nam"} className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
-                    </td>
-                  </tr>
-                  {Array.from({ length: viewedRoom.applicant.numberOfPeople - 1 }, (_, index) => (
-                    <tr key={index} className="border-t border-gray-200 align-top">
-                      <td className="p-3">
-                        <input name={`member-${index}-fullName`} required className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
-                      </td>
-                      <td className="p-3">
-                        <select name={`member-${index}-gender`} required className="w-full rounded-lg border border-gray-300 px-3 py-2.5">
-                          <option value="Nam">Nam</option>
-                          <option value="Nu">Nữ</option>
-                        </select>
-                      </td>
-                      <td className="p-3">
-                        <input name={`member-${index}-nationality`} required defaultValue="Việt Nam" className="w-full rounded-lg border border-gray-300 px-3 py-2.5" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-5">
+              <div className="rounded-xl border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-900">Người đứng tên</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-medium">Họ và tên<input value={viewedRoom.applicant.fullName} readOnly className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium">Giới tính<select name="gender" required defaultValue={viewedRoom.applicant.gender ?? "Nam"} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="Nam">Nam</option><option value="Nu">Nữ</option></select></label>
+                  <label className="text-sm font-medium">Quốc tịch<input name="nationality" required defaultValue={viewedRoom.applicant.nationality ?? "Việt Nam"} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium">Loại giấy tờ<select name="documentType" required defaultValue={viewedRoom.applicant.documentType ?? "CCCD"} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="CCCD">CCCD</option><option value="HoChieu">Hộ chiếu</option></select></label>
+                  <label className="text-sm font-medium">Số giấy tờ<input name="documentNumber" required defaultValue={viewedRoom.applicant.documentNumber ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium">Ngày sinh<input name="dateOfBirth" type="date" required defaultValue={viewedRoom.applicant.dateOfBirth?.slice(0, 10) ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium md:col-span-2">Địa chỉ thường trú<input name="permanentAddress" required defaultValue={viewedRoom.applicant.permanentAddress ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium md:col-span-2">Nghề nghiệp/Trường học<input name="occupationOrSchool" required defaultValue={viewedRoom.applicant.occupationOrSchool ?? ""} className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                </div>
+              </div>
+              {Array.from({ length: viewedRoom.applicant.numberOfPeople - 1 }, (_, index) => (
+                <div key={index} className="rounded-xl border border-gray-200 p-4">
+                  <h3 className="font-semibold text-gray-900">Thành viên ở cùng {index + 1}</h3>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <label className="text-sm font-medium">Họ và tên<input name={`member-${index}-fullName`} required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium">Quan hệ với người đứng tên<input name={`member-${index}-relationshipToPrimary`} required placeholder="Ví dụ: Bạn cùng phòng" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium">Giới tính<select name={`member-${index}-gender`} required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="Nam">Nam</option><option value="Nu">Nữ</option></select></label>
+                    <label className="text-sm font-medium">Quốc tịch<input name={`member-${index}-nationality`} required defaultValue="Việt Nam" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium">Loại giấy tờ<select name={`member-${index}-documentType`} required defaultValue="CCCD" className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5"><option value="CCCD">CCCD</option><option value="HoChieu">Hộ chiếu</option></select></label>
+                    <label className="text-sm font-medium">Số giấy tờ<input name={`member-${index}-documentNumber`} required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium">Ngày sinh<input name={`member-${index}-dateOfBirth`} type="date" required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium">Nghề nghiệp/Trường học<input name={`member-${index}-occupationOrSchool`} required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                    <label className="text-sm font-medium md:col-span-2">Địa chỉ thường trú<input name={`member-${index}-permanentAddress`} required className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5" /></label>
+                  </div>
+                </div>
+              ))}
             </div>
           </Section>
         </div>

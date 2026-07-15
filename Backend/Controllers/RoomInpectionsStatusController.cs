@@ -1,0 +1,43 @@
+using Backend.Dtos;
+using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+
+namespace Backend.Controllers;
+
+[ApiController]
+[Authorize(Roles = "quan_ly")] 
+[Route("api/manager/room-inspections-status")]
+public class RoomInspectionsStatusController : ControllerBase
+{
+    private readonly IRoomInspectionStatusService _roomInspectionStatusService;
+
+    public RoomInspectionsStatusController(IRoomInspectionStatusService roomInspectionStatusService)
+    {
+        _roomInspectionStatusService = roomInspectionStatusService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetRoomStatuses([FromQuery] RoomStatusFilterRequest filter)
+    {
+        var result = await _roomInspectionStatusService.GetRoomStatusesAsync(filter);
+        return Ok(result);
+    }
+
+    [HttpPut("api/manager/room-inspections-status/review/{roomId}")]
+    public async Task<ActionResult<ReviewRoomStatusResultDto>> ReviewRoomStatus(
+        string roomId,
+        [FromBody] ReviewRoomStatusDto dto)
+    {
+        try
+        {
+            var result = await _roomInspectionStatusService.ReviewRoomStatusAsync(roomId, dto.IsApproved);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+}

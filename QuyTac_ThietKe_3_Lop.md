@@ -258,3 +258,66 @@ MH<TenChucNang>
 - [ ] Không có tiêu đề tầng, tiêu đề sơ đồ hoặc nhãn trên đường nối.
 - [ ] Sơ đồ được bố trí theo chiều dọc và tối giản.
 - [ ] File `.drawio` mở được và chỉnh sửa được từng thành phần.
+
+## 10. Quy tắc rà soát thừa
+
+- Mỗi màn hình có thể sử dụng nhiều lớp nghiệp vụ khi chức năng thật sự phải đọc hoặc ghi nhiều đối tượng.
+- Mỗi lớp `DB` bắt buộc phải có đúng một lớp nghiệp vụ tương ứng ở phía trên.
+- Không nối lớp màn hình trực tiếp xuống lớp `DB`.
+- Không tạo một lớp nghiệp vụ tổng hợp chỉ để nối trực tiếp xuống nhiều lớp `DB` không tương ứng.
+- Mỗi bảng hoặc entity được đọc/ghi phải có một cặp `LopNghiepVu → LopNghiepVuDB`. Không gom phương thức truy cập nhiều bảng khác nhau vào một lớp `DB`.
+- Không đưa `Controller`, `Service`, `AppDbContext`, `Entity`, `API` vào sơ đồ 3 lớp tối giản.
+- Mã dùng để truy vết khi đi giữa các màn hình phải ghi rõ trong tham số: `maHoSo`, `maLich`, `maPhong`, `maGiuong`; không truyền cả đối tượng.
+- Màn hiển thông tin chỉ cần `HienThi(ma...)`; màn có cập nhật trạng thái mới có thêm phương thức `CapNhat...`.
+
+## 11. Xác định dữ liệu trước khi vẽ
+
+Trước khi tạo sơ đồ phải đọc giao diện, luồng nghiệp vụ và các bảng dữ liệu thật. Xác định lần lượt bốn nhóm sau:
+
+1. **Dữ liệu đầu vào**
+   - Mã nhận từ route, phiên đăng nhập hoặc màn hình trước.
+   - Các giá trị người dùng nhập, chọn hoặc xác nhận trên giao diện.
+2. **Dữ liệu cần hiển thị**
+   - Chỉ liệt kê control và `lbl...` thật sự xuất hiện trên màn hình.
+   - Dữ liệu kết quả do hệ thống sinh ra phải có thuộc tính nghiệp vụ và control hiển thị tương ứng.
+3. **Dữ liệu cần lấy ra để thực hiện chức năng**
+   - Xác định rõ từng bảng cần đọc và mỗi phương thức `Doc...` tương ứng.
+   - Không thêm thao tác đọc chỉ vì dữ liệu có trong CSDL; chỉ thêm khi luồng hiện tại thật sự sử dụng.
+4. **Dữ liệu cần lưu xuống CSDL**
+   - Xác định từng bảng được thêm, cập nhật hoặc xóa.
+   - Lớp nghiệp vụ phải có đủ các thuộc tính được lưu.
+   - Mỗi lớp `DB` chỉ chứa phương thức truy cập bảng tương ứng.
+
+Không suy diễn dữ liệu từ tên màn hình. Nếu giao diện không hiển thị, backend không đọc hoặc không ghi trường đó thì không đưa vào sơ đồ.
+
+## 12. Quy tắc đường nối draw.io
+
+- Dùng connector UML **Aggregation 2** để nối các khối.
+- Đầu hình thoi rỗng đặt ở phía lớp sử dụng lớp còn lại.
+- Nối lớp màn hình với từng lớp nghiệp vụ mà màn hình sử dụng.
+- Nối mỗi lớp nghiệp vụ với đúng một lớp `DB` cùng đối tượng.
+- Không nối một lớp nghiệp vụ xuống nhiều lớp `DB` của các đối tượng khác nhau.
+- Không ghi nhãn trên đường nối.
+- Kiểu draw.io tương ứng: `startArrow=diamondThin;startFill=0;endArrow=none`.
+
+## 13. Dữ liệu phiên đăng nhập và dữ liệu truyền giữa màn hình
+
+- `MaTaiKhoan` và `MaKhachHang` đã có trong phiên đăng nhập không phải là control của màn hình.
+- Không ghi `maTaiKhoan` hoặc `maKhachHang` vào tham số `HienThi(...)` nếu người dùng không truyền các mã này qua route.
+- Màn hình đầu của luồng có thể dùng `TaiKhoan → TaiKhoanDB` để xác định khách hàng hiện tại.
+- Màn hình con được mở từ màn hình trước phải nhận mã định danh cụ thể như `maLich`, `maHoSo`, `maPhong` hoặc `maHopDong`.
+- Không vẽ lại chuỗi `TaiKhoan → TaiKhoanDB` trong mọi màn hình con chỉ để lấy lại thông tin đã có trong phiên.
+- Việc kiểm tra dữ liệu có thuộc người dùng hiện tại hay không được biểu diễn bằng phương thức nghiệp vụ như `KiemTraThuocKhachHang(...)`, không cần thêm control tài khoản trên giao diện.
+- Khi điều hướng chỉ truyền các mã mà màn đích cần. Không truyền tên hiển thị hoặc toàn bộ đối tượng.
+
+## 14. Tách màn hình theo trạng thái nghiệp vụ
+
+- Hai giao diện dùng chung component hoặc route vẫn phải tách thành hai sơ đồ nếu chúng phục vụ hai chức năng nghiệp vụ khác nhau.
+- Mỗi sơ đồ chỉ chứa control, dữ liệu và thao tác ứng với trạng thái của màn đó.
+- Ví dụ: trạng thái `sap_den` thuộc màn Xem lịch; trạng thái `dang_xem` và `hoan_thanh` thuộc màn Xem nội quy, giá thuê.
+
+## 15. Đặt tên lớp cho bảng liên kết
+
+- Có thể dùng tên nghiệp vụ dễ hiểu thay cho tên bảng vật lý khó đọc.
+- Ví dụ: bảng `lich_xem_phong_phong` được biểu diễn bằng `PhongTrongLichXem` và `PhongTrongLichXemDB`.
+- Tên lớp nghiệp vụ và lớp `DB` phải thống nhất với nhau.
