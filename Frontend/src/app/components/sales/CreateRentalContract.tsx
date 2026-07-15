@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { FileText, ArrowLeft, CheckCircle, AlertCircle, Sparkles, Search } from "lucide-react";
+import { FileText, ArrowLeft, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 import { salesApi } from "../../services/sales/salesApi";
 import { toast } from "sonner";
 
 export function CreateRentalContract() {
   const navigate = useNavigate();
   const location = useLocation();
+  const backToTransactions = () => navigate("/sales/registrations?tab=contracts");
 
   const [rentalForm, setRentalForm] = useState({
     depositRef: "",
@@ -51,36 +52,6 @@ export function CreateRentalContract() {
     }
   }, [location.search]);
 
-  // Search deposit contract manually
-  const handleSearchDeposit = async () => {
-    if (!rentalForm.depositRef.trim()) {
-      toast.warning("Vui lòng nhập mã hợp đồng cọc để tra cứu.");
-      return;
-    }
-    try {
-      const slips = await salesApi.getDepositSlips();
-      const found = slips.find(
-        (d) => d.depositId.toLowerCase() === rentalForm.depositRef.trim().toLowerCase()
-      );
-
-      if (found) {
-        setRentalForm((prev) => ({
-          ...prev,
-          customer: found.customerName,
-          phone: found.phoneNumber,
-          room: found.roomName,
-          monthlyRent: found.depositAmount.toString(),
-          moveInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        }));
-        toast.success(`Đã tìm thấy hợp đồng cọc ${found.depositId} và tự động điền thông tin!`);
-      } else {
-        toast.error("Không tìm thấy hợp đồng đặt cọc tương ứng hoặc trạng thái chưa được kế toán xác nhận.");
-      }
-    } catch (err) {
-      toast.error("Lỗi khi tra cứu hợp đồng cọc.");
-    }
-  };
-
   const handleCreateRental = async () => {
     const { depositRef, moveInDate, duration, monthlyRent, paymentCycle, services } = rentalForm;
     if (!depositRef || !moveInDate || !monthlyRent) {
@@ -100,7 +71,7 @@ export function CreateRentalContract() {
       });
 
       toast.success(`Đã lập hợp đồng thuê ${result.contractId} thành công!\nThông tin đã được chuyển sang Kế toán để tính khoản thu nhận phòng đầu kỳ.`);
-      navigate("/sales/contracts");
+      backToTransactions();
     } catch (err) {
       toast.error("Lập hợp đồng thuê thất bại.");
     }
@@ -111,10 +82,10 @@ export function CreateRentalContract() {
       {/* Breadcrumb / Back button */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate("/sales/contracts")}
+          onClick={backToTransactions}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Quay lại Tra cứu hợp đồng
+          <ArrowLeft className="w-4 h-4" /> Quay lại Xử lý giao dịch
         </button>
         <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 rounded-full text-blue-700 text-xs font-semibold border border-blue-100">
           <Sparkles className="w-3.5 h-3.5" />
@@ -129,7 +100,7 @@ export function CreateRentalContract() {
             Lập hợp đồng thuê
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Chuyển từ hợp đồng cọc sang hợp đồng thuê chính thức và chuẩn bị thủ tục nhận phòng.
+            Chuyển từ phiếu cọc sang hợp đồng thuê chính thức và chuẩn bị thủ tục nhận phòng.
           </p>
         </div>
 
@@ -143,7 +114,7 @@ export function CreateRentalContract() {
                 <p><strong>Bên cho thuê:</strong> Hệ thống RoomManager</p>
                 <p><strong>Bên thuê phòng:</strong> {rentalForm.customer}</p>
                 <p><strong>Số điện thoại:</strong> {rentalForm.phone}</p>
-                <p><strong>Hợp đồng đặt cọc tham chiếu:</strong> {rentalForm.depositRef}</p>
+                <p><strong>Phiếu đặt cọc tham chiếu:</strong> {rentalForm.depositRef}</p>
                 <p><strong>Phòng/giường thuê:</strong> {rentalForm.room}</p>
                 <p><strong>Ngày bắt đầu vào ở:</strong> {rentalForm.moveInDate ? new Date(rentalForm.moveInDate).toLocaleDateString("vi-VN") : ""}</p>
                 <p><strong>Thời hạn hợp đồng:</strong> {rentalForm.duration} tháng</p>
@@ -177,25 +148,17 @@ export function CreateRentalContract() {
             </p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mã hợp đồng đặt cọc tham chiếu <span className="text-red-500">*</span>
+                Mã phiếu đặt cọc tham chiếu <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
-                <input
-                  value={rentalForm.depositRef}
-                  onChange={(e) => rf("depositRef", e.target.value)}
-                  placeholder="Nhập mã đặt cọc (Vd: DCxxxxxxxxxx)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchDeposit}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5"
-                >
-                  <Search className="w-4 h-4" /> Tìm cọc
-                </button>
-              </div>
+              <input
+                value={rentalForm.depositRef}
+                onChange={(e) => rf("depositRef", e.target.value)}
+                placeholder="Tự lấy từ phiếu cọc đã chọn"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+                disabled
+              />
               <p className="text-[11px] text-gray-400 mt-1">
-                Nhập mã hợp đồng cọc và bấm "Tìm cọc" để tự động tải thông tin khách hàng và phòng thuê.
+                Hệ thống tự tải thông tin khách hàng và phòng thuê từ phiếu cọc đã chọn.
               </p>
             </div>
 
@@ -302,7 +265,7 @@ export function CreateRentalContract() {
             <div className="flex gap-3 pt-3 border-t">
               <button
                 type="button"
-                onClick={() => navigate("/sales/contracts")}
+                onClick={backToTransactions}
                 className="flex-1 px-4 py-2 border border-gray-300 hover:bg-gray-50 rounded-lg text-sm font-medium text-gray-700 transition-colors"
               >
                 Hủy

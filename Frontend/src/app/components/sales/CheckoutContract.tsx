@@ -91,7 +91,7 @@ export function CheckoutContract() {
       });
 
       toast.success("Hệ thống đã ghi nhận yêu cầu trả phòng thành công!\nTrạng thái lưu: \"Chờ kiểm tra hiện trạng\" (Quản lý sẽ kiểm tra tài sản).\nĐã tự động gửi thông báo lịch hẹn trả phòng cho khách hàng.");
-      navigate("/sales/contracts");
+      navigate("/sales/registrations?tab=checkout");
     } catch (err) {
       toast.error("Gửi yêu cầu trả phòng thất bại.");
     }
@@ -102,7 +102,7 @@ export function CheckoutContract() {
       {/* Breadcrumb / Back button */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate("/sales/contracts")}
+          onClick={() => navigate("/sales/registrations?tab=checkout")}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Quay lại Tra cứu hợp đồng
@@ -163,14 +163,15 @@ export function CheckoutContract() {
                   <p><strong>Ngày vào ở:</strong> {new Date(foundContract.moveInDate).toLocaleDateString("vi-VN")}</p>
                   <p><strong>Giá thuê/tháng:</strong> {foundContract.monthlyRent.toLocaleString("vi-VN")} đ</p>
                   <p className="col-span-2">
-                    <strong>Trạng thái:</strong>{" "}
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${foundContract.status === "hieu_luc"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-orange-100 text-orange-700"
-                        }`}
-                    >
-                      {foundContract.status === "hieu_luc" ? "Hiệu lực" : foundContract.status === "cho_tra_phong" ? "Chờ trả phòng" : foundContract.status}
+                    <strong>Trạng thái:</strong>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${foundContract.status === "hieu_luc"
+                      ? "bg-green-100 text-green-700"
+                      : foundContract.status === "cho_tra_phong"
+                      ? "bg-orange-100 text-orange-700"
+                      : "bg-gray-100 text-gray-700"}`}>
+                      {foundContract.status === "hieu_luc" ? "Hiệu lực"
+                        : foundContract.status === "cho_tra_phong" ? "Chờ trả phòng"
+                        : foundContract.status}
                     </span>
                   </p>
                 </div>
