@@ -21,6 +21,7 @@ interface Contract {
   checkInDate: string;
   checkOutDate: string;
   tenants: Tenant[];
+  ApplicationId: string;
 }
 
 export function TenantVerification() {
@@ -35,8 +36,7 @@ export function TenantVerification() {
 
   
 
-  // useEffect to fetch contracts awaiting verification
-  useEffect(() => {
+  const fetchContracts = () => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
       setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
@@ -44,6 +44,7 @@ export function TenantVerification() {
       return;
     }
 
+    setLoading(true);
     fetch("http://localhost:5157/api/manager/tenant-verifications", {
       method: "GET",
       headers: {
@@ -69,18 +70,64 @@ export function TenantVerification() {
         setError(err.message);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchContracts();
   }, []);
 
   
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  const handleReview = async (contractId: string, isApproved: boolean, reason?: string) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
+      return;
+    }
+
+    setIsReviewing(true);
+    try {
+      const res = await fetch(
+        `http://localhost:5157/api/manager/tenant-verifications/review/${contractId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isApproved }),
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(errText || "Cập nhật trạng thái thất bại!");
+      }
+
+      alert(
+        isApproved
+          ? `Đã phê duyệt hợp đồng ${contractId}!`
+          : `Đã từ chối hợp đồng ${contractId}${reason ? `. Lý do: ${reason}` : ""}`
+      );
+      setShowDetail(false);
+      setSelectedContract(null);
+      fetchContracts(); // load lại danh sách — cần tách fetch trong useEffect thành hàm riêng, giống deposit confirmation
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Có lỗi xảy ra, vui lòng thử lại");
+    } finally {
+      setIsReviewing(false);
+    }
+  };
 
   const handleApprove = (id: string) => {
-    alert(`Đã phê duyệt khách thuê số ${id}!`);
+    handleReview(id, true);
   };
 
   const handleReject = (id: string) => {
     const reason = prompt("Lý do từ chối hồ sơ:");
     if (reason) {
-      alert(`Đã từ chối khách thuê số ${id}. Lý do: ${reason}`);
+      handleReview(id, false, reason);
     }
   };
 
@@ -90,12 +137,8 @@ export function TenantVerification() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Xác nhận thuê phòng
-        </h1>
-
-        <p className="text-gray-600">
           Kiểm tra điều kiện lưu trú và ký hợp đồng thuê
-        </p>
+        </h1>
       </div>
       
       {/* Search / Filters */}

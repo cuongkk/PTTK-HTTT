@@ -26,9 +26,7 @@ public class DepositConfirmationController : ControllerBase
     }
 
     [HttpPut("review/{depositId}")]
-    public async Task<ActionResult<object>> ReviewDeposit(
-        string depositId,
-        [FromBody] ReviewDepositDto dto)
+    public async Task<ActionResult<object>> ReviewDeposit(string depositId, [FromBody] ReviewDepositDto dto)
     {
         try
         {

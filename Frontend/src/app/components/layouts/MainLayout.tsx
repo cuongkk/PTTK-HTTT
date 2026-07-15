@@ -197,10 +197,8 @@ export function MainLayout() {
       { name: "Trang chủ", path: "/manager", icon: Home },
       { name: "Kiểm tra trạng thái phòng", path: "/manager/inspection-status", icon: ClipboardList },
       { name: "Kiểm tra tình trạng phòng", path: "/manager/inspection-conditions", icon: ClipboardList },
-      { name: "Xác nhận tiền cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
-      //{ name: "Xác nhận thuê phòng", path: "/manager/contract-approval", icon: FileCheck },
-      { name: "Ký hợp đồng thuê", path: "/manager/tenant-verification", icon: UserCheck },
-      //{ name: "Thanh lý hợp đồng thuê", path: "/manager/liquidation", icon: ClipboardCheck },
+      { name: "Xác nhận hoàn cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
+      { name: "Kiểm tra điều kiện lưu trú", path: "/manager/tenant-verification", icon: UserCheck },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },

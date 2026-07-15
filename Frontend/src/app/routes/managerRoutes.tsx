@@ -7,7 +7,6 @@ import { DepositConfirmation } from "../components/manager/DepositConfirmation";
 // Các component hiện tại
 import { ContractApproval } from "../components/manager/ContractApproval";
 import { TenantVerification } from "../components/manager/TenantVerification";
-import { ContractLiquidation } from "../components/manager/ContractLiquidation";
 import { NotificationCenter } from "../components/notifications/NotificationCenter";
 
 export const managerRoutes: RouteObject = { 
@@ -25,7 +24,6 @@ export const managerRoutes: RouteObject = {
     // Giữ nguyên các trang còn lại
     //{ path: "contract-approval", Component: ContractApproval }, 
     { path: "tenant-verification", Component: TenantVerification },
-    { path: "liquidation", Component: ContractLiquidation }, 
     { path: "notifications", Component: NotificationCenter },
   ] 
 };

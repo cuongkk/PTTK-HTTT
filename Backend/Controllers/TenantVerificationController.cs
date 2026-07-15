@@ -23,4 +23,23 @@ public class TenantVerificationController : ControllerBase
         var result = await _tenantVerificationService.GetTenantVerificationsAsync();
         return Ok(result);
     }
+
+    [HttpPut("review/{contractId}")]
+    public async Task<ActionResult<object>> ReviewTenantVerification(string contractId, [FromBody] ReviewTenantVerificationDto dto)
+    {
+        try
+        {
+            var newStatus = await _tenantVerificationService.ReviewTenantVerificationAsync(contractId, dto.IsApproved);
+            return Ok(new { applicationStatus = newStatus });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
 }

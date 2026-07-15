@@ -18,6 +18,7 @@ public class DepositConfirmationService : IDepositConfirmationService
     public async Task<List<DepositConfirmationDto>> GetDepositConfirmationsAsync()
     {
         var deposits = await _db.DepositSlips
+            .Where(d => d.Status == "dang_xac_nhan_hoan_coc")
             .Include(d => d.Application)
                 .ThenInclude(a => a.Customer)
             .Include(d => d.Application)
@@ -75,6 +76,10 @@ public class DepositConfirmationService : IDepositConfirmationService
                         .FirstOrDefaultAsync(r => r.RoomId == roomId);
             }
 
+            // Chỉ giữ lại deposit mà phòng liên quan đang ở trạng thái chờ hoàn cọc
+            if (room is null || room.Status != "cho_hoan_coc")
+            continue;
+
             var branch = room?.Branch?.BranchName ?? "";
             var bedText = relatedBeds.Any()
                 ? string.Join(", ", relatedBeds.Select(b => $"Giường {b.BedNumber}"))
@@ -126,41 +131,17 @@ public class DepositConfirmationService : IDepositConfirmationService
     public async Task<string> ReviewDepositAsync(string depositId, bool isApproved)
     {
         var deposit = await _db.DepositSlips
-            .Include(d => d.Application)
-                .ThenInclude(a => a.DesiredRoom)
-            .Include(d => d.Contract)
-                .ThenInclude(c => c.Room)
-            .Include(d => d.Beds)
             .FirstOrDefaultAsync(d => d.DepositId == depositId);
 
         if (deposit is null)
             throw new KeyNotFoundException("Không tìm thấy phiếu đặt cọc.");
 
-        // 1. Ưu tiên lấy room từ bed liên kết trực tiếp
-        Room? room = null;
-        var bedId = deposit.Beds.FirstOrDefault()?.BedId;
-        if (bedId is not null)
-        {
-            var bed = await _db.Beds.FirstOrDefaultAsync(b => b.BedId == bedId);
-            if (bed is not null)
-                room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == bed.RoomId);
-        }
-
-        // 2. Fallback: lấy từ Contract
-        room ??= deposit.Contract?.Room;
-
-        // 3. Fallback: lấy từ Application.DesiredRoom
-        room ??= deposit.Application?.DesiredRoom;
-
-        if (room is null)
-            throw new InvalidOperationException("Không xác định được phòng cho phiếu cọc này.");
-
-        room.Status = isApproved
-            ? "du_dieu_kien_nhan_phong"
-            : "khong_du_dieu_kien_nhan_phong";
+        deposit.Status = isApproved
+            ? "cho_doi_soat_hoan_coc"
+            : "huy";   // TODO: xác nhận lại giá trị đúng cho trường hợp từ chối
 
         await _db.SaveChangesAsync();
 
-        return room.Status;
+        return deposit.Status;
     }
 }

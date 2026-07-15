@@ -25,6 +25,9 @@ public class TenantVerificationService : ITenantVerificationService
             .Include(c => c.Deposit)
                 .ThenInclude(d => d.Application)
                     .ThenInclude(a => a.TenantMembers)
+            .Where(c => c.Room != null 
+                        && c.Room.Status == "da_dat_coc" 
+                        && c.Status == "cho_quan_ly_duyet_nhan_phong")
             .ToListAsync();
 
         var customerIds = contracts
@@ -92,7 +95,31 @@ public class TenantVerificationService : ITenantVerificationService
                 CheckInDate = c.StartDate.ToString("dd/MM/yyyy"),
                 CheckOutDate = c.EndDate?.ToString("dd/MM/yyyy") ?? "",
                 Tenants = tenants,
+                ApplicationId = c.Deposit?.Application?.ApplicationId,
             };
         }).ToList();
+    }
+
+    public async Task<string> ReviewTenantVerificationAsync(string contractId, bool isApproved)
+    {
+        var contract = await _db.RentalContracts
+            .Include(c => c.Deposit)
+                .ThenInclude(d => d.Application)
+            .FirstOrDefaultAsync(c => c.ContractId == contractId);
+
+        if (contract is null)
+            throw new KeyNotFoundException("Không tìm thấy hợp đồng.");
+
+        var application = contract.Deposit?.Application;
+        if (application is null)
+            throw new InvalidOperationException("Không xác định được hồ sơ đăng ký cho hợp đồng này.");
+
+        application.Status = isApproved
+            ? "du_dieu_kien_nhan_phong"
+            : "khong_du_dieu_kien_nhan_phong";
+
+        await _db.SaveChangesAsync();
+
+        return application.Status;
     }
 }

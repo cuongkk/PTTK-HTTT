@@ -30,7 +30,7 @@ export function DepositConfirmation() {
   const [error, setError] = useState<string | null>(null);
 
   // 2. Gọi API lấy danh sách xác nhận cọc khi load trang
-  useEffect(() => {
+  const fetchDeposits = () => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
       setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
@@ -38,7 +38,7 @@ export function DepositConfirmation() {
       return;
     }
 
-    // Thay đổi đường dẫn URL phù hợp với API thực tế của backend của bạn
+    setLoading(true);
     fetch("http://localhost:5157/api/manager/deposit-confirmation", {
       method: "GET",
       headers: {
@@ -56,14 +56,17 @@ export function DepositConfirmation() {
         return res.json();
       })
       .then((data) => {
-        setDeposits(data); // Đổ dữ liệu từ API vào state
-        console.log("Dữ liệu đặt cọc nhận về:", data);
+        setDeposits(data);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchDeposits();
   }, []);
 
 
@@ -103,6 +106,7 @@ export function DepositConfirmation() {
           : `Từ chối chứng từ mã: ${depositId}`
       );
       setSelectedDeposit(null);
+      fetchDeposits(); // thêm dòng này — load lại danh sách mới nhất từ BE
     } catch (err) {
       alert(err instanceof Error ? err.message : "Có lỗi xảy ra, vui lòng thử lại");
     } finally {

@@ -17,26 +17,35 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
 
     public async Task<List<RoomConditionDto>> GetRoomConditionsAsync()
     {
-        var rooms = await _db.Rooms
-            .Include(r => r.Branch)
-            .ToListAsync();
+        // LỌC TRỰC TIẾP TỪ DATABASE: Phòng Đang thuê + Hợp đồng Chờ kiểm tra phòng + Yêu cầu trả phòng Chờ kiểm tra
+        var query = from r in _db.Rooms.Include(r => r.Branch)
+                    // 1. Điều kiện Phòng: dang_thue
+                    where r.Status == RoomBedStatus.Rented 
 
-        var contracts = await _db.RentalContracts
-            .Include(c => c.Customer)
-            .Include(c => c.TenantMembers)
-            .Where(c => c.RoomId != null)
-            .ToListAsync();
+                    // 2. Join với Hợp đồng thỏa mãn: có phòng và trạng thái là cho_kiem_tra_phong
+                    join c in _db.RentalContracts.Include(c => c.Customer).Include(c => c.TenantMembers)
+                    on r.RoomId equals c.RoomId
+                    where c.Status == "cho_kiem_tra_phong" // Đổi thành Enum nếu c.Status là Enum
 
-        var contractByRoomId = contracts
-            .GroupBy(c => c.RoomId)
-            .Select(g => g.OrderByDescending(c => c.StartDate).First())
-            .ToDictionary(c => c.RoomId, c => c);
+                    // 3. Join với Yêu cầu trả phòng thỏa mãn: trạng thái là cho_kiem_tra
+                    join cr in _db.CheckoutRequests
+                    on c.ContractId equals cr.ContractId
+                    where cr.Status == "cho_kiem_tra"
+
+                    select new { Room = r, Contract = c };
+
+        // Lấy dữ liệu đã lọc về RAM
+        var filteredResults = await query.ToListAsync();
+
+        // Lấy danh sách ID phòng đã lọc để đi query thông tin lịch hẹn (nếu cần giống logic cũ)
+        var roomIds = filteredResults.Select(x => x.Room.RoomId).ToList();
 
         var roomCustomerLinks = await (
             from a in _db.RentalApplications
             join c in _db.Customers on a.CustomerId equals c.CustomerId
             join s in _db.RoomViewingSchedules on a.ApplicationId equals s.ApplicationId
             join sr in _db.RoomViewingScheduleRooms on s.ScheduleId equals sr.ScheduleId
+            where roomIds.Contains(sr.RoomId) // Chỉ lấy các phòng nằm trong danh sách đã lọc
             select new { sr.RoomId, CustomerName = c.FullName, AppointmentAt = s.AppointmentAt }
         ).ToListAsync();
 
@@ -45,26 +54,25 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
             .Select(g => g.OrderByDescending(x => x.AppointmentAt).First())
             .ToDictionary(x => x.RoomId, x => x.CustomerName);
 
-        return rooms.Select(r =>
+        // Map kết quả ra DTO
+        return filteredResults.Select(x =>
         {
-            var contractForRoom = contractByRoomId.GetValueOrDefault(r.RoomId);
-            var tenantName = string.Empty;
+            var r = x.Room;
+            var contractForRoom = x.Contract;
 
-            if (r.Status == RoomBedStatus.Rented || r.Status == RoomBedStatus.Deposited)
-            {
-                tenantName = contractForRoom?.Customer?.FullName
-                    ?? contractForRoom?.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contractForRoom.CustomerId)?.FullName
-                    ?? contractForRoom?.TenantMembers.FirstOrDefault()?.FullName
-                    ?? applicationCustomerByRoomId.GetValueOrDefault(r.RoomId)
-                    ?? "";
-            }
+            // Lấy tên người thuê
+            var tenantName = contractForRoom?.Customer?.FullName
+                ?? contractForRoom?.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contractForRoom.CustomerId)?.FullName
+                ?? contractForRoom?.TenantMembers.FirstOrDefault()?.FullName
+                ?? applicationCustomerByRoomId.GetValueOrDefault(r.RoomId)
+                ?? "";
 
             return new RoomConditionDto
             {
                 RoomID = r.RoomId,
                 RoomName = r.RoomName,
                 Building = r.Branch?.BranchName ?? r.BranchId,
-                Status = MapStatus(r.Status),
+                Status = "cho_kiem_tra_phong", // Điền thẳng trạng thái mong muốn vì đã qua bộ lọc chuẩn
                 Tenant = tenantName,
                 ContractId = contractForRoom?.ContractId
             };
@@ -84,38 +92,6 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
             _ => "Không xác định"
         };
     }
-
-    // public async Task<RoomInspectionResultDto> CreateRoomInspectionAsync(
-    //     CreateRoomInspectionDto dto,
-    //     string inspectedByEmployeeId)
-    // {
-    //     var roomExists = await _db.Rooms.AnyAsync(r => r.RoomId == dto.RoomId);
-    //     if (!roomExists)
-    //         throw new KeyNotFoundException("Không tìm thấy phòng.");
-
-    //     var inspection = new RoomInspection
-    //     {
-    //         RoomId = dto.RoomId,
-    //         InspectedByEmployeeId = inspectedByEmployeeId,
-    //         OverallCondition = dto.OverallCondition,
-    //         Cleanliness = dto.Cleanliness,
-    //         DamageNotes = dto.DamageNotes,
-    //         EstimatedCost = dto.EstimatedCost,
-    //         NeedMaintenance = dto.NeedMaintenance,
-    //         InspectedAt = DateTime.UtcNow
-    //     };
-
-    //     _db.RoomInspections.Add(inspection);
-    //     await _db.SaveChangesAsync();
-
-    //     return new RoomInspectionResultDto
-    //     {
-    //         InspectionId = inspection.Id,
-    //         RoomId = inspection.RoomId,
-    //         InspectedAt = inspection.InspectedAt
-    //     };
-    // }
-
 
 
 }

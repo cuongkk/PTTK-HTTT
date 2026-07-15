@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { ClipboardList, Building2, Camera, Search, X } from "lucide-react";
+import { ClipboardList, Building2, Camera, Search, X, CheckCircle2 } from "lucide-react";
 
 interface RoomCondition {
   roomID: string;
   roomName: string;
   building: string;
-  status: string;
+  status: string; // Đồng bộ chuẩn xác theo chuỗi trạng thái từ Backend
   tenant: string;
   contractId?: string; 
 }
@@ -18,7 +18,7 @@ export function RoomInspectionConditions() {
   const [rooms, setRooms] = useState<RoomCondition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [contractId, setContractId] = useState<string | null>(null); // State lưu trữ hợp đồng của phòng đang chọn
+  const [contractId, setContractId] = useState<string | null>(null);
 
   // ---- State cho form kiểm tra ----
   const [overallCondition, setOverallCondition] = useState("Rất tốt (Excellent)");
@@ -54,8 +54,7 @@ export function RoomInspectionConditions() {
         return res.json();
       })
       .then((data) => {
-        setRooms(data);
-        console.log("Fetched rooms:", data);
+        setRooms(data); // Nhận dữ liệu thô chuẩn từ BE
         setLoading(false);
       })
       .catch((err) => {
@@ -76,12 +75,10 @@ export function RoomInspectionConditions() {
 
   const currentSelectedRoom = rooms.find((r) => r.roomID === selectedRoomId);
 
-  // Reset form và lấy đúng thông tin phòng được chọn
   const openInspectionForm = (roomId: string) => {
     const targetRoom = rooms.find((r) => r.roomID === roomId);
     
     setSelectedRoomId(roomId);
-    // Lấy contractId từ phòng được chọn (nếu không có thì để null)
     setContractId(targetRoom?.contractId ?? null); 
     
     setOverallCondition("Rất tốt (Excellent)");
@@ -117,7 +114,7 @@ export function RoomInspectionConditions() {
           },
           body: JSON.stringify({
             roomId: currentSelectedRoom.roomID,
-            contractId, // Gửi contractId đang được lưu trong state
+            contractId, 
             overallCondition,
             cleanliness,
             damageNotes,
@@ -130,18 +127,23 @@ export function RoomInspectionConditions() {
       if (response.status === 401 || response.status === 403) {
         throw new Error("Bạn không có quyền thực hiện chức năng này!");
       }
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.message ?? "Lưu biên bản kiểm tra thất bại!");
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result || result.success === false || result.Success === false) {
+        const serverMessage = result?.message || result?.Message;
+        throw new Error(serverMessage ?? "Lưu biên bản kiểm tra thất bại!");
       }
 
-      alert(`Đã lưu kết quả kiểm tra cho ${currentSelectedRoom.roomName}!`);
+      alert(result.message || result.Message || `Đã lưu kết quả kiểm tra cho ${currentSelectedRoom.roomName}!`);
+      
       setShowInspectionForm(false);
 
+      // Cập nhật lại status sang trạng thái mới sau khi BE xử lý thành công
       setRooms((prev) =>
         prev.map((r) =>
           r.roomID === currentSelectedRoom.roomID
-            ? { ...r, status: overallCondition === "Kém (Poor)" ? "Cần bảo trì" : "Tình trạng tốt" }
+            ? { ...r, status: "cho_doi_soat" }
             : r
         )
       );
@@ -190,51 +192,59 @@ export function RoomInspectionConditions() {
 
       {filteredRooms.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredRooms.map((room) => (
-            <div key={room.roomID} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{room.roomName}</h3>
-                      <p className="text-sm text-gray-600">{room.building}</p>
-                    </div>
-                  </div>
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      room.status === "Tình trạng tốt"
-                        ? "bg-green-100 text-green-700"
-                        : room.status === "Cần bảo trì"
-                        ? "bg-orange-100 text-orange-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {room.status}
-                  </span>
-                </div>
+          {filteredRooms.map((room) => {
+            // Kiểm tra trạng thái trực tiếp từ Backend để render UI
+            const isChecked = room.status === "cho_doi_soat";
 
-                <div className="space-y-3 mb-4">
-                  {room.tenant && (
-                    <div className="text-sm">
-                      <p className="text-gray-600">Khách thuê hiện tại</p>
-                      <p className="font-medium text-gray-900">{room.tenant}</p>
+            return (
+              <div key={room.roomID} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isChecked ? 'bg-green-100' : 'bg-blue-100'}`}>
+                        <Building2 className={`w-6 h-6 ${isChecked ? 'text-green-600' : 'text-blue-600'}`} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">{room.roomName}</h3>
+                        <p className="text-sm text-gray-600">{room.building}</p>
+                      </div>
                     </div>
+                    {/* Map nhãn hiển thị tiếng Việt tại chỗ dựa vào code backend */}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      isChecked ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {isChecked ? "Đã kiểm tra (Chờ đối soát)" : "Chờ kiểm tra"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    {room.tenant && (
+                      <div className="text-sm">
+                        <p className="text-gray-600">Khách thuê hiện tại</p>
+                        <p className="font-medium text-gray-900">{room.tenant}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Nút bấm tự động đổi trạng thái và khóa tương tác khi đã xử lý xong */}
+                  {isChecked ? (
+                    <div className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg font-medium">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Đã chuyển hồ sơ cho Kế toán
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => openInspectionForm(room.roomID)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      Tiến hành kiểm tra
+                    </button>
                   )}
                 </div>
-
-                <button
-                  onClick={() => openInspectionForm(room.roomID)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  <ClipboardList className="w-4 h-4" />
-                  {room.status === "Cần kiểm tra" ? "Tiến hành kiểm tra" : "Cập nhật kiểm tra"}
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -258,7 +268,6 @@ export function RoomInspectionConditions() {
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmitInspection}>
-              {/* PHẦN SỬA LỖI: Hiển thị Hợp đồng thuê */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Hợp đồng thuê
@@ -266,7 +275,7 @@ export function RoomInspectionConditions() {
                 <input
                   type="text"
                   disabled
-                  value={contractId ?? "Không có thông tin hợp đồng"} // Đã sửa lỗi gán null và vô hiệu hóa sửa tay vì đây là thông tin đi theo phòng
+                  value={contractId ?? "Không có thông tin hợp đồng"} 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 outline-none"
                 />
               </div>

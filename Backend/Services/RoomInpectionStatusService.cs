@@ -84,7 +84,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
         if (isApproved)
         {
-            room.Status = "cho_khach_thanh_toan"; // TODO: đổi đúng tên enum member
+            room.Status = "cho_khach_thanh_toan_coc"; // TODO: đổi đúng tên enum member
             await _db.SaveChangesAsync();
         }
         // Nếu từ chối: không đổi gì, giữ nguyên trạng thái hiện tại

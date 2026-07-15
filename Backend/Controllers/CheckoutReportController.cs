@@ -19,24 +19,31 @@ public class CheckoutReportController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<CheckoutReportResultDto>> CreateCheckoutReport(
-        [FromBody] CreateCheckoutReportDto dto)
+    public async Task<IActionResult> CreateCheckoutReport([FromBody] CreateCheckoutReportDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.ContractId))
-            return BadRequest("Thiếu ContractId.");
-
-        var managerEmployeeId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(managerEmployeeId))
-            return Unauthorized();
-
-        try
+        if (dto == null)
         {
-            var result = await _checkoutReportService.CreateCheckoutReportAsync(dto, managerEmployeeId);
-            return Ok(result);
+            return BadRequest(new { message = "Dữ liệu yêu cầu không hợp lệ!" });
         }
-        catch (KeyNotFoundException ex)
+
+        // 1. Lấy accountId (ví dụ: "TK00000002") từ Token do FE gửi lên
+        var accountId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                        ?? User.FindFirst("accountId")?.Value;
+
+        if (string.IsNullOrEmpty(accountId))
         {
-            return NotFound(ex.Message);
+            return Unauthorized(new { message = "Không tìm thấy thông tin tài khoản đăng nhập từ phiên!" });
         }
+
+        // 2. Truyền thẳng accountId xuống Service. 
+        // Mọi việc tìm Account, lấy EmployeeId và Insert dữ liệu hãy để Service lo.
+        var result = await _checkoutReportService.CreateReportAndReconciliationAsync(dto, accountId);
+
+        if (!result.Success)
+        {
+            return StatusCode(500, new { message = result.Message });
+        }
+
+        return Ok(result);
     }
 }

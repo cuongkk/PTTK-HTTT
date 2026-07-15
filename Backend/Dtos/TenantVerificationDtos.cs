@@ -23,4 +23,5 @@ public class TenantVerificationDto
     public string CheckInDate { get; set; } = default!;
     public string CheckOutDate { get; set; } = default!;
     public List<TenantDto> Tenants { get; set; } = new();
+    public string? ApplicationId { get; set; }
 }
