@@ -54,7 +54,7 @@ export function CreateRentalContract() {
   // Search deposit contract manually
   const handleSearchDeposit = async () => {
     if (!rentalForm.depositRef.trim()) {
-      toast.warning("Vui lòng nhập mã hợp đồng cọc để tra cứu.");
+      toast.warning("Vui lòng nhập mã phiếu cọc để tra cứu.");
       return;
     }
     try {
@@ -72,12 +72,12 @@ export function CreateRentalContract() {
           monthlyRent: found.depositAmount.toString(),
           moveInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
         }));
-        toast.success(`Đã tìm thấy hợp đồng cọc ${found.depositId} và tự động điền thông tin!`);
+        toast.success(`Đã tìm thấy phiếu cọc ${found.depositId} và tự động điền thông tin!`);
       } else {
-        toast.error("Không tìm thấy hợp đồng đặt cọc tương ứng hoặc trạng thái chưa được kế toán xác nhận.");
+        toast.error("Không tìm thấy phiếu đặt cọc tương ứng hoặc trạng thái chưa được kế toán xác nhận.");
       }
     } catch (err) {
-      toast.error("Lỗi khi tra cứu hợp đồng cọc.");
+      toast.error("Lỗi khi tra cứu phiếu cọc.");
     }
   };
 
@@ -129,7 +129,7 @@ export function CreateRentalContract() {
             Lập hợp đồng thuê
           </h2>
           <p className="text-xs text-gray-500 mt-1">
-            Chuyển từ hợp đồng cọc sang hợp đồng thuê chính thức và chuẩn bị thủ tục nhận phòng.
+            Chuyển từ phiếu cọc sang hợp đồng thuê chính thức và chuẩn bị thủ tục nhận phòng.
           </p>
         </div>
 
@@ -143,7 +143,7 @@ export function CreateRentalContract() {
                 <p><strong>Bên cho thuê:</strong> Hệ thống RoomManager</p>
                 <p><strong>Bên thuê phòng:</strong> {rentalForm.customer}</p>
                 <p><strong>Số điện thoại:</strong> {rentalForm.phone}</p>
-                <p><strong>Hợp đồng đặt cọc tham chiếu:</strong> {rentalForm.depositRef}</p>
+                <p><strong>Phiếu đặt cọc tham chiếu:</strong> {rentalForm.depositRef}</p>
                 <p><strong>Phòng/giường thuê:</strong> {rentalForm.room}</p>
                 <p><strong>Ngày bắt đầu vào ở:</strong> {rentalForm.moveInDate ? new Date(rentalForm.moveInDate).toLocaleDateString("vi-VN") : ""}</p>
                 <p><strong>Thời hạn hợp đồng:</strong> {rentalForm.duration} tháng</p>
@@ -177,7 +177,7 @@ export function CreateRentalContract() {
             </p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mã hợp đồng đặt cọc tham chiếu <span className="text-red-500">*</span>
+                Mã phiếu đặt cọc tham chiếu <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -195,7 +195,7 @@ export function CreateRentalContract() {
                 </button>
               </div>
               <p className="text-[11px] text-gray-400 mt-1">
-                Nhập mã hợp đồng cọc và bấm "Tìm cọc" để tự động tải thông tin khách hàng và phòng thuê.
+                Nhập mã phiếu cọc và bấm "Tìm cọc" để tự động tải thông tin khách hàng và phòng thuê.
               </p>
             </div>
 

@@ -16,4 +16,7 @@ public interface ISalesWorkflowService
     Task<SalesDepositSlipDto> CreateDepositSlipAsync(CreateDepositRequest request, string salesEmployeeAccountId);
     Task<SalesRentalContractDto> CreateRentalContractAsync(CreateRentalRequest request, string salesEmployeeAccountId);
     Task CheckoutContractAsync(string contractId, CheckoutContractRequest request, string salesEmployeeAccountId);
+    Task ReviewDepositRequestAsync(string applicationId);
+    Task ReviewCheckInDocumentsAsync(string applicationId);
+    Task AcceptDepositRefundAsync(string depositId);
 }

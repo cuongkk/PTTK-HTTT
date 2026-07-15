@@ -52,10 +52,12 @@ export interface SalesApplication {
   status: string;
   createdAt: string;
   note: string;
+  hasContract: boolean;
 }
 
 export interface SalesDepositSlip {
   depositId: string;
+  applicationId: string;
   customerName: string;
   phoneNumber: string;
   roomName: string;
@@ -64,6 +66,8 @@ export interface SalesDepositSlip {
   holdUntil: string;
   status: string;
   createdAt: string;
+  refundReason?: string | null;
+  hasContract: boolean;
 }
 
 export interface SalesRentalContract {
@@ -83,6 +87,7 @@ export interface SalesRentalContract {
     requestedCheckoutAt: string;
     expectedDate: string;
     note: string;
+    status: string;
   } | null;
 }
 
@@ -100,8 +105,6 @@ export const salesApi = {
     priceRange?: string;
     note: string;
   }) => apiClient.post<SalesApplication>("/sales/applications", data),
-
-
 
   createSchedule: (applicationId: string, data: {
     roomId: string;
@@ -136,4 +139,8 @@ export const salesApi = {
     expectedDate: string;
     note: string;
   }) => apiClient.post<void>(`/sales/contracts/${contractId}/checkout`, data),
+
+  reviewDeposit: (applicationId: string) => apiClient.post<void>(`/sales/applications/${applicationId}/review-deposit`, {}),
+  reviewCheckin: (applicationId: string) => apiClient.post<void>(`/sales/applications/${applicationId}/review-checkin`, {}),
+  acceptDepositRefund: (depositId: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/accept-refund`, {}),
 };

@@ -90,4 +90,25 @@ public class SalesWorkflowController : ControllerBase
         await _salesService.CheckoutContractAsync(contractId, request, User.GetAccountId());
         return Ok();
     }
+
+    [HttpPost("applications/{applicationId}/review-deposit")]
+    public async Task<IActionResult> ReviewDeposit(string applicationId)
+    {
+        await _salesService.ReviewDepositRequestAsync(applicationId);
+        return Ok();
+    }
+
+    [HttpPost("applications/{applicationId}/review-checkin")]
+    public async Task<IActionResult> ReviewCheckIn(string applicationId)
+    {
+        await _salesService.ReviewCheckInDocumentsAsync(applicationId);
+        return Ok();
+    }
+
+    [HttpPost("deposit-slips/{depositId}/accept-refund")]
+    public async Task<IActionResult> AcceptDepositRefund(string depositId)
+    {
+        await _salesService.AcceptDepositRefundAsync(depositId);
+        return Ok();
+    }
 }

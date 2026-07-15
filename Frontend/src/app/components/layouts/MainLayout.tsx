@@ -26,9 +26,9 @@ import {
   DoorOpen,
 } from "lucide-react";
 import { logout } from "../../services/system-admin/authService";
-import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
+import { getStoredUser, mapRoleIdToPath, mapRoleIdToRootPath } from "../../services/authStorage";
 import { getStoredToken } from "../../services/apiClient";
-import { notificationService } from "../../services/notificationService";
+import { notificationService, type AppNotification } from "../../services/notificationService";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
@@ -72,7 +72,7 @@ export function MainLayout() {
   const [currentRole, setCurrentRole] = useState<UserRole>(getRoleFromPathname(location.pathname));
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
-  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [notificationsList, setNotificationsList] = useState<AppNotification[]>([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const toggleNotificationDropdown = async () => {
@@ -87,9 +87,35 @@ export function MainLayout() {
     setShowNotificationDropdown(!showNotificationDropdown);
   };
 
-  const getNotificationLink = (n: any) => {
+  const getNotificationLink = (n: AppNotification) => {
     const content = n.content;
     const title = n.title.toLowerCase();
+    const normalizedText = `${n.title} ${content}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    if (n.notificationType === "dang_ky_thue" || /HS[a-zA-Z0-9]+/.test(content)) {
+      return `/${currentRole}/registrations`;
+    }
+    if (n.notificationType === "dat_coc") {
+      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
+      return depositMatch ? `/${currentRole}/contracts` : `/${currentRole}/registrations`;
+    }
+    if (normalizedText.includes("nhan phong")) {
+      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
+      if (depositMatch) {
+        return `/${currentRole}/contracts?action=checkin&ref=${depositMatch[0]}`;
+      }
+      return `/${currentRole}/contracts`;
+    }
+    if (normalizedText.includes("tra phong")) {
+      const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
+      if (contractMatch) {
+        return `/${currentRole}/checkout-contract?contractId=${contractMatch[0]}`;
+      }
+      return `/${currentRole}/checkout-contract`;
+    }
     if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
       if (depositMatch) {
@@ -140,10 +166,10 @@ export function MainLayout() {
       navigate("/login", { replace: true });
       return;
     }
-    const allowedRoot = `/${mapRoleIdToPath(user.roleId)}`;
+    const allowedRoot = `/${mapRoleIdToRootPath(user.roleId)}`;
     const currentRoot = location.pathname === "/" ? "/customer" : `/${location.pathname.split("/")[1]}`;
     if (currentRoot !== allowedRoot) {
-      navigate(allowedRoot, { replace: true });
+      navigate(`/${mapRoleIdToPath(user.roleId)}`, { replace: true });
     }
   }, [location.pathname, navigate]);
 
@@ -173,13 +199,10 @@ export function MainLayout() {
       { name: "Thông báo", path: "/customer/notifications", icon: Bell },
     ],
     sales: [
-      { name: "Trang chủ", path: "/sales", icon: Home },
-      { name: "Tra cứu phòng", path: "/sales/rooms", icon: Building2 },
-      { name: "Tiếp nhận ĐK", path: "/sales/registrations", icon: Users },
-      { name: "Tra cứu HĐ", path: "/sales/contracts", icon: FileText },
-      { name: "Lập HĐ cọc", path: "/sales/deposit-contract", icon: FilePlus },
-      { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileCheck },
-      { name: "Trả phòng", path: "/sales/checkout-contract", icon: DoorOpen },
+      { name: "Xử lý GD", path: "/sales/registrations", icon: Users },
+      { name: "Tra cứu phòng", path: "/sales/rooms", icon: Search },
+      { name: "Lập phiếu đặt cọc", path: "/sales/deposit-contract", icon: Sparkles },
+      { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileText },
       { name: "Thông báo", path: "/sales/notifications", icon: Bell },
     ],
     accountant: [

@@ -97,10 +97,10 @@ export function CreateDepositContract() {
         holdUntil: new Date(holdUntil).toISOString(),
       });
 
-      toast.success(`Đã lập hợp đồng đặt cọc thành công!\nMã hợp đồng cọc: ${result.depositId}\nTrạng thái phòng/giường cập nhật: "Chờ thanh toán cọc" / "Đang giữ chỗ".`);
+      toast.success(`Đã lập phiếu đặt cọc thành công!\nMã phiếu cọc: ${result.depositId}\nTrạng thái phòng/giường cập nhật: "Chờ thanh toán cọc" / "Đang giữ chỗ".`);
       navigate("/sales/contracts");
     } catch (err) {
-      toast.error("Lập hợp đồng đặt cọc thất bại.");
+      toast.error("Lập phiếu đặt cọc thất bại.");
     }
   };
 
@@ -116,7 +116,7 @@ export function CreateDepositContract() {
         </button>
         <div className="flex items-center gap-1.5 px-3 py-1 bg-purple-50 rounded-full text-purple-700 text-xs font-semibold border border-purple-100">
           <Sparkles className="w-3.5 h-3.5" />
-          Màn hình lập hợp đồng cọc
+          Màn hình lập phiếu đặt cọc
         </div>
       </div>
 
@@ -124,7 +124,7 @@ export function CreateDepositContract() {
         <div className="p-6 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-600" />
-            Lập hợp đồng đặt cọc
+            Lập phiếu đặt cọc
           </h2>
           <p className="text-xs text-gray-500 mt-1">
             Ghi nhận thông tin giữ chỗ và đặt cọc phòng/giường của khách hàng từ phiếu đăng ký.
@@ -135,7 +135,7 @@ export function CreateDepositContract() {
           <div className="p-6 space-y-4">
             <div className="bg-yellow-50/60 p-5 border border-yellow-200 rounded-xl space-y-4">
               <h3 className="font-bold text-center text-gray-850 text-sm tracking-wider uppercase">
-                HỢP ĐỒNG ĐẶT CỌC GIỮ CHỖ (BẢN NHÁP)
+                PHIẾU ĐẶT CỌC GIỮ CHỖ (BẢN NHÁP)
               </h3>
               <div className="space-y-2.5 text-xs text-gray-700 leading-relaxed">
                 <p><strong>Bên nhận đặt cọc:</strong> Hệ thống RoomManager</p>

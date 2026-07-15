@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Building2, CheckCircle, Clock, AlertTriangle, Search, X, Users, Wind, ShieldAlert, Car } from "lucide-react";
 import { roomService, type Room } from "../../services/system-admin/roomService";
+import { serviceCatalogService, type ServiceItem } from "../../services/system-admin/serviceCatalogService";
 
 export function RoomManagement() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -18,11 +19,13 @@ export function RoomManagement() {
   const [filterQuiet, setFilterQuiet] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [services, setServices] = useState<ServiceItem[]>([]);
 
   useEffect(() => {
-    roomService.getAll()
-      .then((res) => {
-        setRooms(res);
+    Promise.all([roomService.getAll(), serviceCatalogService.getAll()])
+      .then(([roomsRes, servicesRes]) => {
+        setRooms(roomsRes);
+        setServices(servicesRes);
         setLoading(false);
       })
       .catch((err) => {
@@ -60,7 +63,6 @@ export function RoomManagement() {
   };
 
   const statuses = ["all", "Trống", "Đang thuê", "Đang giữ chỗ", "Bảo trì"];
-  const areas = ["all", "Khu A", "Khu B", "Khu C", "Khu D"];
 
   const mappedRooms = rooms.map(r => ({
     ...r,
@@ -177,7 +179,10 @@ export function RoomManagement() {
           <div>
             <label className="block text-xs text-gray-500 mb-1 font-semibold">Khu vực</label>
             <select value={filterArea} onChange={e => setFilterArea(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-              {areas.map(a => <option key={a} value={a}>{a === "all" ? "Tất cả" : a}</option>)}
+              <option value="all">Tất cả</option>
+              {Array.from(new Set(rooms.map(r => r.area).filter(Boolean))).map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -409,9 +414,21 @@ export function RoomManagement() {
               <div>
                 <h3 className="font-bold text-gray-900 mb-2 border-b pb-1 text-sm">Dịch vụ & Tiện ích trong khu</h3>
                 <ul className="space-y-1.5 text-xs text-gray-600">
-                  <li className="flex justify-between"><span>Wifi tốc độ cao</span> <span className="font-medium text-green-700">Miễn phí</span></li>
-                  <li className="flex justify-between"><span>Dọn dẹp vệ sinh phòng</span> <span className="font-medium text-gray-700">2 lần/tuần</span></li>
-                  <li className="flex justify-between"><span>Giữ xe máy nội khu</span> <span className="font-medium text-green-700">Miễn phí (An ninh 24/7)</span></li>
+                  {services.map(s => (
+                    <li key={s.serviceId} className="flex justify-between">
+                      <span>{s.serviceName}</span>
+                      <span className="font-medium text-blue-750">
+                        {s.unitPrice === 0 ? "Miễn phí" : `${s.unitPrice.toLocaleString("vi-VN")} đ/${s.unit}`}
+                      </span>
+                    </li>
+                  ))}
+                  {services.length === 0 && (
+                    <>
+                      <li className="flex justify-between"><span>Wifi tốc độ cao</span> <span className="font-medium text-green-700">Miễn phí</span></li>
+                      <li className="flex justify-between"><span>Dọn dẹp vệ sinh phòng</span> <span className="font-medium text-gray-700">2 lần/tuần</span></li>
+                      <li className="flex justify-between"><span>Giữ xe máy nội khu</span> <span className="font-medium text-green-700">Miễn phí (An ninh 24/7)</span></li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>

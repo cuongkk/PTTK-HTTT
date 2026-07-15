@@ -163,14 +163,15 @@ export function CheckoutContract() {
                   <p><strong>Ngày vào ở:</strong> {new Date(foundContract.moveInDate).toLocaleDateString("vi-VN")}</p>
                   <p><strong>Giá thuê/tháng:</strong> {foundContract.monthlyRent.toLocaleString("vi-VN")} đ</p>
                   <p className="col-span-2">
-                    <strong>Trạng thái:</strong>{" "}
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${foundContract.status === "hieu_luc"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-orange-100 text-orange-700"
-                        }`}
-                    >
-                      {foundContract.status === "hieu_luc" ? "Hiệu lực" : foundContract.status === "cho_tra_phong" ? "Chờ trả phòng" : foundContract.status}
+                    <strong>Trạng thái:</strong>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${foundContract.status === "hieu_luc"
+                      ? "bg-green-100 text-green-700"
+                      : foundContract.status === "cho_tra_phong"
+                      ? "bg-orange-100 text-orange-700"
+                      : "bg-gray-100 text-gray-700"}`}>
+                      {foundContract.status === "hieu_luc" ? "Hiệu lực"
+                        : foundContract.status === "cho_tra_phong" ? "Chờ trả phòng"
+                        : foundContract.status}
                     </span>
                   </p>
                 </div>

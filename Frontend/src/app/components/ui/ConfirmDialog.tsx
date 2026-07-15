@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  details?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "danger" | "warning" | "info";
@@ -15,6 +17,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  details,
   confirmLabel = "Xác nhận",
   cancelLabel = "Hủy",
   variant = "warning",
@@ -51,7 +54,7 @@ export function ConfirmDialog({
         onClick={onCancel}
       />
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Close button */}
         <button
           onClick={onCancel}
@@ -71,6 +74,12 @@ export function ConfirmDialog({
               <p className="text-sm text-gray-500 mt-1 leading-relaxed">{message}</p>
             </div>
           </div>
+
+          {details && (
+            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              {details}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 mt-5">

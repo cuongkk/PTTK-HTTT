@@ -124,12 +124,18 @@ public class SalesWorkflowService : ISalesWorkflowService
 
     public async Task<List<SalesApplicationDto>> GetApplicationsAsync()
     {
+        var contractAppIds = await _db.RentalContracts
+            .Select(c => c.Deposit!.ApplicationId)
+            .Distinct()
+            .ToListAsync();
+
         var applications = await _db.RentalApplications
             .Include(a => a.Customer)
             .Include(a => a.RoomViewingSchedules)
                 .ThenInclude(s => s.Rooms)
             .Include(a => a.DepositSlips)
                 .ThenInclude(d => d.Beds)
+            .Where(a => a.Status != "dang_thue" && a.Status != "da_hoan_thanh" && !contractAppIds.Contains(a.ApplicationId))
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
 
@@ -153,7 +159,18 @@ public class SalesWorkflowService : ISalesWorkflowService
                 scheduleId = lastSchedule.ScheduleId;
             }
 
-            if (activeDeposit != null && activeDeposit.Beds.Any())
+            // 1. Check if there is a contract already created for this application's deposit
+            var contract = await _db.RentalContracts
+                .Include(c => c.Room)
+                .FirstOrDefaultAsync(c => c.Deposit!.ApplicationId == app.ApplicationId);
+            if (contract != null && contract.Room != null)
+            {
+                roomName = contract.Room.RoomName;
+                roomId = contract.Room.RoomId;
+            }
+
+            // 2. If not, check active deposit beds
+            if (roomName == "Chưa phân phòng" && activeDeposit != null && activeDeposit.Beds.Any())
             {
                 var firstBedId = activeDeposit.Beds.First().BedId;
                 var bed = await _db.Beds.Include(b => b.Room).FirstOrDefaultAsync(b => b.BedId == firstBedId);
@@ -163,28 +180,33 @@ public class SalesWorkflowService : ISalesWorkflowService
                     roomId = bed.Room.RoomId;
                 }
             }
-            else if (lastSchedule != null)
+
+            // 3. Fallback to viewing schedule rooms or desired room
+            if (roomName == "Chưa phân phòng")
             {
-                apptAt = lastSchedule.AppointmentAt;
-                apptSent = true;
-                if (lastSchedule.Rooms.Any())
+                if (lastSchedule != null)
                 {
-                    var firstRoomId = lastSchedule.Rooms.First().RoomId;
-                    var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == firstRoomId);
-                    if (room != null)
+                    apptAt = lastSchedule.AppointmentAt;
+                    apptSent = true;
+                    if (lastSchedule.Rooms.Any())
                     {
-                        roomName = room.RoomName;
-                        roomId = room.RoomId;
+                        var firstRoomId = lastSchedule.Rooms.First().RoomId;
+                        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == firstRoomId);
+                        if (room != null)
+                        {
+                            roomName = room.RoomName;
+                            roomId = room.RoomId;
+                        }
                     }
                 }
-            }
-            else if (!string.IsNullOrEmpty(app.DesiredRoomId))
-            {
-                var desiredRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == app.DesiredRoomId);
-                if (desiredRoom != null)
+                else if (!string.IsNullOrEmpty(app.DesiredRoomId))
                 {
-                    roomName = desiredRoom.RoomName;
-                    roomId = desiredRoom.RoomId;
+                    var desiredRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == app.DesiredRoomId);
+                    if (desiredRoom != null)
+                    {
+                        roomName = desiredRoom.RoomName;
+                        roomId = desiredRoom.RoomId;
+                    }
                 }
             }
 
@@ -232,7 +254,18 @@ public class SalesWorkflowService : ISalesWorkflowService
 
             var firstBedLink = await _db.DepositBeds
                 .FirstOrDefaultAsync(db => db.DepositId == slip.DepositId);
-            if (firstBedLink != null)
+            // 1. Check if there is a contract already created for this deposit slip
+            var contract = await _db.RentalContracts
+                .Include(c => c.Room)
+                .FirstOrDefaultAsync(c => c.DepositId == slip.DepositId);
+            if (contract != null && contract.Room != null)
+            {
+                roomName = contract.Room.RoomName;
+                areaName = contract.Room.Area ?? "Chưa rõ";
+            }
+
+            // 2. If not, check deposit beds
+            if (roomName == "Chưa rõ" && firstBedLink != null)
             {
                 var bed = await _db.Beds.Include(b => b.Room).FirstOrDefaultAsync(b => b.BedId == firstBedLink.BedId);
                 if (bed?.Room != null)
@@ -242,8 +275,39 @@ public class SalesWorkflowService : ISalesWorkflowService
                 }
             }
 
+            // 3. Fallback to viewing schedule rooms or desired room
+            if (roomName == "Chưa rõ")
+            {
+                var schedule = await _db.RoomViewingSchedules
+                    .FirstOrDefaultAsync(s => s.ApplicationId == slip.ApplicationId);
+                if (schedule != null)
+                {
+                    var scheduleRoom = await _db.RoomViewingScheduleRooms
+                        .FirstOrDefaultAsync(sr => sr.ScheduleId == schedule.ScheduleId);
+                    if (scheduleRoom != null)
+                    {
+                        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == scheduleRoom.RoomId);
+                        if (room != null)
+                        {
+                            roomName = room.RoomName;
+                            areaName = room.Area ?? "Chưa rõ";
+                        }
+                    }
+                }
+                else if (slip.Application != null && !string.IsNullOrEmpty(slip.Application.DesiredRoomId))
+                {
+                    var desiredRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == slip.Application.DesiredRoomId);
+                    if (desiredRoom != null)
+                    {
+                        roomName = desiredRoom.RoomName;
+                        areaName = desiredRoom.Area ?? "Chưa rõ";
+                    }
+                }
+            }
+
             result.Add(new SalesDepositSlipDto(
                 slip.DepositId,
+                slip.ApplicationId,
                 slip.Application?.Customer?.FullName ?? "Chưa rõ",
                 slip.Application?.Customer?.PhoneNumber ?? "Chưa rõ",
                 roomName,
@@ -251,7 +315,9 @@ public class SalesWorkflowService : ISalesWorkflowService
                 slip.DepositAmount,
                 slip.PaymentDueAt,
                 slip.Status,
-                slip.CreatedAt
+                slip.CreatedAt,
+                slip.RefundReason,
+                contract != null
             ));
         }
 
@@ -277,7 +343,8 @@ public class SalesWorkflowService : ISalesWorkflowService
             var checkoutDto = checkoutReq == null ? null : new CheckoutRequestDto(
                 checkoutReq.CreatedAt,
                 checkoutReq.ConfirmedInspectionAt ?? checkoutReq.RequestedCheckoutAt,
-                checkoutReq.Note ?? ""
+                checkoutReq.Note ?? "",
+                checkoutReq.Status
             );
 
             // Calculate duration in months
@@ -498,6 +565,13 @@ public class SalesWorkflowService : ISalesWorkflowService
         var app = await _db.RentalApplications.Include(a => a.Customer).FirstOrDefaultAsync(a => a.ApplicationId == request.ApplicationId)
             ?? throw new NotFoundException("Không tìm thấy đăng ký.");
 
+        if (app.Status != "cho_khach_thanh_toan_coc")
+            throw new ValidationException("Chỉ lập phiếu đặt cọc sau khi Quản lý đã xác nhận điều kiện đặt cọc.");
+
+        var existingActiveDeposit = await _db.DepositSlips.AnyAsync(d => d.ApplicationId == request.ApplicationId && d.Status != "huy");
+        if (existingActiveDeposit)
+            throw new ConflictException("Hồ sơ này đã có phiếu đặt cọc đang xử lý.");
+
         var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Account!.AccountId == salesEmployeeAccountId)
             ?? await _db.Employees.FirstOrDefaultAsync(e => e.Position == EmployeePosition.Sales);
 
@@ -575,6 +649,7 @@ public class SalesWorkflowService : ISalesWorkflowService
 
         return new SalesDepositSlipDto(
             slip.DepositId,
+            slip.ApplicationId,
             app.Customer.FullName,
             app.Customer.PhoneNumber,
             room?.RoomName ?? "Chưa rõ",
@@ -582,7 +657,9 @@ public class SalesWorkflowService : ISalesWorkflowService
             slip.DepositAmount,
             slip.PaymentDueAt,
             slip.Status,
-            slip.CreatedAt
+            slip.CreatedAt,
+            null,
+            false
         );
     }
 
@@ -704,6 +781,42 @@ public class SalesWorkflowService : ISalesWorkflowService
 
         var employeeId = employee?.EmployeeId ?? "NV00000003";
 
+        // Check if there is an existing checkout request in status 'cho_tiep_nhan'
+        var existingRequest = await _db.CheckoutRequests
+            .FirstOrDefaultAsync(cr => cr.ContractId == contractId && cr.Status == "cho_tiep_nhan");
+
+        if (existingRequest != null)
+        {
+            // Transition: confirm customer's request
+            existingRequest.Status = "da_xac_nhan_lich";
+            existingRequest.SalesEmployeeId = employeeId;
+            existingRequest.ConfirmedInspectionAt = DateTime.UtcNow;
+            existingRequest.UpdatedAt = DateTime.UtcNow;
+
+            contract.Status = "cho_kiem_tra_tra_phong";
+
+            await _db.SaveChangesAsync();
+
+            // Notify Manager
+            var managerAccount = await _db.Accounts.FirstOrDefaultAsync(a => a.Username == "manager");
+            if (managerAccount != null)
+            {
+                _db.Notifications.Add(new Notification
+                {
+                    NotificationId = IdGenerator.Generate("NT", 12),
+                    RecipientAccountId = managerAccount.AccountId,
+                    Title = "Yêu cầu trả phòng đã xác nhận lịch",
+                    Content = $"Lịch trả phòng cho hợp đồng {contractId} đã được Sale xác nhận. Quản lý cần kiểm tra phòng.",
+                    NotificationType = "he_thong",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                });
+                await _db.SaveChangesAsync();
+            }
+            return;
+        }
+
+        // If no request exists, create a new one (original flow)
         contract.Status = "cho_tra_phong";
 
         var req = new CheckoutRequest
@@ -738,5 +851,92 @@ public class SalesWorkflowService : ISalesWorkflowService
             });
             await _db.SaveChangesAsync();
         }
+    }
+
+    public async Task ReviewDepositRequestAsync(string applicationId)
+    {
+        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
+            ?? throw new NotFoundException("Không tìm thấy đăng ký.");
+
+        if (app.Status != "cho_sale_ra_soat_coc")
+            throw new ValidationException("Chỉ rà soát hồ sơ cọc sau khi khách đã gửi yêu cầu đặt cọc.");
+
+        app.Status = "cho_quan_ly_xac_nhan_coc";
+
+        // Notify Manager
+        var managerAccount = await _db.Accounts.FirstOrDefaultAsync(a => a.Username == "manager");
+        if (managerAccount != null)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                NotificationId = IdGenerator.Generate("NT", 12),
+                RecipientAccountId = managerAccount.AccountId,
+                Title = "Hồ sơ đăng ký cọc chờ xác nhận",
+                Content = $"Hồ sơ {applicationId} đã được Sale rà soát và chuyển Quản lý xác nhận chỗ trống.",
+                NotificationType = "he_thong",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task ReviewCheckInDocumentsAsync(string applicationId)
+    {
+        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
+            ?? throw new NotFoundException("Không tìm thấy đăng ký.");
+
+        if (app.Status != "cho_sale_doi_chieu_nhan_phong")
+            throw new ValidationException("Chỉ đối chiếu nhận phòng sau khi khách đã bổ sung hồ sơ nhận phòng.");
+
+        app.Status = "cho_quan_ly_duyet_nhan_phong";
+
+        // Notify Manager
+        var managerAccount = await _db.Accounts.FirstOrDefaultAsync(a => a.Username == "manager");
+        if (managerAccount != null)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                NotificationId = IdGenerator.Generate("NT", 12),
+                RecipientAccountId = managerAccount.AccountId,
+                Title = "Hồ sơ nhận phòng chờ duyệt",
+                Content = $"Hồ sơ {applicationId} đã được Sale đối chiếu thông tin người ở và chuyển Quản lý duyệt.",
+                NotificationType = "he_thong",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task AcceptDepositRefundAsync(string depositId)
+    {
+        var deposit = await _db.DepositSlips.FirstOrDefaultAsync(d => d.DepositId == depositId)
+            ?? throw new NotFoundException("Không tìm thấy phiếu đặt cọc.");
+
+        if (deposit.Status != "cho_tiep_nhan_hoan_coc")
+            throw new ValidationException("Chỉ tiếp nhận các yêu cầu hoàn cọc mới.");
+
+        deposit.Status = "dang_xac_nhan_hoan_coc";
+
+        // Notify Manager
+        var managerAccount = await _db.Accounts.FirstOrDefaultAsync(a => a.Username == "manager");
+        if (managerAccount != null)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                NotificationId = IdGenerator.Generate("NT", 12),
+                RecipientAccountId = managerAccount.AccountId,
+                Title = "Yêu cầu hoàn cọc chờ xác nhận",
+                Content = $"Yêu cầu hoàn cọc cho phiếu {depositId} đã được Sale tiếp nhận và chờ Quản lý duyệt.",
+                NotificationType = "he_thong",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
     }
 }

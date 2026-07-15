@@ -54,7 +54,8 @@ public record SalesApplicationDto(
     bool AppointmentSent,
     string Status,
     DateTime CreatedAt,
-    string Note
+    string Note,
+    bool HasContract = false
 );
 
 public record CreateApplicationRequest(
@@ -94,6 +95,7 @@ public record CreateRentalRequest(
 
 public record SalesDepositSlipDto(
     string DepositId,
+    string ApplicationId,
     string CustomerName,
     string PhoneNumber,
     string RoomName,
@@ -101,13 +103,16 @@ public record SalesDepositSlipDto(
     decimal DepositAmount,
     DateTime HoldUntil,
     string Status,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? RefundReason = null,
+    bool HasContract = false
 );
 
 public record CheckoutRequestDto(
     DateTime RequestedCheckoutAt,
     DateTime ExpectedDate,
-    string Note
+    string Note,
+    string Status
 );
 
 public record SalesRentalContractDto(
