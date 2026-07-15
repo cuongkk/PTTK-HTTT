@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { FileText, ArrowLeft, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
+import { FileText, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 import { salesApi } from "../../services/sales/salesApi";
+import { roomService, type Room } from "../../services/system-admin/roomService";
 import { toast } from "sonner";
 
 export function CreateRentalContract() {
   const navigate = useNavigate();
   const location = useLocation();
-  const backToTransactions = () => navigate("/sales/registrations?tab=contracts");
+  const backToTransactions = () => navigate("/sales/registrations?tab=deposits");
 
   const [rentalForm, setRentalForm] = useState({
     depositRef: "",
@@ -31,19 +32,26 @@ export function CreateRentalContract() {
     const depositRef = params.get("depositRef");
     if (depositRef) {
       rf("depositRef", depositRef);
-      salesApi.getDepositSlips()
-        .then((slips) => {
+      Promise.all([
+        salesApi.getDepositSlips(),
+        salesApi.getApplications().catch(() => []),
+        roomService.getAll().catch(() => [] as Room[]),
+      ])
+        .then(([slips, applications, rooms]) => {
           const found = slips.find(
             (d) => d.depositId.toLowerCase() === depositRef.toLowerCase()
           );
           if (found) {
+            const application = applications.find((item) => item.applicationId === found.applicationId);
+            const room = application?.roomId ? rooms.find((item) => item.roomId === application.roomId) : undefined;
             setRentalForm((prev) => ({
               ...prev,
               depositRef: found.depositId,
               customer: found.customerName,
               phone: found.phoneNumber,
               room: found.roomName,
-              monthlyRent: found.depositAmount.toString(),
+              roomId: application?.roomId ?? "",
+              monthlyRent: room?.roomPrice ? room.roomPrice.toString() : Math.round(found.depositAmount / 2).toString(),
               moveInDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             }));
           }
@@ -53,7 +61,7 @@ export function CreateRentalContract() {
   }, [location.search]);
 
   const handleCreateRental = async () => {
-    const { depositRef, moveInDate, duration, monthlyRent, paymentCycle, services } = rentalForm;
+    const { depositRef, roomId, moveInDate, duration, monthlyRent, paymentCycle, services } = rentalForm;
     if (!depositRef || !moveInDate || !monthlyRent) {
       toast.warning("Vui lòng điền đủ thông tin bắt buộc.");
       return;
@@ -62,7 +70,7 @@ export function CreateRentalContract() {
     try {
       const result = await salesApi.createRentalContract({
         depositId: depositRef,
-        roomId: "", // resolved by backend automatically
+        roomId,
         moveInDate: new Date(moveInDate).toISOString(),
         durationMonths: parseInt(duration),
         monthlyRent: parseInt(monthlyRent),
@@ -79,14 +87,7 @@ export function CreateRentalContract() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Breadcrumb / Back button */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={backToTransactions}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Quay lại Xử lý giao dịch
-        </button>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 rounded-full text-blue-700 text-xs font-semibold border border-blue-100">
           <Sparkles className="w-3.5 h-3.5" />
           Màn hình lập hợp đồng thuê

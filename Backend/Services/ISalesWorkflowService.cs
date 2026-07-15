@@ -10,7 +10,6 @@ public interface ISalesWorkflowService
     Task<List<SalesApplicationDto>> GetApplicationsAsync();
     Task<List<SalesDepositSlipDto>> GetDepositSlipsAsync();
     Task<List<SalesRentalContractDto>> GetContractsAsync();
-    Task<SalesApplicationDto> CreateApplicationAsync(CreateApplicationRequest request);
     Task<SalesApplicationDto> CreateViewingScheduleAsync(string applicationId, CreateViewingScheduleRequest request, string salesEmployeeAccountId);
     Task CompleteViewingScheduleAsync(string scheduleId);
     Task CancelViewingScheduleAsync(string scheduleId);

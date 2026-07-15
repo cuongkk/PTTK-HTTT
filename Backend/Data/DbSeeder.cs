@@ -387,15 +387,26 @@ public static class DbSeeder
     {
         var items = new[]
         {
-            new SystemParameter { ParameterId = "tien_coc_so_thang", ParameterName = "Số tháng tiền thuê dùng tính cọc", ParameterGroup = "chinh_sach_coc", Value = "2", DataType = SystemParameterDataType.Number, Description = "Tiền cọc bằng tiền thuê hai tháng nhân số giường thuê." },
-            new SystemParameter { ParameterId = "han_thanh_toan_coc", ParameterName = "Thời hạn thanh toán cọc", ParameterGroup = "chinh_sach_coc", Value = "24", DataType = SystemParameterDataType.Number, Description = "Số giờ khách được phép hoàn tất thanh toán cọc." },
-            new SystemParameter { ParameterId = "hoan_coc_chua_ky", ParameterName = "Hoàn cọc khi chưa ký hợp đồng", ParameterGroup = "chinh_sach_hoan_coc", Value = "80", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_duoi_6_thang", ParameterName = "Hoàn cọc khi ở dưới 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "50", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_tren_6_thang", ParameterName = "Hoàn cọc khi ở trên 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "70", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_dung_han", ParameterName = "Hoàn cọc khi hết hạn hợp đồng", ParameterGroup = "chinh_sach_hoan_coc", Value = "100", DataType = SystemParameterDataType.Number },
+            new SystemParameter { ParameterId = "tien_coc_so_thang", ParameterName = "Số tháng dùng tính cọc", ParameterGroup = "chinh_sach_coc", Value = "2", DataType = SystemParameterDataType.Number, Description = "Tiền cọc bằng tiền thuê hai tháng nhân số giường thuê." },
+            new SystemParameter { ParameterId = "han_thanh_toan_coc", ParameterName = "Hạn thanh toán cọc", ParameterGroup = "chinh_sach_coc", Value = "24", DataType = SystemParameterDataType.Number, Description = "Số giờ khách được phép hoàn tất thanh toán cọc." },
+            new SystemParameter { ParameterId = "hoan_coc_chua_ky", ParameterName = "Tỷ lệ hoàn trước khi ký", ParameterGroup = "chinh_sach_hoan_coc", Value = "80", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi khách hủy đặt cọc trước khi ký hợp đồng thuê." },
+            new SystemParameter { ParameterId = "hoan_coc_duoi_6_thang", ParameterName = "Tỷ lệ hoàn dưới 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "50", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi chấm dứt hợp đồng trước mốc 6 tháng." },
+            new SystemParameter { ParameterId = "hoan_coc_tren_6_thang", ParameterName = "Tỷ lệ hoàn trên 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "70", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi chấm dứt hợp đồng sau mốc 6 tháng." },
+            new SystemParameter { ParameterId = "hoan_coc_dung_han", ParameterName = "Tỷ lệ hoàn khi hết hạn", ParameterGroup = "chinh_sach_hoan_coc", Value = "100", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi hợp đồng hết hạn tự nhiên, không gia hạn." },
         };
         foreach (var item in items)
-            if (!await db.SystemParameters.AnyAsync(x => x.ParameterId == item.ParameterId)) db.SystemParameters.Add(item);
+        {
+            var existing = await db.SystemParameters.FirstOrDefaultAsync(x => x.ParameterId == item.ParameterId);
+            if (existing is null)
+            {
+                db.SystemParameters.Add(item);
+                continue;
+            }
+
+            // Keep seed idempotent while backfilling display text for databases seeded before this wording change.
+            existing.ParameterName = item.ParameterName;
+            existing.Description = item.Description;
+        }
         await db.SaveChangesAsync();
     }
 

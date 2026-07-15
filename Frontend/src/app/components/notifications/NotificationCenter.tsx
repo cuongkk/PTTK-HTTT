@@ -40,6 +40,34 @@ export function NotificationCenter() {
     if (!item.isRead) {
       await markRead(item.notificationId);
     }
+    const text = `${item.title} ${item.content}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    if (window.location.pathname.startsWith("/sales")) {
+      if (text.includes("tra phong") || text.includes("hoan coc")) {
+        navigate("/sales/registrations?tab=checkout");
+        return;
+      }
+      if (text.includes("lap hop dong") || text.includes("lap hd") || text.includes("du dieu kien nhan phong")) {
+        navigate("/sales/registrations?tab=deposits");
+        return;
+      }
+      if (item.notificationType === "dang_ky_thue" || text.includes("nhan phong") || text.includes("dang ky") || /HS[a-zA-Z0-9]+/.test(item.content)) {
+        navigate("/sales/registrations?tab=registrations");
+        return;
+      }
+      if (text.includes("coc") || item.notificationType === "dat_coc") {
+        navigate(text.includes("qua han") || text.includes("huy phieu") || text.includes("thanh toan")
+          ? "/sales/registrations?tab=deposits"
+          : "/sales/registrations?tab=registrations");
+        return;
+      }
+      if (text.includes("hop dong") || text.includes("hd thue")) {
+        navigate("/sales/registrations?tab=contracts");
+        return;
+      }
+    }
     const parts = item.notificationType.split('|');
     if (parts.length > 1) {
       const typeCode = parts[0];

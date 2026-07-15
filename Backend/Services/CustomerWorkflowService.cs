@@ -198,6 +198,58 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         var customerId = await GetCustomerIdAsync(accountId);
         var application = await _db.RentalApplications.FirstAsync(x => x.ApplicationId == applicationId && x.CustomerId == customerId);
         application.Status = "cho_sale_ra_soat_coc";
+<<<<<<< HEAD
+=======
+
+        var oldMembers = await _db.TenantMembers.Where(x => x.ApplicationId == applicationId && x.ContractId == null).ToListAsync();
+        _db.TenantMembers.RemoveRange(oldMembers);
+        var member = new TenantMember
+        {
+            TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, CustomerId = customerId,
+            FullName = customer.FullName, IsPrimaryTenant = true
+        };
+        _db.TenantMembers.Add(member);
+        member.NationalId = customer.NationalId;
+        member.Gender = request.PrimaryTenant.Gender;
+        member.DateOfBirth = request.PrimaryTenant.DateOfBirth;
+        member.Nationality = request.PrimaryTenant.Nationality;
+        member.DocumentType = request.PrimaryTenant.DocumentType;
+        member.DocumentImageUrl = request.PrimaryTenant.DocumentImageUrl;
+        member.PermanentAddress = request.PrimaryTenant.PermanentAddress;
+        member.OccupationOrSchool = request.PrimaryTenant.OccupationOrSchool;
+        member.FinancialDocumentUrl = request.PrimaryTenant.FinancialDocumentUrl;
+        member.IsEligible = true;
+        member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
+        foreach (var person in request.AccompanyingTenants)
+            _db.TenantMembers.Add(new TenantMember
+            {
+                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
+                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
+                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
+                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
+                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
+                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
+                IsPrimaryTenant = false, IsEligible = true
+            });
+        var salesAccount = await _db.Accounts
+            .Include(x => x.Employee)
+            .Where(x => x.RoleId == EmployeePosition.Sales && x.Status == AccountStatus.Active
+                && (application.SalesEmployeeId == null
+                    ? x.Employee!.BranchId == room.BranchId
+                    : x.Employee!.EmployeeId == application.SalesEmployeeId))
+            .OrderBy(x => x.AccountId)
+            .FirstOrDefaultAsync();
+        if (salesAccount != null)
+            _db.Notifications.Add(new Notification
+            {
+                NotificationId = IdGenerator.Generate("NT", 12),
+                RecipientAccountId = salesAccount.AccountId,
+                Title = "Có yêu cầu đặt cọc mới",
+                Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} đã gửi yêu cầu đặt cọc phòng {room.RoomName} và đang chờ Sale rà soát.",
+                NotificationType = "dat_coc",
+                CreatedAt = DateTime.UtcNow
+            });
+>>>>>>> c02fce8f2d0d801a4b89cd3bd4e04eb4a380d57d
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");
     }
