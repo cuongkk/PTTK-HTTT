@@ -12,6 +12,8 @@ public partial class AddHandoverConfirmationStatus : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropCheckConstraint(name: "chk_lich_trangthai", table: "lich_xem_phong");
+        migrationBuilder.AddCheckConstraint(name: "chk_lich_trangthai", table: "lich_xem_phong", sql: "[trang_thai] IN ('sap_den','dang_xem','hoan_thanh','huy')");
         migrationBuilder.DropCheckConstraint(name: "chk_hd_trangthai", table: "hop_dong_thue");
         migrationBuilder.AddCheckConstraint(
             name: "chk_hd_trangthai",
@@ -21,6 +23,8 @@ public partial class AddHandoverConfirmationStatus : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
+        migrationBuilder.DropCheckConstraint(name: "chk_lich_trangthai", table: "lich_xem_phong");
+        migrationBuilder.AddCheckConstraint(name: "chk_lich_trangthai", table: "lich_xem_phong", sql: "[trang_thai] IN ('sap_den','hoan_thanh','huy')");
         migrationBuilder.DropCheckConstraint(name: "chk_hd_trangthai", table: "hop_dong_thue");
         migrationBuilder.AddCheckConstraint(
             name: "chk_hd_trangthai",

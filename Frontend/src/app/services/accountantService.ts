@@ -3,8 +3,12 @@ import { apiClient } from "./apiClient";
 export interface ContractInvoiceInfo {
   id: string;
   contractId: string;
+  customerId: string;
   customerName: string;
   roomName: string;
+  monthlyRent: number;
+  bedCount: number;
+  bedNames: string[];
 }
 
 export interface CreateInvoiceRequest {
@@ -36,6 +40,7 @@ export interface Invoice {
   createdAt: string;
   paidAt?: string;
   status: string;
+  dueDate?: string;
   notes?: string;
   billingCycle?: string;
 }
@@ -71,6 +76,9 @@ export interface ReconciliationListItem {
   roomName: string;
   moveInDate: string;
   moveOutDate: string;
+  contractEndDate?: string;
+  contractStatus?: string;
+  signedDate?: string;
   deposit: number;
   monthlyRent: number;
   refundRate: number;
@@ -86,10 +94,19 @@ export interface ReconciliationListItem {
   refundMethod?: string;
   bankName?: string;
   accountNumber?: string;
+  roomCondition?: string;
+  finalElectricityReading?: number;
+  finalWaterReading?: number;
+  isCalculated: boolean;
+  invoiceStatus?: string;
+  invoiceHasProof?: boolean;
+  invoiceId?: string;
+  isDepositRefund?: boolean;
 }
 
 export interface SaveReconciliationDeductionsRequest {
   reconciliationId: string;
+  refundRate: number;
   damages: number;
   utilities: number;
   rentArrears: number;
@@ -141,6 +158,9 @@ export const accountantService = {
   
   saveReconciliationDeductions: (request: SaveReconciliationDeductionsRequest) =>
     apiClient.post<void>("/accountant/reconciliations/deductions", request),
+  
+  submitReconciliation: (reconciliationId: string) =>
+    apiClient.post<void>(`/accountant/reconciliations/${reconciliationId}/submit`),
   
   processRefund: (request: ProcessRefundRequest) =>
     apiClient.post<void>("/accountant/reconciliations/refund", request),

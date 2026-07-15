@@ -34,7 +34,7 @@ public static class WorkflowModelConfiguration
 
         modelBuilder.Entity<RoomViewingSchedule>(e =>
         {
-            e.ToTable("lich_xem_phong", t => t.HasCheckConstraint("chk_lich_trangthai", "[trang_thai] IN ('sap_den','hoan_thanh','huy')")); e.HasKey(x => x.ScheduleId).HasName("pk_lich_xem");
+            e.ToTable("lich_xem_phong", t => t.HasCheckConstraint("chk_lich_trangthai", "[trang_thai] IN ('sap_den','dang_xem','hoan_thanh','huy')")); e.HasKey(x => x.ScheduleId).HasName("pk_lich_xem");
             e.Property(x => x.ScheduleId).HasColumnName("ma_lich").HasMaxLength(12); e.Property(x => x.ApplicationId).HasColumnName("ma_ho_so").HasMaxLength(12).IsRequired(); e.Property(x => x.SalesEmployeeId).HasColumnName("ma_sale").HasMaxLength(10).IsRequired(); e.Property(x => x.AppointmentAt).HasColumnName("ngay_gio_hen"); e.Property(x => x.Status).HasColumnName("trang_thai").HasMaxLength(20).HasDefaultValue("sap_den"); e.Property(x => x.Note).HasColumnName("ghi_chu");
             e.HasOne(x => x.Application).WithMany(x => x.RoomViewingSchedules).HasForeignKey(x => x.ApplicationId).HasConstraintName("fk_lichxem_hoso").OnDelete(DeleteBehavior.Cascade); e.HasOne(x => x.SalesEmployee).WithMany().HasForeignKey(x => x.SalesEmployeeId).HasConstraintName("fk_lichxem_sale").OnDelete(DeleteBehavior.Restrict);
         });

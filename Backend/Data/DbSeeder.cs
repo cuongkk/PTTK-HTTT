@@ -70,11 +70,11 @@ public static class DbSeeder
         for (var i = 1; i <= 3; i++)
         {
             var appId = $"HSDXEM{i:000000}";
-            if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == appId)) db.RentalApplications.Add(new RentalApplication { ApplicationId = appId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = i == 3 ? "da_xem_phong" : "moi", CreatedAt = new DateTime(2026, 7, 12, 7 + i, 0, 0, DateTimeKind.Utc) });
+            if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == appId)) db.RentalApplications.Add(new RentalApplication { ApplicationId = appId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003", NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6, DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, Status = "moi", CreatedAt = new DateTime(2026, 7, 12, 7 + i, 0, 0, DateTimeKind.Utc) });
             if (i >= 2)
             {
                 var scheduleId = $"LXDXEM{i:000000}";
-                if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == scheduleId)) db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = scheduleId, ApplicationId = appId, SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 15 + i, 9, 0, 0), Status = i == 3 ? "hoan_thanh" : "sap_den", Note = $"Demo trạng thái xem phòng {i}" });
+                if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == scheduleId)) db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = scheduleId, ApplicationId = appId, SalesEmployeeId = "NV00000003", AppointmentAt = i == 2 ? new DateTime(2026, 7, 17, 9, 0, 0) : new DateTime(2026, 7, 14, 9, 0, 0), Status = i == 3 ? "dang_xem" : "sap_den", Note = i == 3 ? "Khách và Sale đang xem phòng, chờ Sale xác nhận hoàn thành" : "Lịch xem phòng sắp đến" });
                 await db.SaveChangesAsync();
                 if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == scheduleId && x.RoomId == $"PHONG_{i + 1}")) db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = scheduleId, RoomId = $"PHONG_{i + 1}" });
             }

@@ -1738,7 +1738,7 @@ namespace Backend.Migrations
 
                     b.ToTable("lich_xem_phong", null, t =>
                         {
-                            t.HasCheckConstraint("chk_lich_trangthai", "[trang_thai] IN ('sap_den','hoan_thanh','huy')");
+                            t.HasCheckConstraint("chk_lich_trangthai", "[trang_thai] IN ('sap_den','dang_xem','hoan_thanh','huy')");
                         });
                 });
 
