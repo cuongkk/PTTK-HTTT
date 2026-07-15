@@ -23,10 +23,16 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<List<UserListItemDto>>> GetAll()
     {
         return Ok(await _userService.GetAllAsync());
-    } 
+    }
+
+    [HttpGet("{accountId}")]
+    public async Task<ActionResult<UserDetailDto>> GetById(string accountId)
+    {
+        return Ok(await _userService.GetByIdAsync(accountId));
+    }
 
     [HttpPost]
-    public async Task<ActionResult<CreateUserResponse>> Create([FromBody] CreateUserRequest request)
+    public async Task<ActionResult<UserListItemDto>> Create([FromBody] CreateUserRequest request)
     {
         var result = await _userService.CreateAsync(request, User.GetAccountId());
         return CreatedAtAction(nameof(GetAll), null, result);

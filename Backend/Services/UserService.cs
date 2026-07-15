@@ -25,28 +25,42 @@ public class UserService : IUserService
         _customerRepository = customerRepository;
     }
 
+    private const int MinPasswordLength = 6;
+
     public async Task<List<UserListItemDto>> GetAllAsync()
     {
         var accounts = await _accountRepository.GetAllWithDetailsAsync();
         return accounts.Select(ToDto).ToList();
     }
 
-    public async Task<CreateUserResponse> CreateAsync(CreateUserRequest request, string actorAccountId)
+    public async Task<UserDetailDto> GetByIdAsync(string accountId)
+    {
+        var account = await _accountRepository.GetByIdWithDetailsAsync(accountId)
+            ?? throw new NotFoundException("Không tìm thấy tài khoản.");
+
+        return ToDetailDto(account);
+    }
+
+    public async Task<UserListItemDto> CreateAsync(CreateUserRequest request, string actorAccountId)
     {
         var role = await _roleRepository.GetByIdAsync(request.RoleId)
             ?? throw new ValidationException($"Vai trò '{request.RoleId}' không tồn tại.");
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength)
+        {
+            throw new ValidationException($"Mật khẩu phải có ít nhất {MinPasswordLength} ký tự.");
+        }
 
         if (await _accountRepository.FindAsync(a => a.VerifiedEmail == request.Email) is { Count: > 0 })
         {
             throw new ConflictException("Email đã được sử dụng cho tài khoản khác.");
         }
 
-        var temporaryPassword = "Tmp" + IdGenerator.Generate(string.Empty, 8);
         var account = new Account
         {
             AccountId = IdGenerator.Generate("TK", 12),
             Username = GenerateUsername(request.Email),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = request.RoleId,
             VerifiedEmail = request.Email,
             Status = AccountStatus.Active,
@@ -55,13 +69,26 @@ public class UserService : IUserService
 
         if (request.RoleId == "khach_hang")
         {
+            var nationalId = string.IsNullOrWhiteSpace(request.NationalId)
+                ? IdGenerator.Generate(string.Empty, 12)
+                : request.NationalId;
+
+            if (await _customerRepository.FindAsync(c => c.NationalId == nationalId) is { Count: > 0 })
+            {
+                throw new ConflictException($"CCCD '{nationalId}' đã được sử dụng cho khách hàng khác.");
+            }
+
             var customer = new Customer
             {
                 CustomerId = IdGenerator.Generate("KH", 12),
                 FullName = request.FullName,
-                NationalId = IdGenerator.Generate(string.Empty, 12),
+                NationalId = nationalId,
                 PhoneNumber = request.PhoneNumber ?? string.Empty,
                 Email = request.Email,
+                Gender = request.Gender,
+                Nationality = string.IsNullOrWhiteSpace(request.Nationality) ? "Việt Nam" : request.Nationality,
+                DateOfBirth = request.DateOfBirth,
+                Address = request.Address,
             };
             account.CustomerId = customer.CustomerId;
             await _customerRepository.AddAsync(customer);
@@ -73,6 +100,7 @@ public class UserService : IUserService
             var employee = new Employee
             {
                 EmployeeId = IdGenerator.Generate("NV", 10),
+                BranchId = request.BranchId,
                 FullName = request.FullName,
                 PhoneNumber = request.PhoneNumber,
                 Email = request.Email,
@@ -91,7 +119,7 @@ public class UserService : IUserService
         var createdDto = ToDto(account);
         await _accountRepository.SaveChangesAsync();
 
-        return new CreateUserResponse(createdDto, temporaryPassword);
+        return createdDto;
     }
 
     public async Task<UserListItemDto> UpdateAsync(string accountId, UpdateUserRequest request, string actorAccountId)
@@ -101,6 +129,16 @@ public class UserService : IUserService
 
         var role = await _roleRepository.GetByIdAsync(request.RoleId)
             ?? throw new ValidationException($"Vai trò '{request.RoleId}' không tồn tại.");
+
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            if (request.Password.Length < MinPasswordLength)
+            {
+                throw new ValidationException($"Mật khẩu phải có ít nhất {MinPasswordLength} ký tự.");
+            }
+
+            account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        }
 
         account.RoleId = request.RoleId;
         account.Role = role;
@@ -112,11 +150,27 @@ public class UserService : IUserService
             account.Employee.FullName = request.FullName;
             account.Employee.PhoneNumber = request.PhoneNumber;
             account.Employee.Position = request.RoleId;
+            account.Employee.BranchId = request.BranchId;
+            account.Employee.HireDate = request.HireDate;
         }
         else if (account.Customer is not null)
         {
+            if (!string.IsNullOrWhiteSpace(request.NationalId) && request.NationalId != account.Customer.NationalId)
+            {
+                if (await _customerRepository.FindAsync(c => c.NationalId == request.NationalId) is { Count: > 0 })
+                {
+                    throw new ConflictException($"CCCD '{request.NationalId}' đã được sử dụng cho khách hàng khác.");
+                }
+
+                account.Customer.NationalId = request.NationalId;
+            }
+
             account.Customer.FullName = request.FullName;
             account.Customer.PhoneNumber = request.PhoneNumber ?? account.Customer.PhoneNumber;
+            account.Customer.Gender = request.Gender;
+            account.Customer.Nationality = string.IsNullOrWhiteSpace(request.Nationality) ? account.Customer.Nationality : request.Nationality;
+            account.Customer.DateOfBirth = request.DateOfBirth;
+            account.Customer.Address = request.Address;
         }
 
         _accountRepository.Update(account);
@@ -160,5 +214,29 @@ public class UserService : IUserService
         account.Status,
         account.LastLoginAt,
         account.EmployeeId is not null ? "employee" : "customer"
+    );
+
+    private static UserDetailDto ToDetailDto(Account account) => new(
+        account.AccountId,
+        account.Username,
+        account.VerifiedEmail ?? account.Employee?.Email ?? account.Customer?.Email,
+        account.RoleId,
+        account.Role?.RoleName ?? account.RoleId,
+        account.Status,
+        account.LastLoginAt,
+        account.CreatedAt,
+        account.EmployeeId is not null ? "employee" : "customer",
+        account.EmployeeId,
+        account.CustomerId,
+        account.Employee?.FullName ?? account.Customer?.FullName ?? account.Username,
+        account.Employee?.PhoneNumber ?? account.Customer?.PhoneNumber,
+        account.Employee?.BranchId,
+        account.Employee?.Branch?.BranchName,
+        account.Employee?.HireDate,
+        account.Customer?.NationalId,
+        account.Customer?.Gender,
+        account.Customer?.Nationality,
+        account.Customer?.DateOfBirth,
+        account.Customer?.Address
     );
 }

@@ -33,6 +33,21 @@ export function mapRoleIdToPath(roleId: string): string {
     case "quan_ly":
       return "manager";
     case "sale":
+      return "sales/registrations";
+    case "ke_toan":
+      return "accountant";
+    default:
+      return "customer";
+  }
+}
+
+export function mapRoleIdToRootPath(roleId: string): string {
+  switch (roleId) {
+    case "system_admin":
+      return "system-admin";
+    case "quan_ly":
+      return "manager";
+    case "sale":
       return "sales";
     case "ke_toan":
       return "accountant";
