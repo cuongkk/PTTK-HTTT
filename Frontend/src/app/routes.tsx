@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import { MainLayout } from "./components/layouts/MainLayout";
 import { LoginPage } from "./components/auth/LoginPage";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard";
+
 import { SystemAdminDashboard } from "./components/system-admin/SystemAdminDashboard";
 import { UserManagement } from "./components/system-admin/UserManagement";
 import { SystemSettings } from "./components/system-admin/SystemSettings";
@@ -9,6 +10,7 @@ import { RoomBedCatalog } from "./components/system-admin/RoomBedCatalog";
 import { ServiceCatalog } from "./components/system-admin/ServiceCatalog";
 import { NotificationCenter } from "./components/notifications/NotificationCenter";
 import { NotFound } from "./components/NotFound";
+
 import { customerRoutes } from "./routes/customerRoutes";
 import { salesRoutes } from "./routes/salesRoutes";
 import { managerRoutes } from "./routes/managerRoutes";

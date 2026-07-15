@@ -30,6 +30,7 @@ public class RentalApplication
     public string? OtherRequirements { get; set; }
     public string Status { get; set; } = "moi";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
     public Customer Customer { get; set; } = null!;
     public Employee? SalesEmployee { get; set; }
     public Room? DesiredRoom { get; set; }
@@ -46,6 +47,7 @@ public class RoomViewingSchedule
     public DateTime AppointmentAt { get; set; }
     public string Status { get; set; } = "sap_den";
     public string? Note { get; set; }
+
     public RentalApplication Application { get; set; } = null!;
     public Employee SalesEmployee { get; set; } = null!;
     public ICollection<RoomViewingScheduleRoom> Rooms { get; set; } = new List<RoomViewingScheduleRoom>();
