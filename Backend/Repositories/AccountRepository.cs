@@ -20,7 +20,7 @@ public class AccountRepository : Repository<Account>, IAccountRepository
     public async Task<Account?> GetByIdWithDetailsAsync(string accountId) =>
         await DbSet
             .Include(a => a.Role)
-            .Include(a => a.Employee)
+            .Include(a => a.Employee).ThenInclude(e => e!.Branch)
             .Include(a => a.Customer)
             .FirstOrDefaultAsync(a => a.AccountId == accountId);
 

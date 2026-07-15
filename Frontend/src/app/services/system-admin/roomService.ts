@@ -78,6 +78,7 @@ export interface CreateRoomRequest {
 }
 
 export interface UpdateRoomRequest {
+  branchId: string;
   roomName: string;
   roomType: string;
   capacity: number;

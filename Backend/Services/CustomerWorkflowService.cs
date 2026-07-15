@@ -232,7 +232,16 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         member.IsEligible = true;
         member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
         foreach (var person in request.AccompanyingTenants)
-            _db.TenantMembers.Add(new TenantMember { TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality, IsPrimaryTenant = false, IsEligible = true });
+            _db.TenantMembers.Add(new TenantMember
+            {
+                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
+                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
+                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
+                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
+                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
+                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
+                IsPrimaryTenant = false, IsEligible = true
+            });
         var salesAccount = await _db.Accounts
             .Include(x => x.Employee)
             .Where(x => x.RoleId == EmployeePosition.Sales && x.Status == AccountStatus.Active
@@ -250,15 +259,6 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                 Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} đã gửi yêu cầu đặt cọc phòng {room.RoomName} và đang chờ Sale rà soát.",
                 NotificationType = "dat_coc",
                 CreatedAt = DateTime.UtcNow
-            _db.TenantMembers.Add(new TenantMember
-            {
-                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
-                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
-                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
-                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
-                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
-                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
-                IsPrimaryTenant = false, IsEligible = true
             });
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");

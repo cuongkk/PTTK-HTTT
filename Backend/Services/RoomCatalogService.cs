@@ -84,6 +84,10 @@ public class RoomCatalogService : IRoomCatalogService
         var room = await _roomRepository.GetByIdWithDetailsAsync(roomId)
             ?? throw new NotFoundException($"Không tìm thấy phòng '{roomId}'.");
 
+        _ = await _branchRepository.GetByIdAsync(request.BranchId)
+            ?? throw new ValidationException($"Chi nhánh '{request.BranchId}' không tồn tại.");
+
+        room.BranchId = request.BranchId;
         room.RoomName = request.RoomName;
         room.RoomType = request.RoomType;
         room.Capacity = request.Capacity;

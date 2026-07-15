@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -46,8 +47,8 @@ export function ConfirmDialog({
 
   const s = variantStyles[variant];
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-auto">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
@@ -98,7 +99,8 @@ export function ConfirmDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
