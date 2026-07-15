@@ -193,12 +193,12 @@ export function MainLayout() {
       { name: "Thông báo", path: "/accountant/notifications", icon: Bell },
     ],
     manager: [
-      { name: "Dashboard", path: "/manager", icon: Home },
-      { name: "Room Inspection", path: "/manager/inspection", icon: ClipboardList },
-      { name: "Contract Approval", path: "/manager/contract-approval", icon: FileCheck },
-      { name: "Tenant Verification", path: "/manager/tenant-verification", icon: UserCheck },
-      { name: "Liquidation", path: "/manager/liquidation", icon: ClipboardCheck },
-      { name: "Thông báo", path: "/manager/notifications", icon: Bell },
+
+      { name: "Trang chủ", path: "/manager", icon: Home },
+      { name: "Kiểm tra trạng thái phòng", path: "/manager/inspection-status", icon: ClipboardList },
+      { name: "Kiểm tra tình trạng phòng", path: "/manager/inspection-conditions", icon: ClipboardList },
+      { name: "Xác nhận hoàn cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
+      { name: "Kiểm tra điều kiện lưu trú", path: "/manager/tenant-verification", icon: UserCheck },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },

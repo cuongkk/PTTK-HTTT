@@ -84,6 +84,13 @@ builder.Services.AddScoped<ISalesWorkflowService, SalesWorkflowService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAccountantService, AccountantService>();
 
+// Manager
+builder.Services.AddScoped<IRoomInspectionStatusService,RoomInspectionStatusService>();
+builder.Services.AddScoped<IRoomInpectionConditionService,RoomInpectionConditionService>();
+builder.Services.AddScoped<IDepositConfirmationService, DepositConfirmationService>();
+builder.Services.AddScoped<ITenantVerificationService, TenantVerificationService>();
+builder.Services.AddScoped<ICheckoutReportService, CheckoutReportService>();
+
 var app = builder.Build();
 
 // ---------------- Migrate + Seed ----------------
