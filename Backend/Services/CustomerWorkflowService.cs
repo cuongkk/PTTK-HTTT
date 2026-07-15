@@ -201,12 +201,15 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         if (room.AllowedGender is "nam" or "nu")
         {
             var requiredGender = room.AllowedGender == "nam" ? "Nam" : "Nu";
-            if (request.PrimaryTenant.Gender != requiredGender)
-                throw new ValidationException("Giới tính người ở không phù hợp điều kiện của phòng.");
+            if (request.PrimaryTenant.Gender != requiredGender || request.AccompanyingTenants.Any(x => x.Gender != requiredGender))
+                throw new ValidationException("Giới tính của một hoặc nhiều người ở không phù hợp điều kiện của phòng.");
         }
 
         customer.Gender = request.PrimaryTenant.Gender;
         customer.Nationality = request.PrimaryTenant.Nationality;
+        customer.NationalId = request.PrimaryTenant.DocumentNumber;
+        customer.DateOfBirth = request.PrimaryTenant.DateOfBirth;
+        customer.Address = request.PrimaryTenant.PermanentAddress;
         application.Status = "cho_sale_ra_soat_coc";
 
         var oldMembers = await _db.TenantMembers.Where(x => x.ApplicationId == applicationId && x.ContractId == null).ToListAsync();
@@ -219,16 +222,26 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         _db.TenantMembers.Add(member);
         member.NationalId = customer.NationalId;
         member.Gender = request.PrimaryTenant.Gender;
-        member.DateOfBirth = customer.DateOfBirth;
+        member.DateOfBirth = request.PrimaryTenant.DateOfBirth;
         member.Nationality = request.PrimaryTenant.Nationality;
-        member.DocumentType = "CCCD";
-        member.DocumentImageUrl = null;
-        member.PermanentAddress = customer.Address;
-        member.OccupationOrSchool = null;
+        member.DocumentType = request.PrimaryTenant.DocumentType;
+        member.DocumentImageUrl = request.PrimaryTenant.DocumentImageUrl;
+        member.PermanentAddress = request.PrimaryTenant.PermanentAddress;
+        member.OccupationOrSchool = request.PrimaryTenant.OccupationOrSchool;
+        member.FinancialDocumentUrl = request.PrimaryTenant.FinancialDocumentUrl;
         member.IsEligible = true;
         member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
         foreach (var person in request.AccompanyingTenants)
-            _db.TenantMembers.Add(new TenantMember { TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality, IsPrimaryTenant = false, IsEligible = true });
+            _db.TenantMembers.Add(new TenantMember
+            {
+                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
+                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
+                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
+                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
+                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
+                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
+                IsPrimaryTenant = false, IsEligible = true
+            });
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");
     }

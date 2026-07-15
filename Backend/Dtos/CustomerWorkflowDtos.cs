@@ -75,9 +75,29 @@ public record DepositRequestDetailDto(
     string DepositFormula,
     string PaymentDueDescription);
 
-public record PrimaryTenantRequest(string Gender, string Nationality);
+public record PrimaryTenantRequest(
+    string Gender,
+    string Nationality,
+    string DocumentType,
+    string DocumentNumber,
+    string DocumentImageUrl,
+    DateOnly DateOfBirth,
+    string PermanentAddress,
+    string OccupationOrSchool,
+    string? FinancialDocumentUrl);
 
-public record AccompanyingTenantRequest(string FullName, string Gender, string Nationality);
+public record AccompanyingTenantRequest(
+    string FullName,
+    string Gender,
+    string Nationality,
+    string DocumentType,
+    string DocumentNumber,
+    string DocumentImageUrl,
+    DateOnly DateOfBirth,
+    string PermanentAddress,
+    string OccupationOrSchool,
+    string? FinancialDocumentUrl,
+    string RelationshipToPrimary);
 
 public record SubmitDepositRequest(
     PrimaryTenantRequest PrimaryTenant,
