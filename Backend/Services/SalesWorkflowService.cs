@@ -566,7 +566,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                 RecipientAccountId = accountant.AccountId,
                 Title = "Cần tạo yêu cầu thanh toán cọc",
                 Content = $"Phiếu cọc {slip.DepositId} của khách hàng {app.Customer.FullName} chờ tạo yêu cầu thanh toán.",
-                NotificationType = "he_thong",
+                NotificationType = $"coc|{slip.DepositId}",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
@@ -668,7 +668,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                 RecipientAccountId = accountant.AccountId,
                 Title = "Cần tạo khoản thu nhận phòng",
                 Content = $"Hợp đồng {contract.ContractId} vừa ký, cần tạo các khoản thu nhận phòng đầu kỳ.",
-                NotificationType = "he_thong",
+                NotificationType = $"checkin|{contract.ContractId}",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });

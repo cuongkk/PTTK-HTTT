@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { Send, User, Home, DollarSign, Search, Clock, Calculator } from "lucide-react";
 import { accountantService, ContractInvoiceInfo, Invoice } from "../../services/accountantService";
 
@@ -20,6 +21,8 @@ function GetInvoiceTypeName(type: string) {
 }
 
 export function PaymentRequests() {
+  const [searchParams] = useSearchParams();
+  const searchQ = searchParams.get("search") || "";
   const [selectedContract, setSelectedContract] = useState<ContractInvoiceInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingContracts, setPendingContracts] = useState<ContractInvoiceInfo[]>([]);
@@ -67,6 +70,20 @@ export function PaymentRequests() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (pendingContracts.length > 0 && searchQ) {
+      setSearchTerm(searchQ);
+      const matched = pendingContracts.find(
+        (c) =>
+          c.contractId.toLowerCase() === searchQ.toLowerCase() ||
+          c.id?.toLowerCase() === searchQ.toLowerCase()
+      );
+      if (matched) {
+        handleSelectContract(matched);
+      }
+    }
+  }, [pendingContracts, searchQ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
