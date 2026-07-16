@@ -162,7 +162,9 @@ Không dùng tên kỹ thuật của API làm nội dung hiển thị cho Actor.
 - Dùng activation bar để biểu diễn khoảng thời gian một đối tượng đang xử lý.
 - Boundary được kích hoạt từ khi nhận thao tác của Actor đến khi hiển thị kết quả.
 - Control được kích hoạt trong khoảng thời gian kiểm tra hoặc điều phối nghiệp vụ.
-- Có thể dùng activation ngắn cho Entity DB khi cần làm rõ thời gian đọc hoặc ghi.
+- Entity DB bắt buộc có activation bar trong khoảng thời gian thực hiện mỗi thao tác đọc, thêm, cập nhật hoặc xóa dữ liệu.
+- Mỗi lời gọi từ Control đến Entity DB sử dụng một activation bar ngắn riêng, bắt đầu khi DB nhận message và kết thúc khi DB trả kết quả.
+- Boundary, Control và Entity DB đều phải có activation bar khi đang trực tiếp xử lý; không chỉ vẽ activation cho màn hình và lớp nghiệp vụ.
 - Không kéo activation qua các đoạn mà đối tượng không tham gia xử lý.
 
 ## 10. Combined Fragment
@@ -276,6 +278,7 @@ Nếu code và sơ đồ 3 lớp không thống nhất, phải kiểm tra code h
 - [ ] Tên message có căn cứ từ UI, sơ đồ 3 lớp hoặc code.
 - [ ] Lời gọi dùng đường liền và return dùng đường nét đứt.
 - [ ] Activation bar phản ánh đúng thời gian xử lý.
+- [ ] Mỗi lời gọi đọc hoặc ghi Entity DB đều có activation bar tương ứng.
 - [ ] Nhánh `alt` có guard condition rõ ràng.
 - [ ] Nhánh lỗi không thực hiện thao tác ghi DB.
 - [ ] Không tạo Entity DB giả theo tên thao tác.
