@@ -27,7 +27,7 @@ public static class DbSeeder
         void AddRoom(string id, string _, string status)
         {
             var roomNumber = id.Replace("PHONG_", "");
-            rooms.Add(new Room { RoomId = id, BranchId = "CN0000001", RoomName = $"Phòng {roomNumber}", RoomType = RoomType.Whole, Capacity = 1, Area = "Khu Demo trạng thái", RoomPrice = 3000000, Floor = 4, AreaSquareMeters = 20, Description = $"Phòng demo số {roomNumber}", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = status });
+            rooms.Add(new Room { RoomId = id, BranchId = "CN0000001", RoomName = $"Phòng {roomNumber}", RoomType = RoomType.Whole, Capacity = 1, Area = "Quận 5", RoomPrice = 3000000, Floor = 4, AreaSquareMeters = 20, Description = $"Phòng demo số {roomNumber}", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = status });
         }
 
         AddRoom("PHONG_1", "Phòng 1 - chưa đăng ký", RoomBedStatus.Empty);
@@ -41,6 +41,9 @@ public static class DbSeeder
         var checkInStates = new[] { "chua_bo_sung", "cho_sale_doi_chieu", "cho_quan_ly_duyet", "cho_sale_lap_hop_dong", "cho_khach_ky", "cho_khach_thanh_toan", "cho_ke_toan_xac_nhan", "dang_thue" };
         for (var i = 0; i < checkInStates.Length; i++) AddRoom($"PHONG_{i + 11}", $"Phòng {i + 11} - {checkInStates[i]}", RoomBedStatus.Deposited);
         AddRoom("PHONG_41", "Phòng 41 - đã xác nhận bàn giao, đang thuê", RoomBedStatus.Rented);
+        AddRoom("PHONG_42", "Phòng 42 - chờ khách xác nhận điều kiện thuê", RoomBedStatus.Empty);
+        AddRoom("PHONG_43", "Phòng 43 - chờ Kế toán tính tiền cọc", RoomBedStatus.Empty);
+        AddRoom("PHONG_44", "Phòng 44 - chờ Sale lập phiếu đặt cọc", RoomBedStatus.Empty);
 
         var refundStates = new[] { "hoan_thanh", "cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc", "cho_doi_soat_hoan_coc", "cho_khach_xac_nhan_hoan_coc", "cho_hoan_tien", "da_hoan_coc", "huy" };
         for (var i = 0; i < refundStates.Length; i++) AddRoom($"PHONG_{i + 19}", $"Phòng {i + 19} - {refundStates[i]}", refundStates[i] == "da_hoan_coc" ? RoomBedStatus.Empty : refundStates[i] is "hoan_thanh" or "huy" ? RoomBedStatus.Deposited : "cho_hoan_coc");
@@ -64,6 +67,82 @@ public static class DbSeeder
             var bedId = $"G{room.RoomId.Replace("_", "")}1";
             if (!await db.Beds.AnyAsync(x => x.BedId == bedId)) db.Beds.Add(new Bed { BedId = bedId, RoomId = room.RoomId, BedNumber = 1, MonthlyRent = room.RoomPrice!.Value, Status = room.Status });
         }
+        await db.SaveChangesAsync();
+
+        // UC2 bổ sung: sau Quản lý duyệt, khách xác nhận điều kiện thuê/nội quy trước khi chuyển Kế toán tính cọc.
+        var depositTermDemos = new[]
+        {
+            new { RoomId = "PHONG_42", ApplicationId = "HSDCOC000042", ScheduleId = "LXDCOC000042", Status = "cho_khach_xac_nhan_dieu_kien_coc" },
+            new { RoomId = "PHONG_43", ApplicationId = "HSDCOC000043", ScheduleId = "LXDCOC000043", Status = "cho_ke_toan_tinh_tien_coc" }
+        };
+        foreach (var demo in depositTermDemos)
+        {
+            var application = await db.RentalApplications.FirstOrDefaultAsync(x => x.ApplicationId == demo.ApplicationId);
+            if (application is null)
+            {
+                application = new RentalApplication
+                {
+                    ApplicationId = demo.ApplicationId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003",
+                    NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6,
+                    DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole, MinimumPrice = 2500000, MaximumPrice = 3500000,
+                    Gender = "Nam", LivingSchedule = "Về trước 23:00", RequiresQuietLifestyle = true,
+                    RequiresParking = true, RequiresAirConditioner = true, Status = demo.Status,
+                    CreatedAt = new DateTime(2026, 7, 14, 8, 0, 0, DateTimeKind.Utc)
+                };
+                db.RentalApplications.Add(application);
+            }
+            else application.Status = demo.Status;
+            await db.SaveChangesAsync();
+
+            if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == demo.ScheduleId))
+                db.RoomViewingSchedules.Add(new RoomViewingSchedule
+                {
+                    ScheduleId = demo.ScheduleId, ApplicationId = demo.ApplicationId, SalesEmployeeId = "NV00000003",
+                    AppointmentAt = new DateTime(2026, 7, 14, 9, 0, 0), Status = "hoan_thanh",
+                    Note = "Khách đã xem phòng; Sale và Quản lý đã rà soát"
+                });
+            await db.SaveChangesAsync();
+            if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == demo.ScheduleId && x.RoomId == demo.RoomId))
+                db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = demo.ScheduleId, RoomId = demo.RoomId });
+        }
+        await db.SaveChangesAsync();
+
+        // UC2 bổ sung: hồ sơ đã đủ điều kiện lập phiếu nhưng chưa có phiếu cọc,
+        // dùng riêng cho công việc "Lập phiếu đặt cọc" trên màn Sale.
+        const string saleDepositApplicationId = "HSDCOC000044";
+        const string saleDepositScheduleId = "LXDCOC000044";
+        var saleDepositApplication = await db.RentalApplications.FirstOrDefaultAsync(x => x.ApplicationId == saleDepositApplicationId);
+        if (saleDepositApplication is null)
+        {
+            db.RentalApplications.Add(new RentalApplication
+            {
+                ApplicationId = saleDepositApplicationId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000003",
+                NumberOfPeople = 1, ExpectedMoveInDate = today.AddMonths(1), ExpectedRentalMonths = 6,
+                DesiredRoomId = "PHONG_44", DesiredArea = "Quận 5", DesiredRoomType = RoomType.Whole,
+                MinimumPrice = 2500000, MaximumPrice = 3500000, Gender = "Nam",
+                LivingSchedule = "Về trước 23:00", RequiresQuietLifestyle = true,
+                RequiresParking = true, RequiresAirConditioner = true,
+                Status = "cho_khach_thanh_toan_coc",
+                CreatedAt = new DateTime(2026, 7, 14, 10, 0, 0, DateTimeKind.Utc)
+            });
+        }
+        else
+        {
+            saleDepositApplication.DesiredRoomId = "PHONG_44";
+            saleDepositApplication.Status = "cho_khach_thanh_toan_coc";
+        }
+        await db.SaveChangesAsync();
+
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == saleDepositScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule
+            {
+                ScheduleId = saleDepositScheduleId, ApplicationId = saleDepositApplicationId,
+                SalesEmployeeId = "NV00000003", AppointmentAt = new DateTime(2026, 7, 14, 9, 0, 0),
+                Status = "hoan_thanh", Note = "Khách đã xem và hồ sơ đã đủ điều kiện lập phiếu đặt cọc"
+            });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == saleDepositScheduleId && x.RoomId == "PHONG_44"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = saleDepositScheduleId, RoomId = "PHONG_44" });
         await db.SaveChangesAsync();
 
         // Các trạng thái xem phòng: phòng vẫn trống, trạng thái nằm ở hồ sơ và lịch xem.
@@ -126,6 +205,29 @@ public static class DbSeeder
             if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == scheduleId && x.RoomId == $"PHONG_{i + 11}")) db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = scheduleId, RoomId = $"PHONG_{i + 11}" });
             if (!await db.DepositSlips.AnyAsync(x => x.DepositId == depositId)) db.DepositSlips.Add(new DepositSlip { DepositId = depositId, ApplicationId = appId, SalesEmployeeId = "NV00000003", ManagerEmployeeId = "NV00000002", DepositAmount = 6000000, PaymentDueAt = new DateTime(2026, 7, 10, 8, 0, 0), PaidAt = new DateTime(2026, 7, 9, 9, 0, 0), Status = "hoan_thanh" });
             await db.SaveChangesAsync();
+            if (i == 1)
+            {
+                var checkinTenant = await db.TenantMembers.FirstOrDefaultAsync(x => x.ApplicationId == appId);
+                if (checkinTenant == null)
+                {
+                    checkinTenant = new TenantMember { TenantMemberId = "TVNHAN000001", ApplicationId = appId };
+                    db.TenantMembers.Add(checkinTenant);
+                }
+                checkinTenant.CustomerId = "KH0000000001";
+                checkinTenant.FullName = "Nguyễn Gia Bảo";
+                checkinTenant.NationalId = "079203000001";
+                checkinTenant.Gender = "Nam";
+                checkinTenant.DateOfBirth = new DateOnly(2003, 5, 12);
+                checkinTenant.Nationality = "Việt Nam";
+                checkinTenant.DocumentType = "CCCD";
+                checkinTenant.DocumentImageUrl = "/demo/demo-document.png";
+                checkinTenant.PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM";
+                checkinTenant.OccupationOrSchool = "Sinh viên Đại học Công nghệ";
+                checkinTenant.IsPrimaryTenant = true;
+                checkinTenant.IsEligible = true;
+                checkinTenant.Note = "Hồ sơ nhận phòng đã được khách bổ sung đầy đủ";
+                await db.SaveChangesAsync();
+            }
             if (i >= 4)
             {
                 var contractId = $"HDNHAN{i:000000}";
@@ -151,7 +253,7 @@ public static class DbSeeder
         await db.SaveChangesAsync();
         const string handoverId = "BBGPHONG0018";
         if (!await db.HandoverReports.AnyAsync(x => x.HandoverId == handoverId))
-            db.HandoverReports.Add(new HandoverReport { HandoverId = handoverId, ContractId = "HDNHAN000007", ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 8, 1), RoomCondition = "Phòng sạch, hệ thống điện nước và thiết bị hoạt động bình thường", InitialElectricityReading = 1245, InitialWaterReading = 382, Note = "Đã hướng dẫn sử dụng tiện ích chung, lối thoát hiểm, phòng cháy chữa cháy và quy định an toàn." });
+            db.HandoverReports.Add(new HandoverReport { HandoverId = handoverId, ContractId = "HDNHAN000007", ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 8, 1), RoomCondition = "Phòng sạch, hệ thống điện nước và thiết bị hoạt động bình thường", InitialElectricityReading = 1245, InitialWaterReading = 382 });
         await db.SaveChangesAsync();
         foreach (var asset in handoverAssets)
             if (!await db.HandoverDetails.AnyAsync(x => x.HandoverId == handoverId && x.AssetId == asset.AssetId))
@@ -347,15 +449,26 @@ public static class DbSeeder
     {
         var items = new[]
         {
-            new SystemParameter { ParameterId = "tien_coc_so_thang", ParameterName = "Số tháng tiền thuê dùng tính cọc", ParameterGroup = "chinh_sach_coc", Value = "2", DataType = SystemParameterDataType.Number, Description = "Tiền cọc bằng tiền thuê hai tháng nhân số giường thuê." },
-            new SystemParameter { ParameterId = "han_thanh_toan_coc", ParameterName = "Thời hạn thanh toán cọc", ParameterGroup = "chinh_sach_coc", Value = "24", DataType = SystemParameterDataType.Number, Description = "Số giờ khách được phép hoàn tất thanh toán cọc." },
-            new SystemParameter { ParameterId = "hoan_coc_chua_ky", ParameterName = "Hoàn cọc khi chưa ký hợp đồng", ParameterGroup = "chinh_sach_hoan_coc", Value = "80", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_duoi_6_thang", ParameterName = "Hoàn cọc khi ở dưới 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "50", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_tren_6_thang", ParameterName = "Hoàn cọc khi ở trên 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "70", DataType = SystemParameterDataType.Number },
-            new SystemParameter { ParameterId = "hoan_coc_dung_han", ParameterName = "Hoàn cọc khi hết hạn hợp đồng", ParameterGroup = "chinh_sach_hoan_coc", Value = "100", DataType = SystemParameterDataType.Number },
+            new SystemParameter { ParameterId = "tien_coc_so_thang", ParameterName = "Số tháng dùng tính cọc", ParameterGroup = "chinh_sach_coc", Value = "2", DataType = SystemParameterDataType.Number, Description = "Tiền cọc bằng tiền thuê hai tháng nhân số giường thuê." },
+            new SystemParameter { ParameterId = "han_thanh_toan_coc", ParameterName = "Hạn thanh toán cọc", ParameterGroup = "chinh_sach_coc", Value = "24", DataType = SystemParameterDataType.Number, Description = "Số giờ khách được phép hoàn tất thanh toán cọc." },
+            new SystemParameter { ParameterId = "hoan_coc_chua_ky", ParameterName = "Tỷ lệ hoàn trước khi ký", ParameterGroup = "chinh_sach_hoan_coc", Value = "80", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi khách hủy đặt cọc trước khi ký hợp đồng thuê." },
+            new SystemParameter { ParameterId = "hoan_coc_duoi_6_thang", ParameterName = "Tỷ lệ hoàn dưới 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "50", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi chấm dứt hợp đồng trước mốc 6 tháng." },
+            new SystemParameter { ParameterId = "hoan_coc_tren_6_thang", ParameterName = "Tỷ lệ hoàn trên 6 tháng", ParameterGroup = "chinh_sach_hoan_coc", Value = "70", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi chấm dứt hợp đồng sau mốc 6 tháng." },
+            new SystemParameter { ParameterId = "hoan_coc_dung_han", ParameterName = "Tỷ lệ hoàn khi hết hạn", ParameterGroup = "chinh_sach_hoan_coc", Value = "100", DataType = SystemParameterDataType.Number, Description = "Áp dụng khi hợp đồng hết hạn tự nhiên, không gia hạn." },
         };
         foreach (var item in items)
-            if (!await db.SystemParameters.AnyAsync(x => x.ParameterId == item.ParameterId)) db.SystemParameters.Add(item);
+        {
+            var existing = await db.SystemParameters.FirstOrDefaultAsync(x => x.ParameterId == item.ParameterId);
+            if (existing is null)
+            {
+                db.SystemParameters.Add(item);
+                continue;
+            }
+
+            // Keep seed idempotent while backfilling display text for databases seeded before this wording change.
+            existing.ParameterName = item.ParameterName;
+            existing.Description = item.Description;
+        }
         await db.SaveChangesAsync();
     }
 

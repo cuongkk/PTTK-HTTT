@@ -47,6 +47,7 @@ public record CreateRoomRequest(
 );
 
 public record UpdateRoomRequest(
+    string BranchId,
     string RoomName,
     string RoomType,
     short Capacity,

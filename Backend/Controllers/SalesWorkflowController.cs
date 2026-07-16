@@ -49,13 +49,6 @@ public class SalesWorkflowController : ControllerBase
         return Ok(contracts);
     }
 
-    [HttpPost("applications")]
-    public async Task<ActionResult<SalesApplicationDto>> CreateApplication([FromBody] CreateApplicationRequest request)
-    {
-        var app = await _salesService.CreateApplicationAsync(request);
-        return Ok(app);
-    }
-
     [HttpPost("applications/{applicationId}/schedules")]
     public async Task<ActionResult<SalesApplicationDto>> CreateViewingSchedule(string applicationId, [FromBody] CreateViewingScheduleRequest request)
     {
@@ -70,11 +63,39 @@ public class SalesWorkflowController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("schedules/{scheduleId}/cancel")]
+    public async Task<IActionResult> CancelViewingSchedule(string scheduleId)
+    {
+        await _salesService.CancelViewingScheduleAsync(scheduleId);
+        return Ok();
+    }
+
+    [HttpPost("applications/{applicationId}/cancel")]
+    public async Task<IActionResult> CancelApplication(string applicationId, [FromBody] SalesStatusReasonRequest request)
+    {
+        await _salesService.CancelApplicationAsync(applicationId, request.Reason);
+        return Ok();
+    }
+
     [HttpPost("deposit-slips")]
     public async Task<ActionResult<SalesDepositSlipDto>> CreateDepositSlip([FromBody] CreateDepositRequest request)
     {
         var slip = await _salesService.CreateDepositSlipAsync(request, User.GetAccountId());
         return Ok(slip);
+    }
+
+    [HttpPost("deposit-slips/{depositId}/expire")]
+    public async Task<IActionResult> ExpireDepositSlip(string depositId, [FromBody] SalesStatusReasonRequest request)
+    {
+        await _salesService.ExpireDepositSlipAsync(depositId, request.Reason);
+        return Ok();
+    }
+
+    [HttpPost("deposit-slips/{depositId}/cancel")]
+    public async Task<IActionResult> CancelDepositSlip(string depositId, [FromBody] SalesStatusReasonRequest request)
+    {
+        await _salesService.CancelDepositSlipAsync(depositId, request.Reason);
+        return Ok();
     }
 
     [HttpPost("contracts")]
@@ -88,6 +109,27 @@ public class SalesWorkflowController : ControllerBase
     public async Task<IActionResult> CheckoutContract(string contractId, [FromBody] CheckoutContractRequest request)
     {
         await _salesService.CheckoutContractAsync(contractId, request, User.GetAccountId());
+        return Ok();
+    }
+
+    [HttpPost("applications/{applicationId}/review-deposit")]
+    public async Task<IActionResult> ReviewDeposit(string applicationId)
+    {
+        await _salesService.ReviewDepositRequestAsync(applicationId);
+        return Ok();
+    }
+
+    [HttpPost("applications/{applicationId}/review-checkin")]
+    public async Task<IActionResult> ReviewCheckIn(string applicationId)
+    {
+        await _salesService.ReviewCheckInDocumentsAsync(applicationId);
+        return Ok();
+    }
+
+    [HttpPost("deposit-slips/{depositId}/accept-refund")]
+    public async Task<IActionResult> AcceptDepositRefund(string depositId)
+    {
+        await _salesService.AcceptDepositRefundAsync(depositId);
         return Ok();
     }
 }

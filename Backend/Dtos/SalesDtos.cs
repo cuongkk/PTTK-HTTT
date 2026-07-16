@@ -54,19 +54,34 @@ public record SalesApplicationDto(
     bool AppointmentSent,
     string Status,
     DateTime CreatedAt,
-    string Note
+    string Note,
+    bool HasContract = false,
+    List<SalesTenantMemberDto>? Tenants = null,
+    string? DesiredRoomType = null,
+    DateOnly? ExpectedMoveInDate = null,
+    short? ExpectedRentalMonths = null,
+    string? LivingSchedule = null,
+    bool RequiresQuietLifestyle = false,
+    bool RequiresParking = false,
+    bool RequiresAirConditioner = false,
+    decimal? MinimumPrice = null,
+    decimal? MaximumPrice = null,
+    string? ScheduleStatus = null
 );
 
-public record CreateApplicationRequest(
-    string Name,
-    string Phone,
-    string Email,
+public record SalesTenantMemberDto(
+    string FullName,
     string? Gender,
-    string? GenderRequirement,
-    string? Area,
-    int? Capacity,
-    string? PriceRange,
-    string Note
+    string? Nationality,
+    DateOnly? DateOfBirth,
+    string? NationalId,
+    string? DocumentType,
+    string? DocumentImageUrl,
+    string? PermanentAddress,
+    string? OccupationOrSchool,
+    bool IsPrimaryTenant,
+    bool IsEligible,
+    string? Note
 );
 
 public record CreateViewingScheduleRequest(
@@ -94,6 +109,7 @@ public record CreateRentalRequest(
 
 public record SalesDepositSlipDto(
     string DepositId,
+    string ApplicationId,
     string CustomerName,
     string PhoneNumber,
     string RoomName,
@@ -101,13 +117,21 @@ public record SalesDepositSlipDto(
     decimal DepositAmount,
     DateTime HoldUntil,
     string Status,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? RefundReason = null,
+    bool HasContract = false,
+    string? ApplicationStatus = null,
+    bool HasPaymentProof = false,
+    DateTime? PaidAt = null,
+    DateTime? RefundRequestedAt = null,
+    string? RoomStatus = null
 );
 
 public record CheckoutRequestDto(
     DateTime RequestedCheckoutAt,
     DateTime ExpectedDate,
-    string Note
+    string Note,
+    string Status
 );
 
 public record SalesRentalContractDto(
@@ -129,4 +153,8 @@ public record SalesRentalContractDto(
 public record CheckoutContractRequest(
     DateTime ExpectedDate,
     string Note
+);
+
+public record SalesStatusReasonRequest(
+    string Reason
 );

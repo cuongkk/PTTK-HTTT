@@ -42,7 +42,17 @@ public class CustomerWorkflowController : ControllerBase
     public async Task<ActionResult<DepositRequestDetailDto>> GetDepositRequest(string applicationId, string roomId) => Ok(await _service.GetDepositRequestDetailAsync(User.GetAccountId(), applicationId, roomId));
 
     [HttpPost("applications/{applicationId}/rooms/{roomId}/deposit-request")]
-    public async Task<ActionResult<SubmitDepositResponse>> SubmitDepositRequest(string applicationId, string roomId, SubmitDepositRequest request) => Ok(await _service.SubmitDepositRequestAsync(User.GetAccountId(), applicationId, roomId, request));
+    public async Task<ActionResult<SubmitDepositResponse>> SubmitDepositRequest(string applicationId, string roomId) => Ok(await _service.SubmitDepositRequestAsync(User.GetAccountId(), applicationId, roomId));
+
+    [HttpGet("applications/{applicationId}/rooms/{roomId}/deposit-terms")]
+    public async Task<ActionResult<ViewedRoomDto>> GetDepositTerms(string applicationId, string roomId) => Ok(await _service.GetDepositTermsAsync(User.GetAccountId(), applicationId, roomId));
+
+    [HttpPost("applications/{applicationId}/rooms/{roomId}/deposit-terms/confirm")]
+    public async Task<ActionResult<SubmitDepositResponse>> ConfirmDepositTerms(string applicationId, string roomId) => Ok(await _service.ConfirmDepositTermsAsync(User.GetAccountId(), applicationId, roomId));
+
+    [HttpPost("rooms/{roomId}/deposit-refund")]
+    public async Task<ActionResult<SubmitDepositRefundResponse>> SubmitDepositRefund(string roomId, SubmitDepositRefundRequest request) =>
+        Ok(await _service.SubmitDepositRefundAsync(User.GetAccountId(), roomId, request));
 
     [HttpGet("rooms/{roomId}/contract")]
     public async Task<ActionResult<CustomerContractDetailDto>> GetContract(string roomId) => Ok(await _service.GetContractDetailAsync(User.GetAccountId(), roomId));
@@ -59,6 +69,13 @@ public class CustomerWorkflowController : ControllerBase
 
     [HttpGet("rooms/{roomId}/checkout")]
     public async Task<ActionResult<CustomerCheckoutDetailDto>> GetCheckout(string roomId) => Ok(await _service.GetCheckoutDetailAsync(User.GetAccountId(), roomId));
+
+    [HttpPost("rooms/{roomId}/checkout/confirm")]
+    public async Task<IActionResult> ConfirmCheckout(string roomId, ConfirmCheckoutReconciliationRequest request)
+    {
+        await _service.ConfirmCheckoutReconciliationAsync(User.GetAccountId(), roomId, request);
+        return NoContent();
+    }
 
     [HttpGet("rooms/{roomId}/context")]
     public async Task<ActionResult<CustomerRoomContextDto>> GetRoomContext(string roomId) => Ok(await _service.GetRoomContextAsync(User.GetAccountId(), roomId));

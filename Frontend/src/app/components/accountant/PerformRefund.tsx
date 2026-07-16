@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { DollarSign, CheckCircle, FileText, Banknote, CreditCard, Printer, Search } from "lucide-react";
 import { accountantService, ReconciliationListItem } from "../../services/accountantService";
 
 export function PerformRefund() {
+  const [searchParams] = useSearchParams();
+  const searchQ = searchParams.get("search") || "";
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -30,6 +33,27 @@ export function PerformRefund() {
   useEffect(() => {
     loadReconciliations();
   }, []);
+
+  useEffect(() => {
+    if (reconciliationsList.length > 0 && searchQ) {
+      setSearchTerm(searchQ);
+      const matched = reconciliationsList.find(
+        (r) =>
+          r.reconciliationId.toLowerCase() === searchQ.toLowerCase() ||
+          r.contractId.toLowerCase() === searchQ.toLowerCase()
+      );
+      if (matched) {
+        if (matched.status === "Chờ xử lý") {
+          setActiveStatusTab("Chờ xử lý");
+          if (matched.refundAmount > 0) {
+            handleRefundClick(matched);
+          }
+        } else {
+          setActiveStatusTab("Đã hoàn thành");
+        }
+      }
+    }
+  }, [reconciliationsList, searchQ]);
 
   const handleZeroAmountConfirm = async (recon: ReconciliationListItem) => {
     if (!window.confirm(`Xác nhận hoàn tất quyết toán không phát sinh thu chi cho hợp đồng ${recon.contractId}?`)) {
@@ -253,7 +277,7 @@ export function PerformRefund() {
                             onClick={() => {
                               setSelectedContract(recon);
                               setRefundInfo({
-                                method: recon.refundMethod || "transfer",
+                                method: (!recon.refundMethod || recon.refundMethod === "chuyen_khoan" || recon.refundMethod === "transfer") ? "transfer" : "cash",
                                 bankName: recon.bankName || "",
                                 accountNumber: recon.accountNumber || "",
                                 accountName: recon.customerName || "",

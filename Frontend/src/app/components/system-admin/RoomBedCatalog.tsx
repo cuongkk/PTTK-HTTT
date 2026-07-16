@@ -4,8 +4,9 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Building2, Plus, Search, Edit3, BedDouble, Layers3, Trash2, Loader2 } from "lucide-react";
+import { Building2, Plus, Search, Edit3, BedDouble, Layers3, Trash2, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +36,8 @@ import {
   SelectValue,
 } from "../ui/select";
 import { ApiError } from "../../services/apiClient";
-import { roomService, type Room, type Branch } from "../../services/system-admin/roomService";
+import { roomService, type Room, type Branch, type Bed } from "../../services/system-admin/roomService";
+import { bedService } from "../../services/system-admin/bedService";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 const ROOM_TYPE_OPTIONS = [
@@ -49,6 +51,12 @@ const ROOM_STATUS_OPTIONS = [
   { value: "dang_thue", label: "Đang thuê" },
 ];
 
+const ALLOWED_GENDER_OPTIONS = [
+  { value: "khong_gioi_han", label: "Không giới hạn" },
+  { value: "nam", label: "Nam" },
+  { value: "nu", label: "Nữ" },
+];
+
 function statusLabel(status: string) {
   return ROOM_STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status;
 }
@@ -59,6 +67,10 @@ function statusBadgeVariant(status: string): "secondary" | "outline" | "destruct
   return "outline";
 }
 
+function allowedGenderLabel(value: string | null) {
+  return ALLOWED_GENDER_OPTIONS.find((g) => g.value === value)?.label ?? "Không giới hạn";
+}
+
 const emptyNewRoom = {
   branchId: "",
   roomName: "",
@@ -66,9 +78,35 @@ const emptyNewRoom = {
   capacity: "1",
   area: "",
   roomPrice: "",
+  floor: "",
+  areaSquareMeters: "",
+  description: "",
+  allowedGender: "khong_gioi_han",
+  requiresQuietLifestyle: false,
+  curfewTime: "",
   hasAirConditioner: false,
   hasParking: false,
 };
+
+const emptyEditRoom = {
+  branchId: "",
+  roomName: "",
+  roomType: "nguyen_can",
+  capacity: "1",
+  area: "",
+  roomPrice: "",
+  floor: "",
+  areaSquareMeters: "",
+  description: "",
+  allowedGender: "khong_gioi_han",
+  requiresQuietLifestyle: false,
+  curfewTime: "",
+  hasAirConditioner: false,
+  hasParking: false,
+  status: "trong",
+};
+
+const emptyBedForm = { bedNumber: "", monthlyRent: "", status: "trong" };
 
 export function RoomBedCatalog() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -83,17 +121,18 @@ export function RoomBedCatalog() {
   const [deleteTarget, setDeleteTarget] = useState<Room | null>(null);
 
   const [newRoom, setNewRoom] = useState(emptyNewRoom);
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
-  const [editRoom, setEditRoom] = useState({
-    roomName: "",
-    roomType: "nguyen_can",
-    capacity: "1",
-    area: "",
-    roomPrice: "",
-    hasAirConditioner: false,
-    hasParking: false,
-    status: "trong",
-  });
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; variant?: "warning" | "danger" | "info"; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
+  const [editRoom, setEditRoom] = useState(emptyEditRoom);
+
+  // Quản lý giường
+  const [isBedDialogOpen, setIsBedDialogOpen] = useState(false);
+  const [bedRoom, setBedRoom] = useState<Room | null>(null);
+  const [beds, setBeds] = useState<Bed[]>([]);
+  const [isBedsLoading, setIsBedsLoading] = useState(false);
+  const [isBedSubmitting, setIsBedSubmitting] = useState(false);
+  const [bedFormMode, setBedFormMode] = useState<"add" | "edit" | null>(null);
+  const [editingBed, setEditingBed] = useState<Bed | null>(null);
+  const [bedForm, setBedForm] = useState(emptyBedForm);
 
   const load = async () => {
     setIsLoading(true);
@@ -121,11 +160,18 @@ export function RoomBedCatalog() {
   const handleEditClick = (room: Room) => {
     setCurrentRoom(room);
     setEditRoom({
+      branchId: room.branchId,
       roomName: room.roomName,
       roomType: room.roomType,
       capacity: String(room.capacity),
       area: room.area ?? "",
       roomPrice: room.roomPrice != null ? String(room.roomPrice) : "",
+      floor: room.floor != null ? String(room.floor) : "",
+      areaSquareMeters: room.areaSquareMeters != null ? String(room.areaSquareMeters) : "",
+      description: room.description ?? "",
+      allowedGender: room.allowedGender ?? "khong_gioi_han",
+      requiresQuietLifestyle: room.requiresQuietLifestyle,
+      curfewTime: room.curfewTime ?? "",
       hasAirConditioner: room.hasAirConditioner,
       hasParking: room.hasParking,
       status: room.status,
@@ -142,8 +188,9 @@ export function RoomBedCatalog() {
       open: true,
       title: "Tạo phòng",
       message: `Xác nhận tạo phòng "${newRoom.roomName}"?`,
+      variant: "info",
       onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
         setIsSubmitting(true);
         try {
           await roomService.create({
@@ -153,6 +200,12 @@ export function RoomBedCatalog() {
             capacity: Number(newRoom.capacity) || 1,
             area: newRoom.area || undefined,
             roomPrice: newRoom.roomPrice ? Number(newRoom.roomPrice) : undefined,
+            floor: newRoom.floor ? Number(newRoom.floor) : undefined,
+            areaSquareMeters: newRoom.areaSquareMeters ? Number(newRoom.areaSquareMeters) : undefined,
+            description: newRoom.description || undefined,
+            allowedGender: newRoom.allowedGender === "khong_gioi_han" ? undefined : newRoom.allowedGender,
+            requiresQuietLifestyle: newRoom.requiresQuietLifestyle,
+            curfewTime: newRoom.curfewTime || undefined,
             hasAirConditioner: newRoom.hasAirConditioner,
             hasParking: newRoom.hasParking,
           });
@@ -165,7 +218,7 @@ export function RoomBedCatalog() {
         } finally {
           setIsSubmitting(false);
         }
-      }
+      },
     });
   };
 
@@ -175,16 +228,24 @@ export function RoomBedCatalog() {
       open: true,
       title: "Cập nhật phòng",
       message: `Xác nhận cập nhật phòng "${currentRoom.roomName}"?`,
+      variant: "info",
       onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, open: false }));
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
         setIsSubmitting(true);
         try {
           await roomService.update(currentRoom.roomId, {
+            branchId: editRoom.branchId,
             roomName: editRoom.roomName,
             roomType: editRoom.roomType,
             capacity: Number(editRoom.capacity) || 1,
             area: editRoom.area || undefined,
             roomPrice: editRoom.roomPrice ? Number(editRoom.roomPrice) : undefined,
+            floor: editRoom.floor ? Number(editRoom.floor) : undefined,
+            areaSquareMeters: editRoom.areaSquareMeters ? Number(editRoom.areaSquareMeters) : undefined,
+            description: editRoom.description || undefined,
+            allowedGender: editRoom.allowedGender === "khong_gioi_han" ? undefined : editRoom.allowedGender,
+            requiresQuietLifestyle: editRoom.requiresQuietLifestyle,
+            curfewTime: editRoom.curfewTime || undefined,
             hasAirConditioner: editRoom.hasAirConditioner,
             hasParking: editRoom.hasParking,
             status: editRoom.status,
@@ -197,7 +258,7 @@ export function RoomBedCatalog() {
         } finally {
           setIsSubmitting(false);
         }
-      }
+      },
     });
   };
 
@@ -216,6 +277,101 @@ export function RoomBedCatalog() {
     }
   };
 
+  // ---- Quản lý giường ----
+  const loadBeds = async (roomId: string) => {
+    setIsBedsLoading(true);
+    try {
+      const data = await bedService.getByRoomId(roomId);
+      setBeds(data);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Không thể tải danh sách giường.");
+    } finally {
+      setIsBedsLoading(false);
+    }
+  };
+
+  const handleOpenBedDialog = (room: Room) => {
+    setBedRoom(room);
+    setBedFormMode(null);
+    setEditingBed(null);
+    setIsBedDialogOpen(true);
+    loadBeds(room.roomId);
+  };
+
+  const handleAddBedClick = () => {
+    setBedFormMode("add");
+    setEditingBed(null);
+    setBedForm(emptyBedForm);
+  };
+
+  const handleEditBedClick = (bed: Bed) => {
+    setBedFormMode("edit");
+    setEditingBed(bed);
+    setBedForm({ bedNumber: String(bed.bedNumber), monthlyRent: String(bed.monthlyRent), status: bed.status });
+  };
+
+  const handleBedFormCancel = () => {
+    setBedFormMode(null);
+    setEditingBed(null);
+    setBedForm(emptyBedForm);
+  };
+
+  const handleBedFormSubmit = async () => {
+    if (!bedRoom) return;
+    const bedNumber = Number(bedForm.bedNumber);
+    const monthlyRent = Number(bedForm.monthlyRent);
+    if (!bedNumber || bedNumber < 1) {
+      toast.error("Vui lòng nhập số giường hợp lệ.");
+      return;
+    }
+    if (!monthlyRent || monthlyRent <= 0) {
+      toast.error("Vui lòng nhập giá thuê hợp lệ.");
+      return;
+    }
+
+    setIsBedSubmitting(true);
+    try {
+      if (bedFormMode === "edit" && editingBed) {
+        await bedService.update(editingBed.bedId, { bedNumber, monthlyRent, status: bedForm.status });
+        toast.success(`Đã cập nhật giường số ${bedNumber}.`);
+      } else {
+        await bedService.create({ roomId: bedRoom.roomId, bedNumber, monthlyRent });
+        toast.success(`Đã thêm giường số ${bedNumber}.`);
+      }
+      handleBedFormCancel();
+      await loadBeds(bedRoom.roomId);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Lưu giường thất bại.");
+    } finally {
+      setIsBedSubmitting(false);
+    }
+  };
+
+  const handleDeleteBed = (bed: Bed) => {
+    setConfirmDialog({
+      open: true,
+      title: "Xóa giường",
+      message: `Xác nhận xóa giường số ${bed.bedNumber}?`,
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, open: false }));
+        if (!bedRoom) return;
+        setIsBedSubmitting(true);
+        try {
+          await bedService.remove(bed.bedId);
+          toast.success(`Đã xóa giường số ${bed.bedNumber}.`);
+          await loadBeds(bedRoom.roomId);
+          await load();
+        } catch (err) {
+          toast.error(err instanceof ApiError ? err.message : "Xóa giường thất bại.");
+        } finally {
+          setIsBedSubmitting(false);
+        }
+      },
+    });
+  };
+
   const stats = [
     { label: "Tổng số phòng", value: String(rooms.length), icon: Building2 },
     { label: "Tổng số giường", value: String(rooms.reduce((sum, r) => sum + r.beds.length, 0)), icon: BedDouble },
@@ -232,14 +388,14 @@ export function RoomBedCatalog() {
             Thêm loại phòng mới, điều chỉnh giá thuê, và duy trì sức chứa tối đa.
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) setNewRoom(emptyNewRoom); }}>
           <DialogTrigger asChild>
             <Button className="w-fit">
               <Plus className="h-4 w-4" />
               Thêm loại phòng
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Thêm loại phòng mới</DialogTitle>
               <DialogDescription>
@@ -313,6 +469,26 @@ export function RoomBedCatalog() {
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="floor">Tầng</Label>
+                  <Input
+                    id="floor"
+                    type="number"
+                    value={newRoom.floor}
+                    onChange={(e) => setNewRoom((s) => ({ ...s, floor: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="area-sqm">Diện tích (m²)</Label>
+                  <Input
+                    id="area-sqm"
+                    type="number"
+                    value={newRoom.areaSquareMeters}
+                    onChange={(e) => setNewRoom((s) => ({ ...s, areaSquareMeters: e.target.value }))}
+                  />
+                </div>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="price">Giá hàng tháng (VND)</Label>
                 <Input
@@ -323,7 +499,44 @@ export function RoomBedCatalog() {
                   onChange={(e) => setNewRoom((s) => ({ ...s, roomPrice: e.target.value }))}
                 />
               </div>
-              <div className="flex gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="description">Mô tả</Label>
+                <Textarea
+                  id="description"
+                  value={newRoom.description}
+                  onChange={(e) => setNewRoom((s) => ({ ...s, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="allowed-gender">Giới tính cho phép</Label>
+                  <Select
+                    value={newRoom.allowedGender}
+                    onValueChange={(value) => setNewRoom((s) => ({ ...s, allowedGender: value }))}
+                  >
+                    <SelectTrigger id="allowed-gender">
+                      <SelectValue placeholder="Chọn giới tính" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALLOWED_GENDER_OPTIONS.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>
+                          {g.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="curfew">Giờ giới nghiêm</Label>
+                  <Input
+                    id="curfew"
+                    type="time"
+                    value={newRoom.curfewTime}
+                    onChange={(e) => setNewRoom((s) => ({ ...s, curfewTime: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
                 <Toggle
                   pressed={newRoom.hasAirConditioner}
                   onPressedChange={(v) => setNewRoom((s) => ({ ...s, hasAirConditioner: v }))}
@@ -335,6 +548,12 @@ export function RoomBedCatalog() {
                   onPressedChange={(v) => setNewRoom((s) => ({ ...s, hasParking: v }))}
                 >
                   Chỗ gửi xe
+                </Toggle>
+                <Toggle
+                  pressed={newRoom.requiresQuietLifestyle}
+                  onPressedChange={(v) => setNewRoom((s) => ({ ...s, requiresQuietLifestyle: v }))}
+                >
+                  Yêu cầu yên tĩnh
                 </Toggle>
               </div>
             </div>
@@ -426,6 +645,14 @@ export function RoomBedCatalog() {
                           <Button
                             variant="outline"
                             size="icon"
+                            aria-label="Manage beds"
+                            onClick={() => handleOpenBedDialog(room)}
+                          >
+                            <BedDouble className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
                             aria-label="Edit room"
                             onClick={() => handleEditClick(room)}
                           >
@@ -451,7 +678,7 @@ export function RoomBedCatalog() {
       </Card>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Chỉnh sửa phòng</DialogTitle>
             <DialogDescription>
@@ -461,12 +688,48 @@ export function RoomBedCatalog() {
           {currentRoom && (
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
+                <Label htmlFor="edit-branch">Chi nhánh</Label>
+                <Select
+                  value={editRoom.branchId}
+                  onValueChange={(value) => setEditRoom((s) => ({ ...s, branchId: value }))}
+                >
+                  <SelectTrigger id="edit-branch">
+                    <SelectValue placeholder="Chọn chi nhánh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b) => (
+                      <SelectItem key={b.branchId} value={b.branchId}>
+                        {b.branchName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="edit-room-name">Tên phòng</Label>
                 <Input
                   id="edit-room-name"
                   value={editRoom.roomName}
                   onChange={(e) => setEditRoom((s) => ({ ...s, roomName: e.target.value }))}
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-room-type">Loại phòng</Label>
+                <Select
+                  value={editRoom.roomType}
+                  onValueChange={(value) => setEditRoom((s) => ({ ...s, roomType: value }))}
+                >
+                  <SelectTrigger id="edit-room-type">
+                    <SelectValue placeholder="Chọn loại phòng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROOM_TYPE_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -479,12 +742,77 @@ export function RoomBedCatalog() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-price">Giá hàng tháng (VND)</Label>
+                  <Label htmlFor="edit-area">Khu vực</Label>
                   <Input
-                    id="edit-price"
+                    id="edit-area"
+                    value={editRoom.area}
+                    onChange={(e) => setEditRoom((s) => ({ ...s, area: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-floor">Tầng</Label>
+                  <Input
+                    id="edit-floor"
                     type="number"
-                    value={editRoom.roomPrice}
-                    onChange={(e) => setEditRoom((s) => ({ ...s, roomPrice: e.target.value }))}
+                    value={editRoom.floor}
+                    onChange={(e) => setEditRoom((s) => ({ ...s, floor: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-area-sqm">Diện tích (m²)</Label>
+                  <Input
+                    id="edit-area-sqm"
+                    type="number"
+                    value={editRoom.areaSquareMeters}
+                    onChange={(e) => setEditRoom((s) => ({ ...s, areaSquareMeters: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-price">Giá hàng tháng (VND)</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  value={editRoom.roomPrice}
+                  onChange={(e) => setEditRoom((s) => ({ ...s, roomPrice: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-description">Mô tả</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editRoom.description}
+                  onChange={(e) => setEditRoom((s) => ({ ...s, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-allowed-gender">Giới tính cho phép</Label>
+                  <Select
+                    value={editRoom.allowedGender}
+                    onValueChange={(value) => setEditRoom((s) => ({ ...s, allowedGender: value }))}
+                  >
+                    <SelectTrigger id="edit-allowed-gender">
+                      <SelectValue placeholder="Chọn giới tính" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALLOWED_GENDER_OPTIONS.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>
+                          {g.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-curfew">Giờ giới nghiêm</Label>
+                  <Input
+                    id="edit-curfew"
+                    type="time"
+                    value={editRoom.curfewTime}
+                    onChange={(e) => setEditRoom((s) => ({ ...s, curfewTime: e.target.value }))}
                   />
                 </div>
               </div>
@@ -506,7 +834,7 @@ export function RoomBedCatalog() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Toggle
                   pressed={editRoom.hasAirConditioner}
                   onPressedChange={(v) => setEditRoom((s) => ({ ...s, hasAirConditioner: v }))}
@@ -519,6 +847,12 @@ export function RoomBedCatalog() {
                 >
                   Chỗ gửi xe
                 </Toggle>
+                <Toggle
+                  pressed={editRoom.requiresQuietLifestyle}
+                  onPressedChange={(v) => setEditRoom((s) => ({ ...s, requiresQuietLifestyle: v }))}
+                >
+                  Yêu cầu yên tĩnh
+                </Toggle>
               </div>
             </div>
           )}
@@ -528,6 +862,149 @@ export function RoomBedCatalog() {
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Cập nhật
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog quản lý giường */}
+      <Dialog open={isBedDialogOpen} onOpenChange={(open) => { setIsBedDialogOpen(open); if (!open) { setBedRoom(null); handleBedFormCancel(); } }}>
+        <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quản lý giường — {bedRoom?.roomName}</DialogTitle>
+            <DialogDescription>
+              Thêm, sửa giá/trạng thái hoặc xóa từng giường trong phòng này.
+              {bedRoom && ` Giới tính cho phép: ${allowedGenderLabel(bedRoom.allowedGender)}.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-2xl border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Số giường</TableHead>
+                    <TableHead>Giá thuê/tháng</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="text-right">Hành động</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isBedsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-slate-500 py-6">
+                        <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+                      </TableCell>
+                    </TableRow>
+                  ) : beds.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-slate-500 py-6">
+                        Chưa có giường nào.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    beds.map((bed) => (
+                      <TableRow key={bed.bedId}>
+                        <TableCell className="font-medium text-slate-900">{bed.bedNumber}</TableCell>
+                        <TableCell>{bed.monthlyRent.toLocaleString("vi-VN")} VND</TableCell>
+                        <TableCell>
+                          <Badge variant={statusBadgeVariant(bed.status)}>{statusLabel(bed.status)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label="Edit bed"
+                              onClick={() => handleEditBedClick(bed)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label="Delete bed"
+                              onClick={() => handleDeleteBed(bed)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {bedFormMode ? (
+              <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    {bedFormMode === "edit" ? `Sửa giường số ${editingBed?.bedNumber}` : "Thêm giường mới"}
+                  </h4>
+                  <Button variant="ghost" size="icon" onClick={handleBedFormCancel} aria-label="Đóng">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="bed-number">Số giường</Label>
+                    <Input
+                      id="bed-number"
+                      type="number"
+                      min={1}
+                      value={bedForm.bedNumber}
+                      onChange={(e) => setBedForm((s) => ({ ...s, bedNumber: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="bed-rent">Giá thuê/tháng (VND)</Label>
+                    <Input
+                      id="bed-rent"
+                      type="number"
+                      value={bedForm.monthlyRent}
+                      onChange={(e) => setBedForm((s) => ({ ...s, monthlyRent: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                {bedFormMode === "edit" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="bed-status">Trạng thái</Label>
+                    <Select
+                      value={bedForm.status}
+                      onValueChange={(value) => setBedForm((s) => ({ ...s, status: value }))}
+                    >
+                      <SelectTrigger id="bed-status">
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROOM_STATUS_OPTIONS.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={handleBedFormCancel}>Hủy</Button>
+                  <Button disabled={isBedSubmitting} onClick={handleBedFormSubmit}>
+                    {isBedSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Lưu giường
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="outline" className="w-full" onClick={handleAddBedClick}>
+                <Plus className="h-4 w-4" />
+                Thêm giường
+              </Button>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBedDialogOpen(false)}>Đóng</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -553,9 +1030,9 @@ export function RoomBedCatalog() {
         open={confirmDialog.open}
         title={confirmDialog.title}
         message={confirmDialog.message}
-        variant="info"
+        variant={confirmDialog.variant ?? "info"}
         onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
       />
     </div>
   );
