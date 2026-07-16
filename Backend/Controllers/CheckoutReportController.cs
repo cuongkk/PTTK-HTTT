@@ -41,7 +41,7 @@ public class CheckoutReportController : ControllerBase
 
         if (!result.Success)
         {
-            return StatusCode(500, new { message = result.Message });
+            return StatusCode(result.StatusCode, new { message = result.Message });
         }
 
         return Ok(result);

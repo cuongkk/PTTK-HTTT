@@ -137,7 +137,7 @@ export function DepositConfirmation() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Xác nhận tiền cọc</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Xác nhận hoàn cọc</h1>
         <p className="text-gray-600">Xác nhận thông tin tiền cọc của khách hàng</p>
       </div>
 
@@ -352,13 +352,6 @@ export function DepositConfirmation() {
                 Đóng
               </button>
 
-              <button
-                onClick={() => handleReviewDeposit(selectedDeposit.id, false)}
-                disabled={isReviewing}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-              >
-                Không hợp lệ
-              </button>
 
               <button
                 onClick={() => handleReviewDeposit(selectedDeposit.id, true)}

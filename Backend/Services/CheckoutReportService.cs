@@ -14,12 +14,19 @@ public class CheckoutReportService : ICheckoutReportService
         _db = db;
     }
 
+    // Sinh mã ngắn dạng: 2 ký tự tiền tố + 10 chữ số từ Ticks hiện tại = đúng 12 ký tự,
+    // khớp với giới hạn nvarchar(12) của các cột ma_doi_soat, ma_bb_tra, ma_chi_phi.
+    private static string GenerateShortId(string prefix)
+    {
+        // Ticks có 18 chữ số, lấy 10 số cuối để đủ độ phân giải nhưng vẫn ngắn gọn
+        var ticksPart = (DateTime.UtcNow.Ticks % 10_000_000_000L).ToString().PadLeft(10, '0');
+        return $"{prefix}{ticksPart}"; // ví dụ: "DS1234567890" - đúng 12 ký tự
+    }
+
     public async Task<CheckoutReportResultDto> CreateReportAndReconciliationAsync(CreateCheckoutReportDto dto, string accountId)
     {
-        // 0. Sửa lỗi trùng biến đầu vào: Khớp "accountId" viết thường từ tham số
         var account = await _db.Accounts.FirstOrDefaultAsync(a => a.AccountId == accountId);
 
-        // Kiểm tra xem tài khoản có tồn tại hoặc có được liên kết với Nhân viên nào không
         if (account == null || string.IsNullOrEmpty(account.EmployeeId))
         {
             return new CheckoutReportResultDto
@@ -29,12 +36,10 @@ public class CheckoutReportService : ICheckoutReportService
             };
         }
 
-        // Đã tìm được mã nhân viên chính xác (ví dụ: NV0000000X)
         string managerEmployeeId = account.EmployeeId;
 
-        // BỔ SUNG LƯỢNG DỮ LIỆU: Truy vấn đối tượng Yêu cầu trả phòng đang xử lý để có thực thể gán trạng thái
         var checkoutRequest = await _db.CheckoutRequests
-            .FirstOrDefaultAsync(r => r.ContractId == dto.ContractId && 
+            .FirstOrDefaultAsync(r => r.ContractId == dto.ContractId &&
                                     (r.Status == "cho_kiem_tra" || r.Status == "da_xac_nhan_lich"));
 
         if (checkoutRequest == null)
@@ -46,82 +51,82 @@ public class CheckoutReportService : ICheckoutReportService
             };
         }
 
-        // BỔ SUNG LƯỢNG DỮ LIỆU: Lấy thông tin Hợp đồng thuê để chuyển đổi trạng thái đồng bộ
         var contract = await _db.RentalContracts
             .FirstOrDefaultAsync(c => c.ContractId == dto.ContractId);
 
-        // Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu cho tất cả các bảng liên quan
+        if (contract != null)
+        {
+            string saleEmployeeId = contract.SalesEmployeeId; // Đây chính là mã nhân viên sale!
+        }
+
         using var transaction = await _db.Database.BeginTransactionAsync();
         try
         {
-            // 1. Khởi tạo đối tượng Đối soát (Reconciliation) với các thông tin cơ bản trước
-            var reconciliationId = Guid.NewGuid().ToString();
+            // 1. Khởi tạo đối tượng Đối soát (Reconciliation)
+            var reconciliationId = GenerateShortId("DS"); // ví dụ: "DS1234567890" - 12 ký tự
             var reconciliation = new Reconciliation
             {
                 ReconciliationId = reconciliationId,
                 ContractId = dto.ContractId,
                 ManagerEmployeeId = managerEmployeeId,
-                AccountantEmployeeId = "", // Chưa có kế toán tiếp nhận
+                AccountantEmployeeId = managerEmployeeId, // Chưa có kế toán tiếp nhận
                 CreatedDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                
-                // Các thông tin tài chính để mặc định
+
                 OriginalDeposit = 0,
                 RefundRate = 0,
                 BaseRefund = 0,
-                // [CẬP NHẬT ĐỂ ĐỒNG BỘ]: Cộng dồn chi phí hư hại ước tính trực tiếp vào tổng khấu trừ ban đầu nếu có
-                TotalDeductions = dto.EstimatedCost > 0 ? dto.EstimatedCost : 0, 
+                TotalDeductions = dto.EstimatedCost > 0 ? dto.EstimatedCost : 0,
                 RefundAmount = null,
                 AdditionalPaymentAmount = null,
-                Status = "cho_doi_soat" // Trạng thái chờ đối soát kế toán trực tiếp
+                Status = "cho_xac_nhan"
             };
 
-            // 2. Khởi tạo biên bản trả phòng (CheckoutReport) liên kết với đối soát trên
-            var checkoutReportId = Guid.NewGuid().ToString();
+            // 2. Khởi tạo biên bản trả phòng (CheckoutReport)
+            var checkoutReportId = GenerateShortId("BT"); // ví dụ: "BT1234567890" - 12 ký tự
             var checkoutReport = new CheckoutReport
             {
                 CheckoutReportId = checkoutReportId,
                 ReconciliationId = reconciliationId,
                 ManagerEmployeeId = managerEmployeeId,
                 CheckoutDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                
-                // Tổng hợp thông tin hiện trạng từ FE gửi lên
+
                 RoomCondition = $"Tổng thể: {dto.OverallCondition} | Vệ sinh: {dto.Cleanliness} | Hư hại: {dto.DamageNotes}",
-                FinalElectricityReading = null, // Nhân viên sẽ điền sau
-                FinalWaterReading = null,       // Nhân viên sẽ điền sau
+                FinalElectricityReading = null,
+                FinalWaterReading = null,
                 KeysReturned = true,
                 Note = dto.EstimatedCost > 0 ? $"Chi phí sửa chữa ước tính: {dto.EstimatedCost}$" : null
             };
 
-            // 3. BỔ SUNG: Nếu có chi phí phát sinh > 0, tạo một bản ghi AdditionalCost độc lập lưu vào DB
+            // 3. Nếu có chi phí phát sinh > 0, tạo bản ghi AdditionalCost
             if (dto.EstimatedCost > 0)
             {
                 var additionalCost = new AdditionalCost
                 {
-                    AdditionalCostId = Guid.NewGuid().ToString(),
+                    AdditionalCostId = GenerateShortId("CP"), // ví dụ: "CP1234567890" - 12 ký tự
                     ReconciliationId = reconciliationId,
-                    CostType = "hu_hong", // Ghi nhận loại chi phí hư hỏng cơ sở vật chất
+                    CostType = "hu_hong",
                     Amount = dto.EstimatedCost,
                     Description = !string.IsNullOrEmpty(dto.DamageNotes) ? dto.DamageNotes : "Chi phí phát sinh hư hại phòng"
                 };
                 _db.AdditionalCosts.Add(additionalCost);
             }
 
-            // 4. CẬP NHẬT: Trạng thái Yêu cầu trả phòng được kích hoạt và gán giá trị hợp lệ
-            checkoutRequest.Status = "cho_doi_soat"; // Đi thẳng sang trạng thái chờ đối soát
+            // 4. Cập nhật trạng thái Yêu cầu trả phòng
+            checkoutRequest.Status = "cho_doi_soat";
             checkoutRequest.ReconciliationId = reconciliationId;
             checkoutRequest.ConfirmedInspectionAt = DateTime.UtcNow;
             checkoutRequest.ManagerEmployeeId = managerEmployeeId;
 
-            // 5. BỔ SUNG: Đồng bộ cập nhật trạng thái của Hợp đồng thuê sang Chờ đối soát
+            // 5. Đồng bộ trạng thái Hợp đồng thuê
             if (contract != null)
             {
                 contract.Status = "cho_doi_soat";
             }
 
-            // 6. Lưu đồng thời tất cả các thay đổi vào cơ sở dữ liệu
+            // 6. Lưu tất cả thay đổi
             _db.Reconciliations.Add(reconciliation);
             _db.CheckoutReports.Add(checkoutReport);
-            
+
             await _db.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -136,10 +141,11 @@ public class CheckoutReportService : ICheckoutReportService
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
+            var detail = ex.InnerException?.Message ?? ex.Message;
             return new CheckoutReportResultDto
             {
                 Success = false,
-                Message = $"Có lỗi xảy ra trong quá trình lưu dữ liệu: {ex.Message}"
+                Message = $"Có lỗi xảy ra trong quá trình lưu dữ liệu: {detail}"
             };
         }
     }

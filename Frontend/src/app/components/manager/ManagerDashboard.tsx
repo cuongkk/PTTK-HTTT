@@ -81,7 +81,8 @@ export function ManagerDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           const colorClasses = {
@@ -108,10 +109,10 @@ export function ManagerDashboard() {
             </div>
           );
         })}
-      </div>
+      </div> */}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           to="/manager/inspection-status"
           className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 hover:from-blue-600 hover:to-blue-700 transition-all"
@@ -168,78 +169,11 @@ export function ManagerDashboard() {
           <h3 className="text-lg font-semibold mb-1">Thanh lý hợp đồng thuê</h3>
           <p className="text-sm text-orange-100">Chấm dứt thuê & đối chiếu</p>
         </Link>
-      </div>
+      </div> */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pending Approvals */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Yêu cầu chờ duyệt</h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {pendingApprovals.map((approval) => (
-              <div key={approval.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{approval.type}</h3>
-                    <p className="text-sm text-gray-600">{approval.customer}</p>
-                  </div>
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
-                    Chờ duyệt
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{approval.room}</span>
-                  <span className="font-medium text-gray-900">{approval.amount}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="p-4 border-t border-gray-200">
-            <Link
-              to="/manager/contract-approval"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Xem tất cả yêu cầu duyệt →
-            </Link>
-          </div>
-        </div>
-
-        {/* Room Statistics */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Thống kê phòng theo Tòa</h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {roomStats.map((stat, index) => (
-              <div key={index} className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">{stat.building}</h3>
-                <div className="grid grid-cols-4 gap-2 text-sm">
-                  <div>
-                    <p className="text-gray-600">Tổng số</p>
-                    <p className="text-lg font-bold text-gray-900">{stat.total}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Đang thuê</p>
-                    <p className="text-lg font-bold text-blue-600">{stat.occupied}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Còn trống</p>
-                    <p className="text-lg font-bold text-green-600">{stat.available}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Bảo trì</p>
-                    <p className="text-lg font-bold text-orange-600">{stat.maintenance}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      {/* <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">Hoạt động gần đây</h2>
         </div>
@@ -257,7 +191,7 @@ export function ManagerDashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

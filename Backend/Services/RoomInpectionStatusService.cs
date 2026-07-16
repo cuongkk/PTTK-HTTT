@@ -16,46 +16,55 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
     public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
     {
-        // 1. Lấy hợp đồng có yêu cầu trả phòng đã xác nhận lịch và đọc phòng trực tiếp từ hợp đồng.
-        var contracts = await _db.RentalContracts
-            .Include(c => c.Customer)
-            .Include(c => c.TenantMembers)
-            .Include(c => c.Room)
-                .ThenInclude(r => r.Branch)
-            .Include(c => c.Room)
-                .ThenInclude(r => r.Beds)
-            .Where(c => c.Status == "cho_kiem_tra_tra_phong"
-                    && _db.CheckoutRequests.Any(cr => cr.ContractId == c.ContractId
-                        && cr.Status == "da_xac_nhan_lich"))
+        // 1. Lấy hồ sơ đang chờ quản lý duyệt nhận phòng, kèm khách hàng, lịch xem phòng
+        var applications = await _db.RentalApplications
+            .Include(a => a.Customer)
+            .Include(a => a.DepositSlips)
+            .Include(a => a.RoomViewingSchedules)
+                .ThenInclude(s => s.Rooms)   // chỉ có RoomId, ScheduleId, không include sâu hơn được
+            .Where(a => a.Status == "cho_quan_ly_xac_nhan_coc")
             .ToListAsync();
 
-        // 2. Lọc theo điều kiện phòng "dang_thue" và build DTO.
+        // 2. Gom hết RoomId cần thiết, query Room riêng 1 lần
+        var roomIds = applications
+            .SelectMany(a => a.RoomViewingSchedules.SelectMany(s => s.Rooms.Select(sr => sr.RoomId)))
+            .Distinct()
+            .ToList();
+
+        var rooms = await _db.Rooms
+            .Include(r => r.Branch)
+            .Include(r => r.Beds)
+            .Where(r => roomIds.Contains(r.RoomId))
+            .ToListAsync();
+
+        var roomLookup = rooms.ToDictionary(r => r.RoomId, r => r);
+
+        // 3. Build DTO
         var result = new List<RoomStatusDto>();
 
-        foreach (var contract in contracts)
+        foreach (var app in applications)
         {
-            var room = contract.Room;
+            var roomId = app.RoomViewingSchedules
+                .SelectMany(s => s.Rooms)
+                .Select(sr => sr.RoomId)
+                .FirstOrDefault();
 
-            if (room is null || room.Status != RoomBedStatus.Rented)
+            var room = roomId is null ? null : roomLookup.GetValueOrDefault(roomId);
+            if (room is null)
                 continue;
 
             if (!string.IsNullOrEmpty(filter.BranchId) && room.BranchId != filter.BranchId)
                 continue;
 
-            var tenantName = contract.Customer?.FullName
-                ?? contract.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contract.CustomerId)?.FullName
-                ?? contract.TenantMembers.FirstOrDefault()?.FullName
-                ?? "";
-
             result.Add(new RoomStatusDto
             {
                 Id = room.RoomId,
-                ContractId = contract.ContractId,
                 Name = room.RoomName,
                 Building = room.Branch?.BranchName ?? room.BranchId,
                 Condition = MapCondition(room.Status),
                 AvailableBedsCount = room.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
-                CustomerName = tenantName,
+                CustomerName = app.Customer?.FullName ?? "",
+                ApplicationId = app.ApplicationId,
             });
         }
 

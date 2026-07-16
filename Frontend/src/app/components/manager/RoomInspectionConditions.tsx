@@ -54,6 +54,7 @@ export function RoomInspectionConditions() {
         return res.json();
       })
       .then((data) => {
+        console.log("Fetched room conditions:", data);
         setRooms(data); // Nhận dữ liệu thô chuẩn từ BE
         setLoading(false);
       })

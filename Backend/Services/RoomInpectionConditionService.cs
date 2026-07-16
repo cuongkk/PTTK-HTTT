@@ -17,15 +17,14 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
 
     public async Task<List<RoomConditionDto>> GetRoomConditionsAsync()
     {
-        // LỌC TRỰC TIẾP TỪ DATABASE: Phòng Đang thuê + Hợp đồng Chờ kiểm tra phòng + Yêu cầu trả phòng Chờ kiểm tra
         var query = from r in _db.Rooms.Include(r => r.Branch)
                     // 1. Điều kiện Phòng: dang_thue
-                    where r.Status == RoomBedStatus.Rented 
+                    where r.Status == RoomBedStatus.Rented
 
-                    // 2. Join với Hợp đồng thỏa mãn: có phòng và trạng thái là cho_kiem_tra_phong
+                    // 2. Join với Hợp đồng thỏa mãn: có phòng và trạng thái là cho_kiem_tra_tra_phong
                     join c in _db.RentalContracts.Include(c => c.Customer).Include(c => c.TenantMembers)
                     on r.RoomId equals c.RoomId
-                    where c.Status == "cho_kiem_tra_phong" // Đổi thành Enum nếu c.Status là Enum
+                    where c.Status == "cho_kiem_tra_tra_phong"
 
                     // 3. Join với Yêu cầu trả phòng thỏa mãn: trạng thái là cho_kiem_tra
                     join cr in _db.CheckoutRequests
@@ -45,7 +44,7 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
             join c in _db.Customers on a.CustomerId equals c.CustomerId
             join s in _db.RoomViewingSchedules on a.ApplicationId equals s.ApplicationId
             join sr in _db.RoomViewingScheduleRooms on s.ScheduleId equals sr.ScheduleId
-            where roomIds.Contains(sr.RoomId) // Chỉ lấy các phòng nằm trong danh sách đã lọc
+            where roomIds.Contains(sr.RoomId)
             select new { sr.RoomId, CustomerName = c.FullName, AppointmentAt = s.AppointmentAt }
         ).ToListAsync();
 
@@ -60,7 +59,7 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
             var r = x.Room;
             var contractForRoom = x.Contract;
 
-            // Lấy tên người thuê
+            // Lấy tên người thuê (ưu tiên Customer trực tiếp trên hợp đồng, khớp kh.ho_ten trong SQL)
             var tenantName = contractForRoom?.Customer?.FullName
                 ?? contractForRoom?.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contractForRoom.CustomerId)?.FullName
                 ?? contractForRoom?.TenantMembers.FirstOrDefault()?.FullName
@@ -72,7 +71,7 @@ public class RoomInpectionConditionService : IRoomInpectionConditionService
                 RoomID = r.RoomId,
                 RoomName = r.RoomName,
                 Building = r.Branch?.BranchName ?? r.BranchId,
-                Status = "cho_kiem_tra_phong", // Điền thẳng trạng thái mong muốn vì đã qua bộ lọc chuẩn
+                Status = "cho_kiem_tra_tra_phong", // sửa lại đúng giá trị đã lọc
                 Tenant = tenantName,
                 ContractId = contractForRoom?.ContractId
             };
