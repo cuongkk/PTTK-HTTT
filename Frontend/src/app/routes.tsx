@@ -1,6 +1,8 @@
 import { createBrowserRouter } from "react-router";
 import { MainLayout } from "./components/layouts/MainLayout";
 import { LoginPage } from "./components/auth/LoginPage";
+import { RegisterPage } from "./components/auth/RegisterPage";
+import { ForgotPasswordPage } from "./components/auth/ForgotPasswordPage";
 import { CustomerDashboard } from "./components/customer/CustomerDashboard";
 
 import { SystemAdminDashboard } from "./components/system-admin/SystemAdminDashboard";
@@ -18,6 +20,8 @@ import { accountantRoutes } from "./routes/accountantRoutes";
 
 export const router = createBrowserRouter([
   { path: "/login", Component: LoginPage },
+  { path: "/register", Component: RegisterPage },
+  { path: "/forgot-password", Component: ForgotPasswordPage },
   {
     path: "/",
     Component: MainLayout,

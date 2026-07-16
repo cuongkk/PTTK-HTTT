@@ -187,7 +187,10 @@ export function MainLayout() {
     const token = getStoredToken();
     const user = getStoredUser();
     if (!token || !user) {
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+        state: { from: `${location.pathname}${location.search}` },
+      });
       return;
     }
     const allowedRoot = `/${mapRoleIdToRootPath(user.roleId)}`;

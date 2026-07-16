@@ -2,6 +2,7 @@ namespace Backend.Models;
 
 public static class AccountStatus
 {
+    public const string PendingVerification = "cho_xac_thuc";
     public const string Active = "kich_hoat";
     public const string Locked = "khoa";
     public const string Disabled = "vo_hieu_hoa";
