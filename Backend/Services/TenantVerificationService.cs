@@ -17,102 +17,110 @@ public class TenantVerificationService : ITenantVerificationService
 
     public async Task<List<TenantVerificationDto>> GetTenantVerificationsAsync()
     {
-        var contracts = await _db.RentalContracts
-            .Include(c => c.Room)
-                .ThenInclude(r => r.Branch)
-            .Include(c => c.Customer)
-            .Include(c => c.TenantMembers)
-            .Include(c => c.Deposit)
-                .ThenInclude(d => d.Application)
-                    .ThenInclude(a => a.TenantMembers)
-            .Where(c => c.Room != null 
-                        && c.Room.Status == "da_dat_coc" 
-                        && c.Status == "cho_quan_ly_duyet_nhan_phong")
+        // 1. Lấy hồ sơ đang chờ quản lý duyệt nhận phòng, kèm khách hàng, thành viên, phiếu cọc, lịch xem phòng
+        var applications = await _db.RentalApplications
+            .Include(a => a.Customer)
+            .Include(a => a.TenantMembers)
+            .Include(a => a.DepositSlips)
+            .Include(a => a.RoomViewingSchedules)
+                .ThenInclude(s => s.Rooms)
+            .Where(a => a.Status == "cho_quan_ly_duyet_nhan_phong"
+                    && a.DepositSlips.Any())
             .ToListAsync();
 
-        var customerIds = contracts
-            .SelectMany(c => c.TenantMembers.Select(tm => tm.CustomerId))
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Concat(contracts.Where(c => !string.IsNullOrEmpty(c.CustomerId)).Select(c => c.CustomerId!))
+        // 2. Gom RoomId cần nạp thêm (Branch...)
+        var roomIds = applications
+            .SelectMany(a => a.RoomViewingSchedules.SelectMany(s => s.Rooms.Select(r => r.RoomId)))
             .Distinct()
             .ToList();
 
-        var customers = await _db.Customers
+        var rooms = await _db.Rooms
+            .Include(r => r.Branch)
+            .Where(r => roomIds.Contains(r.RoomId))
+            .ToListAsync();
+
+        var roomLookup = rooms.ToDictionary(r => r.RoomId, r => r);
+
+        // 3. Gom customerId cần nạp thêm (từ thành viên thuê)
+        var customerIds = applications
+            .SelectMany(a => a.TenantMembers.Select(tm => tm.CustomerId))
+            .Concat(applications.Select(a => a.CustomerId))
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Distinct()
+            .ToList();
+
+        var customersDict = await _db.Customers
             .Where(cu => customerIds.Contains(cu.CustomerId))
             .ToDictionaryAsync(cu => cu.CustomerId);
 
-        return contracts.Select(c =>
+        // 4. Build DTO
+        var result = new List<TenantVerificationDto>();
+
+        foreach (var app in applications)
         {
-            var linkedMembers = c.TenantMembers
-                .Where(tm => tm.ContractId == c.ContractId || tm.ContractId == null)
-                .ToList();
+            var roomId = app.RoomViewingSchedules
+                .SelectMany(s => s.Rooms)
+                .Select(r => r.RoomId)
+                .FirstOrDefault();
 
-            if (!linkedMembers.Any() && c.Deposit?.Application != null)
+            var room = roomId is null ? null : roomLookup.GetValueOrDefault(roomId);
+            if (room is null)
+                continue;
+
+            var groupMembers = app.TenantMembers.ToList();
+            var tenantsInGroup = new List<TenantDto>();
+
+            if (app.Customer != null)
             {
-                linkedMembers = c.Deposit.Application.TenantMembers
-                    .Where(tm => tm.ContractId == null || tm.ContractId == c.ContractId)
-                    .ToList();
-            }
-
-            var tenants = new List<TenantDto>();
-
-            if (c.Customer != null)
-            {
-                var representativeMember = linkedMembers.FirstOrDefault(tm => tm.CustomerId == c.CustomerId || tm.IsPrimaryTenant);
-                tenants.Add(new TenantDto
+                var primaryMemberInfo = groupMembers.FirstOrDefault(tm => tm.CustomerId == app.CustomerId || tm.IsPrimaryTenant);
+                tenantsInGroup.Add(new TenantDto
                 {
-                    Name = c.Customer.FullName,
-                    IdNumber = representativeMember?.NationalId,
-                    Phone = c.Customer.PhoneNumber,
-                    CustomerId = c.CustomerId,
-                    CustomerName = c.Customer.FullName,
+                    CustomerId = app.CustomerId,
+                    Name = app.Customer.FullName,
+                    Phone = app.Customer.PhoneNumber,
+                    IdNumber = primaryMemberInfo?.NationalId,
                     IsPrimaryTenant = true,
-                    IsEligible = representativeMember?.IsEligible ?? true,
+                    IsEligible = primaryMemberInfo?.IsEligible ?? true
                 });
             }
 
-            tenants.AddRange(linkedMembers
-                .Where(tm => !(c.Customer != null && tm.CustomerId == c.CustomerId))
+            tenantsInGroup.AddRange(groupMembers
+                .Where(tm => tm.CustomerId != app.CustomerId)
                 .Select(tm => new TenantDto
                 {
+                    CustomerId = tm.CustomerId,
                     Name = tm.FullName,
                     IdNumber = tm.NationalId,
-                    Phone = (tm.CustomerId != null && customers.ContainsKey(tm.CustomerId)) ? customers[tm.CustomerId].PhoneNumber : null,
-                    CustomerId = tm.CustomerId,
-                    CustomerName = (tm.CustomerId != null && customers.ContainsKey(tm.CustomerId)) ? customers[tm.CustomerId].FullName : null,
-                    IsPrimaryTenant = tm.IsPrimaryTenant,
-                    IsEligible = tm.IsEligible,
+                    Phone = (tm.CustomerId != null && customersDict.TryGetValue(tm.CustomerId, out var cust)) ? cust.PhoneNumber : null,
+                    IsPrimaryTenant = false,
+                    IsEligible = tm.IsEligible
                 }));
 
-            return new TenantVerificationDto
+            result.Add(new TenantVerificationDto
             {
-                Id = c.ContractId,
-                ContractCode = c.ContractId,
-                CustomerId = c.CustomerId,
-                CustomerName = c.Customer?.FullName ?? null,
-                Room = c.Room?.RoomName ?? "",
-                Building = c.Room?.Branch?.BranchName ?? "",
-                CheckInDate = c.StartDate.ToString("dd/MM/yyyy"),
-                CheckOutDate = c.EndDate?.ToString("dd/MM/yyyy") ?? "",
-                Tenants = tenants,
-                ApplicationId = c.Deposit?.Application?.ApplicationId,
-            };
-        }).ToList();
+                Id = app.ApplicationId,
+                ContractCode = "",
+                CustomerId = app.CustomerId,
+                CustomerName = app.Customer?.FullName,
+                Room = room.RoomName,
+                Building = room.Branch?.BranchName ?? "",
+                CheckInDate = app.ExpectedMoveInDate?.ToString("dd/MM/yyyy") ?? "",
+                CheckOutDate = "",
+                Tenants = tenantsInGroup,
+                ApplicationId = app.ApplicationId
+            });
+        }
+
+        return result;
     }
 
-    public async Task<string> ReviewTenantVerificationAsync(string contractId, bool isApproved)
+    public async Task<string> ReviewTenantVerificationAsync(string applicationId, bool isApproved)
     {
-        var contract = await _db.RentalContracts
-            .Include(c => c.Deposit)
-                .ThenInclude(d => d.Application)
-            .FirstOrDefaultAsync(c => c.ContractId == contractId);
+        var application = await _db.RentalApplications
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId);
 
-        if (contract is null)
-            throw new KeyNotFoundException("Không tìm thấy hợp đồng.");
-
-        var application = contract.Deposit?.Application;
         if (application is null)
-            throw new InvalidOperationException("Không xác định được hồ sơ đăng ký cho hợp đồng này.");
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ đăng ký.");
 
         application.Status = isApproved
             ? "du_dieu_kien_nhan_phong"

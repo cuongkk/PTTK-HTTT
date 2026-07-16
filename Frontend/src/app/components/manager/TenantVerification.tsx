@@ -79,7 +79,7 @@ export function TenantVerification() {
   
   const [isReviewing, setIsReviewing] = useState(false);
 
-  const handleReview = async (contractId: string, isApproved: boolean, reason?: string) => {
+  const handleReview = async (ApplicationId: string, isApproved: boolean, reason?: string) => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
       alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
@@ -89,7 +89,7 @@ export function TenantVerification() {
     setIsReviewing(true);
     try {
       const res = await fetch(
-        `http://localhost:5157/api/manager/tenant-verifications/review/${contractId}`,
+        `http://localhost:5157/api/manager/tenant-verifications/review/${ApplicationId}`,
         {
           method: "PUT",
           headers: {
@@ -107,8 +107,8 @@ export function TenantVerification() {
 
       alert(
         isApproved
-          ? `Đã phê duyệt hợp đồng ${contractId}!`
-          : `Đã từ chối hợp đồng ${contractId}${reason ? `. Lý do: ${reason}` : ""}`
+          ? `Đã phê duyệt hợp đồng ${ApplicationId}!`
+          : `Đã từ chối hợp đồng ${ApplicationId}${reason ? `. Lý do: ${reason}` : ""}`
       );
       setShowDetail(false);
       setSelectedContract(null);
@@ -379,15 +379,6 @@ export function TenantVerification() {
                 Đáp ứng
               </button>
 
-              <button
-                onClick={() =>
-                  handleReject(selectedContract.id)
-                }
-                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg"
-              >
-                <XCircle className="w-4 h-4" />
-                Không đáp ứng
-              </button>
             </div>
           </div>
         </div>
