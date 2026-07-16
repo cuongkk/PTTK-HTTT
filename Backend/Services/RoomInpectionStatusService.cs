@@ -15,67 +15,55 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
     public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
     {
-        // 1. Lấy hợp đồng thỏa điều kiện, kèm theo Deposit -> Beds -> Room, Customer, TenantMembers
-        var contracts = await _db.RentalContracts
-            .Include(c => c.Customer)
-            .Include(c => c.TenantMembers)
-            .Include(c => c.Deposit)
-                .ThenInclude(d => d.Beds)
-            .Include(c => c.CheckoutRequests)
-            .Where(c => c.Status == "cho_kiem_tra_tra_phong"
-                    && c.Deposit != null
-                    && c.CheckoutRequests.Any(cr => cr.Status == "da_xac_nhan_lich"))
+        // 1. Lấy hồ sơ đang chờ quản lý duyệt nhận phòng, kèm khách hàng, lịch xem phòng
+        var applications = await _db.RentalApplications
+            .Include(a => a.Customer)
+            .Include(a => a.DepositSlips)
+            .Include(a => a.RoomViewingSchedules)
+                .ThenInclude(s => s.Rooms)   // chỉ có RoomId, ScheduleId, không include sâu hơn được
+            .Where(a => a.Status == "cho_quan_ly_duyet_nhan_phong"
+                    && a.DepositSlips.Any())
             .ToListAsync();
 
-        // 2. Lấy Bed -> Room cho các giường liên quan tới Deposit của các hợp đồng trên
-        var allBedIds = contracts
-            .SelectMany(c => c.Deposit!.Beds.Select(b => b.BedId))
+        // 2. Gom hết RoomId cần thiết, query Room riêng 1 lần
+        var roomIds = applications
+            .SelectMany(a => a.RoomViewingSchedules.SelectMany(s => s.Rooms.Select(sr => sr.RoomId)))
             .Distinct()
             .ToList();
 
-        var beds = await _db.Beds
-            .Include(b => b.Room)
-                .ThenInclude(r => r.Branch)
-            .Include(b => b.Room)
-                .ThenInclude(r => r.Beds)
-            .Where(b => allBedIds.Contains(b.BedId))
+        var rooms = await _db.Rooms
+            .Include(r => r.Branch)
+            .Include(r => r.Beds)
+            .Where(r => roomIds.Contains(r.RoomId))
             .ToListAsync();
 
-        var bedLookup = beds.ToDictionary(b => b.BedId, b => b);
+        var roomLookup = rooms.ToDictionary(r => r.RoomId, r => r);
 
-        // 3. Lọc theo điều kiện phòng "dang_thue" và build DTO
+        // 3. Build DTO
         var result = new List<RoomStatusDto>();
 
-        foreach (var contract in contracts)
+        foreach (var app in applications)
         {
-            var relatedBeds = contract.Deposit!.Beds
-                .Select(db => bedLookup.GetValueOrDefault(db.BedId))
-                .Where(b => b != null)
-                .Select(b => b!)
-                .ToList();
+            var roomId = app.RoomViewingSchedules
+                .SelectMany(s => s.Rooms)
+                .Select(sr => sr.RoomId)
+                .FirstOrDefault();
 
-            var room = relatedBeds.FirstOrDefault()?.Room;
-
-            if (room is null || room.Status != RoomBedStatus.Rented)
+            var room = roomId is null ? null : roomLookup.GetValueOrDefault(roomId);
+            if (room is null)
                 continue;
 
             if (!string.IsNullOrEmpty(filter.BranchId) && room.BranchId != filter.BranchId)
                 continue;
 
-            var tenantName = contract.Customer?.FullName
-                ?? contract.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contract.CustomerId)?.FullName
-                ?? contract.TenantMembers.FirstOrDefault()?.FullName
-                ?? "";
-
             result.Add(new RoomStatusDto
             {
                 Id = room.RoomId,
-                ContractId = contract.ContractId,
                 Name = room.RoomName,
                 Building = room.Branch?.BranchName ?? room.BranchId,
                 Condition = MapCondition(room.Status),
                 AvailableBedsCount = room.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
-                CustomerName = tenantName,
+                CustomerName = app.Customer?.FullName ?? "",
             });
         }
 

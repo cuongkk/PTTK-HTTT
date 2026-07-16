@@ -18,4 +18,5 @@ public class CheckoutReportResultDto
     public string Message { get; set; } = default!;
     public string? CheckoutReportId { get; set; }
     public string? ReconciliationId { get; set; }
+    public int StatusCode { get; set; } = 200; // thêm mới
 }
