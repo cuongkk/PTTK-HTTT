@@ -69,6 +69,16 @@ export interface SalesApplication {
   note: string;
   hasContract: boolean;
   tenants?: SalesTenantMember[] | null;
+  desiredRoomType: string | null;
+  expectedMoveInDate: string | null;
+  expectedRentalMonths: number | null;
+  livingSchedule: string | null;
+  requiresQuietLifestyle: boolean;
+  requiresParking: boolean;
+  requiresAirConditioner: boolean;
+  minimumPrice: number | null;
+  maximumPrice: number | null;
+  scheduleStatus: string | null;
 }
 
 export interface SalesDepositSlip {
@@ -84,6 +94,11 @@ export interface SalesDepositSlip {
   createdAt: string;
   refundReason?: string | null;
   hasContract: boolean;
+  applicationStatus: string | null;
+  hasPaymentProof: boolean;
+  paidAt: string | null;
+  refundRequestedAt: string | null;
+  roomStatus: string | null;
 }
 
 export interface SalesRentalContract {
@@ -120,8 +135,6 @@ export const salesApi = {
   completeSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/complete`, {}),
   cancelSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/cancel`, {}),
   cancelApplication: (applicationId: string, reason: string) => apiClient.post<void>(`/sales/applications/${applicationId}/cancel`, { reason }),
-  requestApplicationRevision: (applicationId: string, reason: string) => apiClient.post<void>(`/sales/applications/${applicationId}/request-revision`, { reason }),
-
   createDepositSlip: (data: {
     applicationId: string;
     roomId: string;

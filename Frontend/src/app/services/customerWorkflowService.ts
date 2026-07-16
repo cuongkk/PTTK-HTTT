@@ -88,6 +88,7 @@ export const customerWorkflowService = {
   submitDepositRequest: (applicationId: string, roomId: string) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-request`, {}),
   getDepositTerms: (applicationId: string, roomId: string) => apiClient.get<ViewedRoom>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-terms`),
   confirmDepositTerms: (applicationId: string, roomId: string) => apiClient.post<{ applicationId: string; status: string; message: string }>(`/customer-workflow/applications/${applicationId}/rooms/${roomId}/deposit-terms/confirm`, {}),
+  submitDepositRefund: (roomId: string, reason: string) => apiClient.post<{ depositId: string; status: string; message: string }>(`/customer-workflow/rooms/${roomId}/deposit-refund`, { reason }),
   getContractDetail: (roomId: string) => apiClient.get<CustomerContractDetail>(`/customer-workflow/rooms/${roomId}/contract`),
   getCheckoutDetail: (roomId: string) => apiClient.get<CustomerCheckoutDetail>(`/customer-workflow/rooms/${roomId}/checkout`),
   confirmCheckoutReconciliation: (roomId: string, signerName: string) => apiClient.post<void>(`/customer-workflow/rooms/${roomId}/checkout/confirm`, { signerName }),

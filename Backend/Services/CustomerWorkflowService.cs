@@ -19,6 +19,7 @@ public interface ICustomerWorkflowService
     Task<SubmitDepositResponse> SubmitDepositRequestAsync(string accountId, string applicationId, string roomId);
     Task<ViewedRoomDto> GetDepositTermsAsync(string accountId, string applicationId, string roomId);
     Task<SubmitDepositResponse> ConfirmDepositTermsAsync(string accountId, string applicationId, string roomId);
+    Task<SubmitDepositRefundResponse> SubmitDepositRefundAsync(string accountId, string roomId, SubmitDepositRefundRequest request);
     Task<CustomerContractDetailDto> GetContractDetailAsync(string accountId, string roomId);
     Task<CustomerHandoverDetailDto> GetHandoverDetailAsync(string accountId, string roomId);
     Task ConfirmHandoverAsync(string accountId, string roomId);
@@ -198,58 +199,6 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         var customerId = await GetCustomerIdAsync(accountId);
         var application = await _db.RentalApplications.FirstAsync(x => x.ApplicationId == applicationId && x.CustomerId == customerId);
         application.Status = "cho_sale_ra_soat_coc";
-<<<<<<< HEAD
-=======
-
-        var oldMembers = await _db.TenantMembers.Where(x => x.ApplicationId == applicationId && x.ContractId == null).ToListAsync();
-        _db.TenantMembers.RemoveRange(oldMembers);
-        var member = new TenantMember
-        {
-            TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId, CustomerId = customerId,
-            FullName = customer.FullName, IsPrimaryTenant = true
-        };
-        _db.TenantMembers.Add(member);
-        member.NationalId = customer.NationalId;
-        member.Gender = request.PrimaryTenant.Gender;
-        member.DateOfBirth = request.PrimaryTenant.DateOfBirth;
-        member.Nationality = request.PrimaryTenant.Nationality;
-        member.DocumentType = request.PrimaryTenant.DocumentType;
-        member.DocumentImageUrl = request.PrimaryTenant.DocumentImageUrl;
-        member.PermanentAddress = request.PrimaryTenant.PermanentAddress;
-        member.OccupationOrSchool = request.PrimaryTenant.OccupationOrSchool;
-        member.FinancialDocumentUrl = request.PrimaryTenant.FinancialDocumentUrl;
-        member.IsEligible = true;
-        member.Note = $"Yêu cầu đặt cọc phòng {roomId}; chờ rà soát";
-        foreach (var person in request.AccompanyingTenants)
-            _db.TenantMembers.Add(new TenantMember
-            {
-                TenantMemberId = IdGenerator.Generate("TV", 12), ApplicationId = applicationId,
-                FullName = person.FullName, Gender = person.Gender, Nationality = person.Nationality,
-                DocumentType = person.DocumentType, NationalId = person.DocumentNumber,
-                DocumentImageUrl = person.DocumentImageUrl, DateOfBirth = person.DateOfBirth,
-                PermanentAddress = person.PermanentAddress, OccupationOrSchool = person.OccupationOrSchool,
-                FinancialDocumentUrl = person.FinancialDocumentUrl, RelationshipToPrimary = person.RelationshipToPrimary,
-                IsPrimaryTenant = false, IsEligible = true
-            });
-        var salesAccount = await _db.Accounts
-            .Include(x => x.Employee)
-            .Where(x => x.RoleId == EmployeePosition.Sales && x.Status == AccountStatus.Active
-                && (application.SalesEmployeeId == null
-                    ? x.Employee!.BranchId == room.BranchId
-                    : x.Employee!.EmployeeId == application.SalesEmployeeId))
-            .OrderBy(x => x.AccountId)
-            .FirstOrDefaultAsync();
-        if (salesAccount != null)
-            _db.Notifications.Add(new Notification
-            {
-                NotificationId = IdGenerator.Generate("NT", 12),
-                RecipientAccountId = salesAccount.AccountId,
-                Title = "Có yêu cầu đặt cọc mới",
-                Content = $"Hồ sơ {application.ApplicationId} của {customer.FullName} đã gửi yêu cầu đặt cọc phòng {room.RoomName} và đang chờ Sale rà soát.",
-                NotificationType = "dat_coc",
-                CreatedAt = DateTime.UtcNow
-            });
->>>>>>> c02fce8f2d0d801a4b89cd3bd4e04eb4a380d57d
         await _db.SaveChangesAsync();
         return new SubmitDepositResponse(applicationId, application.Status, "Yêu cầu đặt cọc đã được gửi và đang chờ rà soát.");
     }
@@ -424,6 +373,37 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             : deposit is not null ? await _db.Invoices.Where(x => x.DepositId == deposit.DepositId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync() : null;
         var members = application is null ? new List<CustomerTenantDto>() : await _db.TenantMembers.Where(x => x.ApplicationId == application.ApplicationId).Select(x => new CustomerTenantDto(x.FullName, x.Gender, x.Nationality, x.DateOfBirth, x.NationalId, x.DocumentImageUrl, x.PermanentAddress, x.OccupationOrSchool)).ToListAsync();
         return new CustomerRoomContextDto(room.RoomId, room.RoomName, branch.BranchName, room.RoomType, room.RoomPrice ?? 0, room.Status, customer.FullName, customer.PhoneNumber, customer.Email, customer.NationalId, customer.Gender, customer.Nationality, customer.DateOfBirth, customer.Address, application?.ApplicationId, application?.Status, application?.NumberOfPeople, application?.ExpectedMoveInDate, application?.ExpectedRentalMonths, deposit?.DepositId, deposit?.Status, deposit?.DepositAmount, contract?.ContractId, contract?.Status, invoice?.InvoiceId, invoice?.Status, invoice?.TotalAmount, members);
+    }
+
+    public async Task<SubmitDepositRefundResponse> SubmitDepositRefundAsync(string accountId, string roomId, SubmitDepositRefundRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ValidationException("Vui lòng nhập lý do yêu cầu hoàn cọc.");
+
+        var customerId = await GetCustomerIdAsync(accountId);
+        var application = await (from a in _db.RentalApplications
+                                 join s in _db.RoomViewingSchedules on a.ApplicationId equals s.ApplicationId
+                                 join link in _db.RoomViewingScheduleRooms on s.ScheduleId equals link.ScheduleId
+                                 where a.CustomerId == customerId && link.RoomId == roomId
+                                 orderby a.CreatedAt descending
+                                 select a).FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Không tìm thấy hồ sơ đặt cọc của phòng.");
+        var deposit = await _db.DepositSlips.Where(x => x.ApplicationId == application.ApplicationId)
+            .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Không tìm thấy phiếu đặt cọc.");
+        if (deposit.Status != "hoan_thanh" || deposit.PaidAt is null)
+            throw new ValidationException("Chỉ có thể yêu cầu hoàn đối với phiếu cọc đã thanh toán và hoàn thành.");
+        if (await _db.RentalContracts.AnyAsync(x => x.DepositId == deposit.DepositId))
+            throw new ValidationException("Phiếu cọc đã có hợp đồng thuê. Vui lòng thực hiện quy trình trả phòng.");
+
+        var room = await _db.Rooms.FirstAsync(x => x.RoomId == roomId);
+        deposit.Status = "cho_tiep_nhan_hoan_coc";
+        deposit.RefundReason = request.Reason.Trim();
+        deposit.RefundRequestedAt = DateTime.UtcNow;
+        room.Status = "cho_hoan_coc";
+        room.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return new SubmitDepositRefundResponse(deposit.DepositId, deposit.Status, "Yêu cầu hoàn cọc đã được gửi đến Sale tiếp nhận.");
     }
 
     public async Task<List<CustomerPaymentDto>> GetPaymentsAsync(string accountId)

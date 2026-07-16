@@ -296,8 +296,8 @@ export function CustomerRooms() {
                         {room.applicationStatus === "du_dieu_kien_nhan_phong" ? "Xem và ký hợp đồng" : "Bổ sung thông tin"}
                       </button>
                     )}
-                    <button onClick={() => {}} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
-                      Yêu cầu hoàn tiền
+                    <button onClick={() => navigate(`/customer/deposit-refunds/${room.id}`)} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
+                      Yêu cầu hoàn cọc
                     </button>
                   </>
                 )}
@@ -316,6 +316,103 @@ export function CustomerRooms() {
           </article>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function DepositRefundRequest() {
+  const navigate = useNavigate();
+  const { roomId } = useParams();
+  const [detail, setDetail] = useState<CustomerRoomContext | null>(null);
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!roomId) return;
+    customerWorkflowService
+      .getRoomContext(roomId)
+      .then(setDetail)
+      .catch((requestError) => setError(requestError.message));
+  }, [roomId]);
+
+  const canSubmit = Boolean(detail?.depositId && detail.depositStatus === "hoan_thanh" && !detail.contractId && reason.trim());
+  const submit = async () => {
+    if (!roomId || !canSubmit) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await customerWorkflowService.submitDepositRefund(roomId, reason.trim());
+      setSubmitted(true);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Không thể gửi yêu cầu hoàn cọc.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader title="Yêu cầu hoàn cọc" backTo="/customer/my-rooms?tab=deposited" />
+        <Section title="Yêu cầu đã được tiếp nhận">
+          <div className="text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" />
+            <h3 className="mt-3 text-xl font-bold text-green-700">Gửi yêu cầu hoàn cọc thành công</h3>
+            <p className="mt-2 text-gray-600">Yêu cầu đang chờ Sale tiếp nhận và chuyển sang bước đối soát.</p>
+            <button onClick={() => navigate("/customer/my-rooms?tab=deposited")} className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white">
+              Quay lại phòng của tôi
+            </button>
+          </div>
+        </Section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader title="Yêu cầu hoàn cọc" backTo="/customer/my-rooms?tab=deposited" />
+      {error && <StatusBanner tone="amber">{error}</StatusBanner>}
+      <Section title="Thông tin phiếu đặt cọc">
+        <div className="grid gap-x-8 md:grid-cols-2">
+          <div>
+            <InfoRow label="Mã phiếu cọc" value={detail?.depositId ?? "Đang tải..."} />
+            <InfoRow label="Khách hàng" value={detail?.customerName ?? "Đang tải..."} />
+            <InfoRow label="Số điện thoại" value={detail?.phone ?? "—"} />
+          </div>
+          <div>
+            <InfoRow label="Phòng/giường" value={detail ? `${detail.roomName} (${detail.roomId})` : "Đang tải..."} />
+            <InfoRow label="Chi nhánh" value={detail?.branchName ?? "Đang tải..."} />
+            <InfoRow label="Tiền cọc đã thanh toán" value={detail?.depositAmount != null ? `${detail.depositAmount.toLocaleString("vi-VN")} đ` : "—"} />
+          </div>
+        </div>
+      </Section>
+      <Section title="Nội dung yêu cầu">
+        <label className="mt-5 block text-sm font-medium text-gray-700">
+          Lý do yêu cầu hoàn cọc <span className="text-red-600">*</span>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={4}
+            placeholder="Nhập lý do không tiếp tục thuê phòng..."
+            className="mt-2 w-full rounded-lg border border-gray-300 p-3"
+          />
+        </label>
+        {detail && (detail.depositStatus !== "hoan_thanh" || detail.contractId) && (
+          <div className="mt-4 flex gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> Phiếu cọc này không đủ điều kiện gửi yêu cầu hoàn cọc trực tiếp.
+          </div>
+        )}
+        <div className="mt-5 flex justify-end gap-3">
+          <button type="button" onClick={() => navigate("/customer/my-rooms?tab=deposited")} className="rounded-lg border border-gray-300 px-5 py-2.5 font-semibold text-gray-700">
+            Hủy
+          </button>
+          <button type="button" onClick={submit} disabled={!canSubmit || submitting} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:bg-gray-300">
+            {submitting ? "Đang gửi..." : "Gửi yêu cầu hoàn cọc"}
+          </button>
+        </div>
+      </Section>
     </div>
   );
 }
@@ -690,9 +787,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
   }, [paymentRoomId]);
   const paymentAmount = paymentContext?.invoiceAmount ?? paymentContext?.depositAmount ?? 0;
   const amount = `${paymentAmount.toLocaleString("vi-VN")} đ`;
-  const transferContent = isDeposit
-    ? `DAT COC ${paymentContext?.roomId ?? paymentRoomId}`
-    : `NHAN PHONG ${paymentContext?.roomId ?? paymentRoomId}`;
+  const transferContent = isDeposit ? `DAT COC ${paymentContext?.roomId ?? paymentRoomId}` : `NHAN PHONG ${paymentContext?.roomId ?? paymentRoomId}`;
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title={isDeposit ? "Thanh toán tiền cọc" : "Thanh toán khoản nhận phòng"} backTo={isDeposit ? "/customer/my-rooms?tab=viewed" : "/customer/my-rooms?tab=deposited"} />
@@ -1093,7 +1188,7 @@ export function CheckoutReconciliation() {
     try {
       await customerWorkflowService.confirmCheckoutReconciliation(checkoutId, liquidationSignature.trim());
       setConfirmed(true);
-      setDetail((current) => current ? { ...current, reconciliationStatus: "da_xac_nhan", requestStatus: "cho_hoan_tien", contractStatus: "cho_hoan_coc" } : current);
+      setDetail((current) => (current ? { ...current, reconciliationStatus: "da_xac_nhan", requestStatus: "cho_hoan_tien", contractStatus: "cho_hoan_coc" } : current));
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Không thể xác nhận đối soát.");
     } finally {
@@ -1175,77 +1270,15 @@ export function CheckoutReconciliation() {
             onClick={confirmReconciliation}
             className="mt-4 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {isConfirmed ? "Đã xác nhận" : submitting ? "Đang xác nhận..." : "Xác nhận đối soát và ký thanh lý"}
+            {isConfirmed
+              ? "Đã xác nhận"
+              : submitting
+                ? "Đang xác nhận..."
+                : (detail?.additionalPaymentAmount ?? 0) > 0 && !additionalPaid
+                  ? "Thanh toán khoản phát sinh trước khi ký"
+                  : "Xác nhận đối soát và ký thanh lý"}
           </button>
         </div>
-      </Section>
-    </div>
-  );
-}
-
-export function CheckoutSettlement() {
-  const navigate = useNavigate();
-  const { settlementId } = useParams();
-  const roomId = settlementId?.replace(/^DT-/, "") ?? "";
-  const [detail, setDetail] = useState<CustomerCheckoutDetail | null>(null);
-  const [paid, setPaid] = useState(false);
-  useEffect(() => {
-    if (roomId) customerWorkflowService.getCheckoutDetail(roomId).then(setDetail);
-  }, [roomId]);
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <PageHeader title="Thanh toán khoản phát sinh" backTo="/customer/my-rooms?tab=renting" />
-      <StatusBanner tone="amber">
-        Bạn cần thanh toán thêm <strong>{(detail?.additionalPaymentAmount ?? 0).toLocaleString("vi-VN")} đ</strong> trước khi ký biên bản thanh lý.
-      </StatusBanner>
-      <Section title="Khoản phải thanh toán">
-        <ReconciliationTable detail={detail} />
-      </Section>
-      <Section title="Quét QR để thanh toán">
-        <PaymentQrPanel
-          amount={detail?.additionalPaymentAmount ?? 0}
-          transferContent={`THU THEM ${roomId}`}
-          confirmed={paid}
-          onConfirm={() => setPaid(true)}
-        />
-        {paid && (
-          <button onClick={() => navigate(`/customer/checkouts/${roomId}/liquidation`)} className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white">
-            Tiếp tục ký thanh lý
-          </button>
-        )}
-      </Section>
-    </div>
-  );
-}
-
-export function LiquidationConfirmation() {
-  const navigate = useNavigate();
-  const { checkoutId } = useParams();
-  const [confirmed, setConfirmed] = useState(false);
-  const [detail, setDetail] = useState<CustomerCheckoutDetail | null>(null);
-  useEffect(() => {
-    if (checkoutId) customerWorkflowService.getCheckoutDetail(checkoutId).then(setDetail);
-  }, [checkoutId]);
-  return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Biên bản trả phòng và thanh lý" backTo="/customer/my-rooms?tab=renting" />
-      <Section title="Nội dung thanh lý">
-        <InfoRow label="Hợp đồng" value={detail?.contractId ?? "Đang tải..."} />
-        <InfoRow label="Phòng/giường" value={detail ? `${detail.roomName} (${detail.roomId})` : "Đang tải..."} />
-        <InfoRow label="Biên bản trả phòng" value={detail?.checkoutReportId ?? "Chưa có"} />
-        <InfoRow label="Bảng đối soát" value={detail?.reconciliationId ?? "Chưa có"} />
-        <InfoRow label="Chìa khóa/thẻ" value={detail?.keysReturned ? "Đã thu hồi" : "Chưa thu hồi"} />
-        <InfoRow label="Trạng thái hoàn tiền" value={(detail?.refundAmount ?? 0) > 0 ? "Chờ kế toán hoàn sau khi ký thanh lý" : "Không phát sinh hoàn cọc"} />
-        <div className="mt-6">
-          <ReconciliationTable detail={detail} />
-        </div>
-        <label className="mt-5 flex gap-3 text-sm">
-          <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-          Tôi đã đọc bảng đối soát, đồng ý với hiện trạng trả phòng và ký xác nhận biên bản thanh lý hợp đồng.
-        </label>
-        <button disabled={!confirmed} onClick={() => navigate("/customer/my-rooms?tab=renting")} className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white disabled:bg-gray-300">
-          Xác nhận thanh lý
-        </button>
       </Section>
     </div>
   );

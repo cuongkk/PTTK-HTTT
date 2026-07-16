@@ -50,6 +50,10 @@ public class CustomerWorkflowController : ControllerBase
     [HttpPost("applications/{applicationId}/rooms/{roomId}/deposit-terms/confirm")]
     public async Task<ActionResult<SubmitDepositResponse>> ConfirmDepositTerms(string applicationId, string roomId) => Ok(await _service.ConfirmDepositTermsAsync(User.GetAccountId(), applicationId, roomId));
 
+    [HttpPost("rooms/{roomId}/deposit-refund")]
+    public async Task<ActionResult<SubmitDepositRefundResponse>> SubmitDepositRefund(string roomId, SubmitDepositRefundRequest request) =>
+        Ok(await _service.SubmitDepositRefundAsync(User.GetAccountId(), roomId, request));
+
     [HttpGet("rooms/{roomId}/contract")]
     public async Task<ActionResult<CustomerContractDetailDto>> GetContract(string roomId) => Ok(await _service.GetContractDetailAsync(User.GetAccountId(), roomId));
 

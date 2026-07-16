@@ -76,6 +76,8 @@ public record DepositRequestDetailDto(
     string PaymentDueDescription);
 
 public record SubmitDepositResponse(string ApplicationId, string Status, string Message);
+public record SubmitDepositRefundRequest(string Reason);
+public record SubmitDepositRefundResponse(string DepositId, string Status, string Message);
 
 public record CustomerRoomSummaryDto(
     string RoomId,

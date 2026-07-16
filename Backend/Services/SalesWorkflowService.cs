@@ -278,7 +278,17 @@ public class SalesWorkflowService : ISalesWorkflowService
                         t.IsEligible,
                         t.Note
                     ))
-                    .ToList()
+                    .ToList(),
+                DesiredRoomType: app.DesiredRoomType,
+                ExpectedMoveInDate: app.ExpectedMoveInDate,
+                ExpectedRentalMonths: app.ExpectedRentalMonths,
+                LivingSchedule: app.LivingSchedule,
+                RequiresQuietLifestyle: app.RequiresQuietLifestyle,
+                RequiresParking: app.RequiresParking,
+                RequiresAirConditioner: app.RequiresAirConditioner,
+                MinimumPrice: app.MinimumPrice,
+                MaximumPrice: app.MaximumPrice,
+                ScheduleStatus: lastSchedule?.Status
             ));
         }
 
@@ -298,6 +308,9 @@ public class SalesWorkflowService : ISalesWorkflowService
         {
             var roomName = "Chưa rõ";
             var areaName = "Chưa rõ";
+            string? roomStatus = null;
+            var hasPaymentProof = await _db.Invoices.AnyAsync(invoice =>
+                invoice.DepositId == slip.DepositId && !string.IsNullOrWhiteSpace(invoice.ProofImageUrl));
 
             var firstBedLink = await _db.DepositBeds
                 .FirstOrDefaultAsync(db => db.DepositId == slip.DepositId);
@@ -309,6 +322,7 @@ public class SalesWorkflowService : ISalesWorkflowService
             {
                 roomName = contract.Room.RoomName;
                 areaName = contract.Room.Area ?? "Chưa rõ";
+                roomStatus = contract.Room.Status;
             }
 
             // 2. If not, check deposit beds
@@ -319,6 +333,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                 {
                     roomName = bed.Room.RoomName;
                     areaName = bed.Room.Area ?? "Chưa rõ";
+                    roomStatus = bed.Room.Status;
                 }
             }
 
@@ -338,6 +353,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                         {
                             roomName = room.RoomName;
                             areaName = room.Area ?? "Chưa rõ";
+                            roomStatus = room.Status;
                         }
                     }
                 }
@@ -348,6 +364,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                     {
                         roomName = desiredRoom.RoomName;
                         areaName = desiredRoom.Area ?? "Chưa rõ";
+                        roomStatus = desiredRoom.Status;
                     }
                 }
             }
@@ -364,7 +381,12 @@ public class SalesWorkflowService : ISalesWorkflowService
                 slip.Status,
                 slip.CreatedAt,
                 slip.RefundReason,
-                contract != null
+                contract != null,
+                slip.Application?.Status,
+                hasPaymentProof,
+                slip.PaidAt,
+                slip.RefundRequestedAt,
+                roomStatus
             ));
         }
 
@@ -426,6 +448,67 @@ public class SalesWorkflowService : ISalesWorkflowService
         var app = await _db.RentalApplications.Include(a => a.Customer).FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
             ?? throw new NotFoundException("Không tìm thấy đăng ký thuê.");
 
+        if (app.Status != "moi")
+            throw new ValidationException("Chỉ được sắp lịch xem cho hồ sơ mới.");
+
+        if (request.AppointmentAt <= DateTime.UtcNow)
+            throw new ValidationException("Thời gian xem phòng phải ở tương lai.");
+
+        var hasActiveSchedule = await _db.RoomViewingSchedules.AnyAsync(s =>
+            s.ApplicationId == applicationId && (s.Status == "sap_den" || s.Status == "dang_xem"));
+        if (hasActiveSchedule)
+            throw new ConflictException("Hồ sơ đã có lịch xem đang hoạt động.");
+
+        var room = await _db.Rooms
+            .Include(r => r.Branch)
+            .Include(r => r.Beds)
+            .FirstOrDefaultAsync(r => r.RoomId == request.RoomId)
+            ?? throw new NotFoundException("Không tìm thấy phòng được chọn.");
+
+        var incompatibilities = new List<string>();
+        if (room.Status != RoomBedStatus.Empty)
+            incompatibilities.Add("phòng không còn trống");
+        if (!string.IsNullOrWhiteSpace(app.DesiredArea))
+        {
+            var desiredArea = app.DesiredArea.Trim();
+            var matchesArea = string.Equals(desiredArea, room.Area, StringComparison.OrdinalIgnoreCase)
+                || room.Branch.BranchName.Contains(desiredArea, StringComparison.OrdinalIgnoreCase);
+            if (!matchesArea)
+                incompatibilities.Add("khu vực hoặc chi nhánh không phù hợp");
+        }
+        if (!string.IsNullOrWhiteSpace(app.DesiredRoomType)
+            && !string.Equals(app.DesiredRoomType, room.RoomType, StringComparison.OrdinalIgnoreCase))
+            incompatibilities.Add("loại phòng không phù hợp");
+        if (!string.IsNullOrWhiteSpace(app.Gender)
+            && !string.IsNullOrWhiteSpace(room.AllowedGender)
+            && room.AllowedGender != "khong_gioi_han"
+            && !string.Equals(room.AllowedGender, app.Gender == "Nam" ? "nam" : app.Gender == "Nữ" ? "nu" : app.Gender, StringComparison.OrdinalIgnoreCase))
+            incompatibilities.Add("giới tính không phù hợp");
+
+        var availableCapacity = room.RoomType == RoomType.Shared
+            ? room.Beds.Count(b => b.Status == RoomBedStatus.Empty)
+            : room.Capacity;
+        if (availableCapacity < app.NumberOfPeople)
+            incompatibilities.Add("không đủ chỗ hoặc giường trống");
+        if ((app.MinimumPrice.HasValue || app.MaximumPrice.HasValue) && !room.RoomPrice.HasValue)
+            incompatibilities.Add("phòng chưa có giá để đối chiếu");
+        else
+        {
+            if (app.MinimumPrice.HasValue && room.RoomPrice < app.MinimumPrice)
+                incompatibilities.Add("giá phòng thấp hơn khoảng khách yêu cầu");
+            if (app.MaximumPrice.HasValue && room.RoomPrice > app.MaximumPrice)
+                incompatibilities.Add("giá phòng vượt mức khách yêu cầu");
+        }
+        if (app.RequiresQuietLifestyle && !room.RequiresQuietLifestyle)
+            incompatibilities.Add("không đáp ứng yêu cầu yên tĩnh");
+        if (app.RequiresParking && !room.HasParking)
+            incompatibilities.Add("không đáp ứng yêu cầu gửi xe");
+        if (app.RequiresAirConditioner && !room.HasAirConditioner)
+            incompatibilities.Add("không có điều hòa theo yêu cầu");
+
+        if (incompatibilities.Count > 0)
+            throw new ValidationException($"Phòng không phù hợp: {string.Join(", ", incompatibilities)}.");
+
         var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Account!.AccountId == salesEmployeeAccountId)
             ?? await _db.Employees.FirstOrDefaultAsync(e => e.Position == EmployeePosition.Sales);
 
@@ -468,8 +551,7 @@ public class SalesWorkflowService : ISalesWorkflowService
             await _db.SaveChangesAsync();
         }
 
-        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == request.RoomId);
-        var roomName = room?.RoomName ?? "Chưa rõ";
+        var roomName = room.RoomName;
 
         var priceRangeStr = "Chưa rõ";
         if (app.MinimumPrice == 0 && app.MaximumPrice <= 1500000) priceRangeStr = "Dưới 1.5 triệu";
@@ -486,13 +568,23 @@ public class SalesWorkflowService : ISalesWorkflowService
             app.NumberOfPeople,
             priceRangeStr,
             roomName,
-            room?.RoomId,
+            room.RoomId,
             schedule.ScheduleId,
             schedule.AppointmentAt,
             true,
             app.Status,
             app.CreatedAt,
-            app.OtherRequirements ?? ""
+            app.OtherRequirements ?? "",
+            DesiredRoomType: app.DesiredRoomType,
+            ExpectedMoveInDate: app.ExpectedMoveInDate,
+            ExpectedRentalMonths: app.ExpectedRentalMonths,
+            LivingSchedule: app.LivingSchedule,
+            RequiresQuietLifestyle: app.RequiresQuietLifestyle,
+            RequiresParking: app.RequiresParking,
+            RequiresAirConditioner: app.RequiresAirConditioner,
+            MinimumPrice: app.MinimumPrice,
+            MaximumPrice: app.MaximumPrice,
+            ScheduleStatus: schedule.Status
         );
     }
 
@@ -500,6 +592,9 @@ public class SalesWorkflowService : ISalesWorkflowService
     {
         var schedule = await _db.RoomViewingSchedules.FirstOrDefaultAsync(s => s.ScheduleId == scheduleId)
             ?? throw new NotFoundException("Không tìm thấy lịch xem phòng.");
+
+        if (schedule.Status != "dang_xem")
+            throw new ValidationException("Chỉ xác nhận đã xem sau khi khách đã xác nhận thông tin phòng.");
 
         schedule.Status = "hoan_thanh";
 
@@ -545,6 +640,12 @@ public class SalesWorkflowService : ISalesWorkflowService
         if (app.Status == "huy")
             throw new ValidationException("Ho so da duoc huy truoc do.");
 
+        if (app.Status == "cho_sale_ra_soat_coc")
+            throw new ValidationException("Khong huy ho so tai buoc Sale ra soat coc.");
+
+        if (app.Status == "cho_sale_doi_chieu_nhan_phong")
+            throw new ValidationException("Khong huy ho so tai buoc Sale doi chieu nhan phong.");
+
         var depositIds = app.DepositSlips.Select(d => d.DepositId).ToList();
         var hasContract = await _db.RentalContracts.AnyAsync(c => depositIds.Contains(c.DepositId));
         if (hasContract)
@@ -578,29 +679,6 @@ public class SalesWorkflowService : ISalesWorkflowService
         }
 
         await NotifyCustomerAsync(app.CustomerId, "Ho so thue da duoc huy", $"Ho so {applicationId} da duoc Sale huy. Ly do: {reason}");
-        await _db.SaveChangesAsync();
-    }
-
-    public async Task RequestApplicationRevisionAsync(string applicationId, string reason)
-    {
-        var app = await _db.RentalApplications.FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
-            ?? throw new NotFoundException("Khong tim thay dang ky.");
-
-        var nextStatus = app.Status switch
-        {
-            "cho_sale_ra_soat_coc" => "da_xem_phong",
-            "cho_sale_doi_chieu_nhan_phong" => "da_dat_coc",
-            _ => throw new ValidationException("Chi yeu cau bo sung o buoc Sale ra soat coc hoac doi chieu nhan phong.")
-        };
-
-        var label = app.Status == "cho_sale_ra_soat_coc"
-            ? "Sale yeu cau bo sung ho so coc"
-            : "Sale yeu cau bo sung ho so nhan phong";
-
-        app.Status = nextStatus;
-        app.OtherRequirements = AppendStatusNote(app.OtherRequirements, label, reason);
-
-        await NotifyCustomerAsync(app.CustomerId, "Can bo sung ho so", $"Ho so {applicationId} can bo sung thong tin. Ly do: {reason}");
         await _db.SaveChangesAsync();
     }
 
@@ -703,7 +781,12 @@ public class SalesWorkflowService : ISalesWorkflowService
             slip.Status,
             slip.CreatedAt,
             null,
-            false
+            false,
+            app.Status,
+            false,
+            null,
+            null,
+            room?.Status
         );
     }
 
@@ -716,6 +799,14 @@ public class SalesWorkflowService : ISalesWorkflowService
 
         if (deposit.Status != "cho_thanh_toan")
             throw new ValidationException("Chi danh dau qua han voi phieu coc dang cho thanh toan.");
+
+        if (deposit.Application.Status != "cho_khach_thanh_toan_coc")
+            throw new ValidationException("Chi danh dau qua han khi dang cho khach thanh toan coc.");
+
+        var hasPaymentProof = await _db.Invoices.AnyAsync(invoice =>
+            invoice.DepositId == depositId && !string.IsNullOrWhiteSpace(invoice.ProofImageUrl));
+        if (hasPaymentProof)
+            throw new ValidationException("Phieu coc da co minh chung thanh toan, dang cho Ke toan doi chieu.");
 
         deposit.Status = "het_han";
         deposit.RefundReason = AppendStatusNote(deposit.RefundReason, "Sale danh dau qua han", reason);
@@ -998,11 +1089,15 @@ public class SalesWorkflowService : ISalesWorkflowService
     {
         var app = await _db.RentalApplications
             .Include(a => a.TenantMembers)
+            .Include(a => a.DepositSlips)
             .FirstOrDefaultAsync(a => a.ApplicationId == applicationId)
             ?? throw new NotFoundException("Không tìm thấy đăng ký.");
 
         if (app.Status != "cho_sale_doi_chieu_nhan_phong")
             throw new ValidationException("Chỉ đối chiếu nhận phòng sau khi khách đã bổ sung hồ sơ nhận phòng.");
+
+        if (!app.DepositSlips.Any(x => x.Status == "hoan_thanh" && x.PaidAt != null))
+            throw new ValidationException("Chua co phieu coc da duoc xac nhan thanh toan.");
 
         if (app.TenantMembers.Count != app.NumberOfPeople)
             throw new ValidationException("Danh sách người ở chưa khớp với số người đăng ký.");
@@ -1012,9 +1107,13 @@ public class SalesWorkflowService : ISalesWorkflowService
 
         if (app.TenantMembers.Any(x => string.IsNullOrWhiteSpace(x.NationalId)
             || string.IsNullOrWhiteSpace(x.DocumentType)
+            || string.IsNullOrWhiteSpace(x.DocumentImageUrl)
             || string.IsNullOrWhiteSpace(x.PermanentAddress)
             || string.IsNullOrWhiteSpace(x.OccupationOrSchool)))
             throw new ValidationException("Hồ sơ người ở chưa đủ giấy tờ hoặc thông tin cư trú.");
+
+        if (app.TenantMembers.Any(x => !x.IsEligible))
+            throw new ValidationException("Co nguoi thue chua dat dieu kien luu tru.");
 
         app.Status = "cho_quan_ly_duyet_nhan_phong";
 

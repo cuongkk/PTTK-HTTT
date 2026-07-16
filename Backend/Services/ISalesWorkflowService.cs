@@ -14,7 +14,6 @@ public interface ISalesWorkflowService
     Task CompleteViewingScheduleAsync(string scheduleId);
     Task CancelViewingScheduleAsync(string scheduleId);
     Task CancelApplicationAsync(string applicationId, string reason);
-    Task RequestApplicationRevisionAsync(string applicationId, string reason);
     Task<SalesDepositSlipDto> CreateDepositSlipAsync(CreateDepositRequest request, string salesEmployeeAccountId);
     Task ExpireDepositSlipAsync(string depositId, string reason);
     Task CancelDepositSlipAsync(string depositId, string reason);

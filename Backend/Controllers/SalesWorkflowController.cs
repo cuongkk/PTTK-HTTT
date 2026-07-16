@@ -77,13 +77,6 @@ public class SalesWorkflowController : ControllerBase
         return Ok();
     }
 
-    [HttpPost("applications/{applicationId}/request-revision")]
-    public async Task<IActionResult> RequestApplicationRevision(string applicationId, [FromBody] SalesStatusReasonRequest request)
-    {
-        await _salesService.RequestApplicationRevisionAsync(applicationId, request.Reason);
-        return Ok();
-    }
-
     [HttpPost("deposit-slips")]
     public async Task<ActionResult<SalesDepositSlipDto>> CreateDepositSlip([FromBody] CreateDepositRequest request)
     {

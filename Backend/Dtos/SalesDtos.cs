@@ -56,7 +56,17 @@ public record SalesApplicationDto(
     DateTime CreatedAt,
     string Note,
     bool HasContract = false,
-    List<SalesTenantMemberDto>? Tenants = null
+    List<SalesTenantMemberDto>? Tenants = null,
+    string? DesiredRoomType = null,
+    DateOnly? ExpectedMoveInDate = null,
+    short? ExpectedRentalMonths = null,
+    string? LivingSchedule = null,
+    bool RequiresQuietLifestyle = false,
+    bool RequiresParking = false,
+    bool RequiresAirConditioner = false,
+    decimal? MinimumPrice = null,
+    decimal? MaximumPrice = null,
+    string? ScheduleStatus = null
 );
 
 public record SalesTenantMemberDto(
@@ -109,7 +119,12 @@ public record SalesDepositSlipDto(
     string Status,
     DateTime CreatedAt,
     string? RefundReason = null,
-    bool HasContract = false
+    bool HasContract = false,
+    string? ApplicationStatus = null,
+    bool HasPaymentProof = false,
+    DateTime? PaidAt = null,
+    DateTime? RefundRequestedAt = null,
+    string? RoomStatus = null
 );
 
 public record CheckoutRequestDto(

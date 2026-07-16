@@ -50,6 +50,7 @@ const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
     return [
       "/customer/my-rooms",
       "/customer/deposit-requests",
+      "/customer/deposit-refunds",
       "/customer/check-ins",
       "/customer/handovers",
       "/customer/checkouts",
@@ -60,7 +61,6 @@ const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
       "/customer/payments",
       "/customer/deposit-payments",
       "/customer/check-in-payments",
-      "/customer/checkout-payments",
     ].some((prefix) => pathname.startsWith(prefix));
   }
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
@@ -243,6 +243,7 @@ export function MainLayout() {
       { name: "Kiểm tra tình trạng phòng", path: "/manager/inspection-conditions", icon: ClipboardList },
       { name: "Xác nhận hoàn cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
       { name: "Kiểm tra điều kiện lưu trú", path: "/manager/tenant-verification", icon: UserCheck },
+      { name: "Thông báo", path: "/manager/notifications", icon: Bell },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },
