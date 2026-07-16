@@ -21,8 +21,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
             .Include(a => a.DepositSlips)
             .Include(a => a.RoomViewingSchedules)
                 .ThenInclude(s => s.Rooms)   // chỉ có RoomId, ScheduleId, không include sâu hơn được
-            .Where(a => a.Status == "cho_quan_ly_duyet_nhan_phong"
-                    && a.DepositSlips.Any())
+            .Where(a => a.Status == "cho_quan_ly_xac_nhan_coc")
             .ToListAsync();
 
         // 2. Gom hết RoomId cần thiết, query Room riêng 1 lần
@@ -64,6 +63,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
                 Condition = MapCondition(room.Status),
                 AvailableBedsCount = room.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
                 CustomerName = app.Customer?.FullName ?? "",
+                ApplicationId = app.ApplicationId,
             });
         }
 

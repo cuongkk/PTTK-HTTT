@@ -56,7 +56,7 @@ public class CheckoutReportService : ICheckoutReportService
 
         if (contract != null)
         {
-            string saleEmployeeId = contract.SaleEmployeeId; // Đây chính là mã nhân viên sale!
+            string saleEmployeeId = contract.SalesEmployeeId; // Đây chính là mã nhân viên sale!
         }
 
         using var transaction = await _db.Database.BeginTransactionAsync();
