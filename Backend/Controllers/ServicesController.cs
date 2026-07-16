@@ -20,6 +20,7 @@ public class ServicesController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ActionResult<List<ServiceDto>>> GetAll()
     {
         return Ok(await _serviceCatalogService.GetAllAsync());

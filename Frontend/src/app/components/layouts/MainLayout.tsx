@@ -27,9 +27,9 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { logout } from "../../services/system-admin/authService";
-import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
+import { getStoredUser, mapRoleIdToPath, mapRoleIdToRootPath } from "../../services/authStorage";
 import { getStoredToken } from "../../services/apiClient";
-import { notificationService } from "../../services/notificationService";
+import { notificationService, type AppNotification } from "../../services/notificationService";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type UserRole = "customer" | "sales" | "accountant" | "manager" | "system-admin";
@@ -50,6 +50,7 @@ const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
     return [
       "/customer/my-rooms",
       "/customer/deposit-requests",
+      "/customer/deposit-refunds",
       "/customer/check-ins",
       "/customer/handovers",
       "/customer/checkouts",
@@ -60,7 +61,6 @@ const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
       "/customer/payments",
       "/customer/deposit-payments",
       "/customer/check-in-payments",
-      "/customer/checkout-payments",
     ].some((prefix) => pathname.startsWith(prefix));
   }
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
@@ -73,8 +73,10 @@ export function MainLayout() {
   const [currentRole, setCurrentRole] = useState<UserRole>(getRoleFromPathname(location.pathname));
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
-  const [notificationsList, setNotificationsList] = useState<any[]>([]);
+  const [notificationsList, setNotificationsList] = useState<AppNotification[]>([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const accountInfo = getStoredUser();
 
   const toggleNotificationDropdown = async () => {
     if (!showNotificationDropdown) {
@@ -88,15 +90,62 @@ export function MainLayout() {
     setShowNotificationDropdown(!showNotificationDropdown);
   };
 
-  const getNotificationLink = (n: any) => {
+  const getNotificationLink = (n: AppNotification) => {
     const content = n.content;
     const title = n.title.toLowerCase();
+    const normalizedText = `${n.title} ${content}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    if (currentRole === "sales") {
+      if (normalizedText.includes("tra phong") || normalizedText.includes("hoan coc")) {
+        return "/sales/registrations?tab=checkout";
+      }
+      if (normalizedText.includes("lap hop dong") || normalizedText.includes("lap hd") || normalizedText.includes("du dieu kien nhan phong")) {
+        return "/sales/registrations?tab=deposits";
+      }
+      if (normalizedText.includes("nhan phong") || normalizedText.includes("dang ky") || /HS[a-zA-Z0-9]+/.test(content)) {
+        return "/sales/registrations?tab=registrations";
+      }
+      if (normalizedText.includes("coc") || n.notificationType === "dat_coc") {
+        if (normalizedText.includes("qua han") || normalizedText.includes("huy phieu") || normalizedText.includes("thanh toan")) {
+          return "/sales/registrations?tab=deposits";
+        }
+        return "/sales/registrations?tab=registrations";
+      }
+      if (normalizedText.includes("hop dong") || normalizedText.includes("hd thue")) {
+        return "/sales/registrations?tab=contracts";
+      }
+    }
+
+    if (n.notificationType === "dang_ky_thue" || /HS[a-zA-Z0-9]+/.test(content)) {
+      return `/${currentRole}/registrations`;
+    }
+    if (n.notificationType === "dat_coc") {
+      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
+      return depositMatch ? `/${currentRole}/registrations?tab=deposits` : `/${currentRole}/registrations`;
+    }
+    if (normalizedText.includes("nhan phong")) {
+      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
+      if (depositMatch) {
+        return `/${currentRole}/registrations?tab=contracts&ref=${depositMatch[0]}`;
+      }
+      return `/${currentRole}/registrations?tab=contracts`;
+    }
+    if (normalizedText.includes("tra phong")) {
+      const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
+      if (contractMatch) {
+        return `/${currentRole}/checkout-contract?contractId=${contractMatch[0]}`;
+      }
+      return `/${currentRole}/checkout-contract`;
+    }
     if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
       const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
       if (depositMatch) {
-        return `/${currentRole}/contracts?action=checkin&ref=${depositMatch[0]}`;
+        return `/${currentRole}/registrations?tab=contracts&ref=${depositMatch[0]}`;
       }
-      return `/${currentRole}/contracts`;
+      return `/${currentRole}/registrations?tab=contracts`;
     }
     if (title.includes("trả phòng") || content.toLowerCase().includes("trả phòng")) {
       const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
@@ -106,7 +155,7 @@ export function MainLayout() {
       return `/${currentRole}/checkout-contract`;
     }
     if (title.includes("cọc") || content.toLowerCase().includes("cọc")) {
-      return `/${currentRole}/contracts`;
+      return `/${currentRole}/registrations?tab=deposits`;
     }
     if (title.includes("đăng ký") || content.toLowerCase().includes("đăng ký")) {
       return `/${currentRole}/registrations`;
@@ -141,10 +190,10 @@ export function MainLayout() {
       navigate("/login", { replace: true });
       return;
     }
-    const allowedRoot = `/${mapRoleIdToPath(user.roleId)}`;
+    const allowedRoot = `/${mapRoleIdToRootPath(user.roleId)}`;
     const currentRoot = location.pathname === "/" ? "/customer" : `/${location.pathname.split("/")[1]}`;
     if (currentRoot !== allowedRoot) {
-      navigate(allowedRoot, { replace: true });
+      navigate(`/${mapRoleIdToPath(user.roleId)}`, { replace: true });
     }
   }, [location.pathname, navigate]);
 
@@ -174,13 +223,8 @@ export function MainLayout() {
       { name: "Thông báo", path: "/customer/notifications", icon: Bell },
     ],
     sales: [
-      { name: "Trang chủ", path: "/sales", icon: Home },
-      { name: "Tra cứu phòng", path: "/sales/rooms", icon: Building2 },
-      { name: "Tiếp nhận ĐK", path: "/sales/registrations", icon: Users },
-      { name: "Tra cứu HĐ", path: "/sales/contracts", icon: FileText },
-      { name: "Lập HĐ cọc", path: "/sales/deposit-contract", icon: FilePlus },
-      { name: "Lập HĐ thuê", path: "/sales/rental-contract", icon: FileCheck },
-      { name: "Trả phòng", path: "/sales/checkout-contract", icon: DoorOpen },
+      { name: "Công việc của tôi", path: "/sales/registrations", icon: Users },
+      { name: "Tra cứu phòng", path: "/sales/rooms", icon: Search },
       { name: "Thông báo", path: "/sales/notifications", icon: Bell },
     ],
     accountant: [
@@ -199,6 +243,7 @@ export function MainLayout() {
       { name: "Kiểm tra tình trạng phòng", path: "/manager/inspection-conditions", icon: ClipboardList },
       { name: "Xác nhận hoàn cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
       { name: "Kiểm tra điều kiện lưu trú", path: "/manager/tenant-verification", icon: UserCheck },
+      { name: "Thông báo", path: "/manager/notifications", icon: Bell },
     ],
     "system-admin": [
       { name: "Dashboard", path: "/system-admin", icon: Home },
@@ -335,7 +380,11 @@ export function MainLayout() {
               </div>
 
               {/* User Menu */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => setShowProfileModal(true)}
+                aria-label="Thông tin tài khoản"
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
                 <User className="w-5 h-5" />
               </button>
 
@@ -385,6 +434,17 @@ export function MainLayout() {
                 );
               })}
 
+              <button
+                onClick={() => {
+                  setShowProfileModal(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
+              >
+                <User className="w-5 h-5" />
+                <span>Thông tin tài khoản</span>
+              </button>
+
               {/* Logout Mobile */}
               <button
                 onClick={handleLogout}
@@ -402,6 +462,54 @@ export function MainLayout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowProfileModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <User className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Thông tin tài khoản</h2>
+                  <p className="text-xs text-gray-500">Tài khoản đang đăng nhập</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-5">
+              {[
+                ["Họ tên", accountInfo?.displayName || "Chưa có"],
+                ["Tên đăng nhập", accountInfo?.username || "Chưa có"],
+                ["Vai trò", accountInfo?.roleName || "Chưa có"],
+                ["Mã tài khoản", accountInfo?.accountId || "Chưa có"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 break-words">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-4">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmDialog
         open={showLogoutConfirm}
         title="Đăng xuất"

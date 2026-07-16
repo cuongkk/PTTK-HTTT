@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { Send, User, Home, DollarSign, Search, Clock, Calculator } from "lucide-react";
 import { accountantService, ContractInvoiceInfo, Invoice } from "../../services/accountantService";
 
@@ -20,6 +21,8 @@ function GetInvoiceTypeName(type: string) {
 }
 
 export function PaymentRequests() {
+  const [searchParams] = useSearchParams();
+  const searchQ = searchParams.get("search") || "";
   const [selectedContract, setSelectedContract] = useState<ContractInvoiceInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingContracts, setPendingContracts] = useState<ContractInvoiceInfo[]>([]);
@@ -67,6 +70,20 @@ export function PaymentRequests() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (pendingContracts.length > 0 && searchQ) {
+      setSearchTerm(searchQ);
+      const matched = pendingContracts.find(
+        (c) =>
+          c.contractId.toLowerCase() === searchQ.toLowerCase() ||
+          c.id?.toLowerCase() === searchQ.toLowerCase()
+      );
+      if (matched) {
+        handleSelectContract(matched);
+      }
+    }
+  }, [pendingContracts, searchQ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,125 +375,6 @@ export function PaymentRequests() {
         </div>
       </div>
 
-      {/* Sent Requests List */}
-      {(() => {
-        const filteredSentRequests = sentRequests.filter((request) => {
-          // 0. Only show deposit invoices (tien_coc)
-          if (request.invoiceType !== "tien_coc") return false;
-
-          // 1. Search term filter
-          const matchesSearch =
-            request.invoiceId.toLowerCase().includes(sentSearchTerm.toLowerCase()) ||
-            request.customerName.toLowerCase().includes(sentSearchTerm.toLowerCase()) ||
-            (request.roomName && request.roomName.toLowerCase().includes(sentSearchTerm.toLowerCase()));
-
-          if (!matchesSearch) return false;
-          if (sentStatusFilter === "all") return true;
-
-          const isExpired = (request.dueDate && new Date(request.dueDate) < new Date() && request.status === "cho_thanh_toan") || request.status === "huy" || request.status === "het_han";
-
-          if (sentStatusFilter === "da_thanh_toan") {
-            return request.status === "da_thanh_toan";
-          }
-          if (sentStatusFilter === "cho_thanh_toan") {
-            return request.status === "cho_thanh_toan" && !isExpired;
-          }
-          if (sentStatusFilter === "huy") {
-            return isExpired;
-          }
-
-          return true;
-        });
-
-        return (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-8">
-            <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Danh sách yêu cầu thanh toán đã phát hành</h2>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm mã hóa đơn, tên khách..."
-                    value={sentSearchTerm}
-                    onChange={(e) => setSentSearchTerm(e.target.value)}
-                    className="w-full sm:w-64 pl-9 pr-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
-
-                <select
-                  value={sentStatusFilter}
-                  onChange={(e) => setSentStatusFilter(e.target.value)}
-                  className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="cho_thanh_toan">Chờ thanh toán</option>
-                  <option value="da_thanh_toan">Đã thanh toán</option>
-                  <option value="huy">Đã hủy / Quá hạn</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="divide-y divide-gray-200">
-              {filteredSentRequests.map((request) => (
-                <div key={request.invoiceId} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <DollarSign className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-gray-900 mb-1">
-                            <span className="font-mono mr-2">{request.invoiceId}</span> — {request.customerName}
-                          </h3>
-                          <p className="text-sm text-gray-600">{request.roomName}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm ml-0 lg:ml-15 mt-2 lg:mt-0">
-                        <div>
-                          <p className="text-gray-600">Loại khoản thu</p>
-                          <p className="font-medium text-gray-900">{GetInvoiceTypeName(request.invoiceType)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Số tiền</p>
-                          <p className="font-medium text-gray-900">{request.totalAmount.toLocaleString()} VNĐ</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Thời điểm tạo</p>
-                          <p className="font-medium text-gray-900">{new Date(request.createdAt).toLocaleString("vi-VN")}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Hạn thanh toán</p>
-                          <p className="font-medium text-gray-900">{request.dueDate ? new Date(request.dueDate).toLocaleString("vi-VN") : "—"}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Trạng thái</p>
-                          <span className={`px-2 py-0.5 inline-block text-xs font-semibold rounded-full ${request.status === "da_thanh_toan" ? "bg-green-100 text-green-800"
-                            : (request.status === "huy" || request.status === "het_han" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "bg-red-100 text-red-800"
-                              : "bg-orange-100 text-orange-800"
-                            }`}>
-                            {request.status === "da_thanh_toan" ? "Đã thanh toán"
-                              : (request.status === "huy" || request.status === "het_han" || (request.dueDate && new Date(request.dueDate) < new Date())) ? "Đã hủy / Quá hạn"
-                                : "Chờ thanh toán"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {filteredSentRequests.length === 0 && (
-                <div className="p-8 text-center text-gray-500">Không tìm thấy yêu cầu thanh toán nào phù hợp với bộ lọc.</div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

@@ -59,25 +59,27 @@ export function SalesDashboard() {
   const getNotificationLink = (n: AppNotification) => {
     const content = n.content;
     const title = n.title.toLowerCase();
-    if (title.includes("nhận phòng") || content.toLowerCase().includes("nhận phòng")) {
-      const depositMatch = content.match(/DC[a-zA-Z0-9]+/);
-      if (depositMatch) {
-        return `/sales/contracts?action=checkin&ref=${depositMatch[0]}`;
+    const normalizedText = `${n.title} ${content}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    if (normalizedText.includes("tra phong") || normalizedText.includes("hoan coc")) {
+      return "/sales/registrations?tab=checkout";
+    }
+    if (normalizedText.includes("lap hop dong") || normalizedText.includes("lap hd") || normalizedText.includes("du dieu kien nhan phong")) {
+      return "/sales/registrations?tab=deposits";
+    }
+    if (n.notificationType === "dang_ky_thue" || normalizedText.includes("nhan phong") || normalizedText.includes("dang ky") || /HS[a-zA-Z0-9]+/.test(content)) {
+      return "/sales/registrations?tab=registrations";
+    }
+    if (normalizedText.includes("coc") || n.notificationType === "dat_coc") {
+      if (normalizedText.includes("qua han") || normalizedText.includes("huy phieu") || normalizedText.includes("thanh toan")) {
+        return "/sales/registrations?tab=deposits";
       }
-      return "/sales/contracts";
+      return "/sales/registrations?tab=registrations";
     }
-    if (title.includes("trả phòng") || content.toLowerCase().includes("trả phòng")) {
-      const contractMatch = content.match(/HD[a-zA-Z0-9]+/);
-      if (contractMatch) {
-        return `/sales/checkout-contract?contractId=${contractMatch[0]}`;
-      }
-      return "/sales/checkout-contract";
-    }
-    if (title.includes("cọc") || content.toLowerCase().includes("cọc")) {
-      return "/sales/contracts";
-    }
-    if (title.includes("đăng ký") || content.toLowerCase().includes("đăng ký")) {
-      return "/sales/registrations";
+    if (normalizedText.includes("hop dong") || normalizedText.includes("hd thue")) {
+      return "/sales/registrations?tab=contracts";
     }
     return "/sales/notifications";
   };

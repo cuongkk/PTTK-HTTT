@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle, X } from "lucide-react";
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  details?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "danger" | "warning" | "info";
@@ -15,6 +18,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  details,
   confirmLabel = "Xác nhận",
   cancelLabel = "Hủy",
   variant = "warning",
@@ -43,15 +47,15 @@ export function ConfirmDialog({
 
   const s = variantStyles[variant];
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-auto">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={onCancel}
       />
       {/* Dialog */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Close button */}
         <button
           onClick={onCancel}
@@ -72,6 +76,12 @@ export function ConfirmDialog({
             </div>
           </div>
 
+          {details && (
+            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              {details}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 mt-5">
             <button
@@ -89,7 +99,8 @@ export function ConfirmDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { Calculator, Save, User, Home, CheckCircle, Search } from "lucide-react";
 import { accountantService, CheckInContract } from "../../services/accountantService";
 
 export function CheckInCharges() {
+  const [searchParams] = useSearchParams();
+  const searchQ = searchParams.get("search") || "";
   const [selectedContract, setSelectedContract] = useState<CheckInContract | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [pendingContracts, setPendingContracts] = useState<CheckInContract[]>([]);
@@ -29,6 +32,16 @@ export function CheckInCharges() {
   useEffect(() => {
     loadPendingContracts();
   }, []);
+
+  useEffect(() => {
+    if (pendingContracts.length > 0 && searchQ) {
+      setSearchTerm(searchQ);
+      const matched = pendingContracts.find(c => c.contractId.toLowerCase() === searchQ.toLowerCase());
+      if (matched) {
+        handleSelectContract(matched);
+      }
+    }
+  }, [pendingContracts, searchQ]);
 
   const handleSelectContract = (contract: CheckInContract) => {
     setSelectedContract(contract);

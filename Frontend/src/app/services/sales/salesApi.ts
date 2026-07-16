@@ -35,6 +35,21 @@ export interface SalesDashboardData {
   pendingTasks: PendingTask[];
 }
 
+export interface SalesTenantMember {
+  fullName: string;
+  gender: string | null;
+  nationality: string | null;
+  dateOfBirth: string | null;
+  nationalId: string | null;
+  documentType: string | null;
+  documentImageUrl: string | null;
+  permanentAddress: string | null;
+  occupationOrSchool: string | null;
+  isPrimaryTenant: boolean;
+  isEligible: boolean;
+  note: string | null;
+}
+
 export interface SalesApplication {
   applicationId: string;
   customerName: string;
@@ -52,10 +67,23 @@ export interface SalesApplication {
   status: string;
   createdAt: string;
   note: string;
+  hasContract: boolean;
+  tenants?: SalesTenantMember[] | null;
+  desiredRoomType: string | null;
+  expectedMoveInDate: string | null;
+  expectedRentalMonths: number | null;
+  livingSchedule: string | null;
+  requiresQuietLifestyle: boolean;
+  requiresParking: boolean;
+  requiresAirConditioner: boolean;
+  minimumPrice: number | null;
+  maximumPrice: number | null;
+  scheduleStatus: string | null;
 }
 
 export interface SalesDepositSlip {
   depositId: string;
+  applicationId: string;
   customerName: string;
   phoneNumber: string;
   roomName: string;
@@ -64,6 +92,13 @@ export interface SalesDepositSlip {
   holdUntil: string;
   status: string;
   createdAt: string;
+  refundReason?: string | null;
+  hasContract: boolean;
+  applicationStatus: string | null;
+  hasPaymentProof: boolean;
+  paidAt: string | null;
+  refundRequestedAt: string | null;
+  roomStatus: string | null;
 }
 
 export interface SalesRentalContract {
@@ -83,25 +118,13 @@ export interface SalesRentalContract {
     requestedCheckoutAt: string;
     expectedDate: string;
     note: string;
+    status: string;
   } | null;
 }
 
 export const salesApi = {
   getDashboard: () => apiClient.get<SalesDashboardData>("/sales/dashboard"),
   getApplications: () => apiClient.get<SalesApplication[]>("/sales/applications"),
-  createApplication: (data: {
-    name: string;
-    phone: string;
-    email: string;
-    gender?: string;
-    genderRequirement?: string;
-    area?: string;
-    capacity?: number;
-    priceRange?: string;
-    note: string;
-  }) => apiClient.post<SalesApplication>("/sales/applications", data),
-
-
 
   createSchedule: (applicationId: string, data: {
     roomId: string;
@@ -110,7 +133,8 @@ export const salesApi = {
   }) => apiClient.post<SalesApplication>(`/sales/applications/${applicationId}/schedules`, data),
 
   completeSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/complete`, {}),
-
+  cancelSchedule: (scheduleId: string) => apiClient.post<void>(`/sales/schedules/${scheduleId}/cancel`, {}),
+  cancelApplication: (applicationId: string, reason: string) => apiClient.post<void>(`/sales/applications/${applicationId}/cancel`, { reason }),
   createDepositSlip: (data: {
     applicationId: string;
     roomId: string;
@@ -119,6 +143,8 @@ export const salesApi = {
   }) => apiClient.post<SalesDepositSlip>("/sales/deposit-slips", data),
 
   getDepositSlips: () => apiClient.get<SalesDepositSlip[]>("/sales/deposit-slips"),
+  expireDepositSlip: (depositId: string, reason: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/expire`, { reason }),
+  cancelDepositSlip: (depositId: string, reason: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/cancel`, { reason }),
 
   getContracts: () => apiClient.get<SalesRentalContract[]>("/sales/contracts"),
 
@@ -136,4 +162,8 @@ export const salesApi = {
     expectedDate: string;
     note: string;
   }) => apiClient.post<void>(`/sales/contracts/${contractId}/checkout`, data),
+
+  reviewDeposit: (applicationId: string) => apiClient.post<void>(`/sales/applications/${applicationId}/review-deposit`, {}),
+  reviewCheckin: (applicationId: string) => apiClient.post<void>(`/sales/applications/${applicationId}/review-checkin`, {}),
+  acceptDepositRefund: (depositId: string) => apiClient.post<void>(`/sales/deposit-slips/${depositId}/accept-refund`, {}),
 };

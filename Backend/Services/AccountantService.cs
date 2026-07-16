@@ -114,7 +114,8 @@ public class AccountantService : IAccountantService
                 SenderAccountId = null, // Hệ thống gửi tự động
                 RecipientAccountId = customerAccount.AccountId,
                 Title = "Yêu cầu thanh toán mới",
-                Content = $"Bạn có yêu cầu thanh toán mới cho khoản '{GetInvoiceTypeName(request.InvoiceType)}' với số tiền là {request.TotalAmount:#,##0} VNĐ."
+                Content = $"Bạn có yêu cầu thanh toán mới cho khoản '{GetInvoiceTypeName(request.InvoiceType)}' với số tiền là {request.TotalAmount:#,##0} VNĐ.",
+                NotificationType = $"invoice|{invoice.InvoiceId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
@@ -251,7 +252,8 @@ public class AccountantService : IAccountantService
                     SenderAccountId = null,
                     RecipientAccountId = customerAccount.AccountId,
                     Title = "Yêu cầu thanh toán đã bị hủy",
-                    Content = $"Yêu cầu thanh toán {invoice.InvoiceId} đã bị tự động hủy do quá hạn 24 giờ. Vui lòng liên hệ kế toán nếu cần hỗ trợ."
+                    Content = $"Yêu cầu thanh toán {invoice.InvoiceId} đã bị tự động hủy do quá hạn 24 giờ. Vui lòng liên hệ kế toán nếu cần hỗ trợ.",
+                    NotificationType = $"invoice|{invoice.InvoiceId}"
                 };
                 await _dbContext.Notifications.AddAsync(notification);
             }
@@ -428,7 +430,8 @@ public class AccountantService : IAccountantService
                 SenderAccountId = null,
                 RecipientAccountId = customerAccount.AccountId,
                 Title = "Xác nhận thanh toán thành công",
-                Content = $"Hóa đơn '{GetInvoiceTypeName(invoice.InvoiceType)}' của bạn trị giá {invoice.TotalAmount:#,##0} VNĐ đã được kế toán xác nhận thanh toán."
+                Content = $"Hóa đơn '{GetInvoiceTypeName(invoice.InvoiceType)}' của bạn trị giá {invoice.TotalAmount:#,##0} VNĐ đã được kế toán xác nhận thanh toán.",
+                NotificationType = $"invoice|{invoice.InvoiceId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
@@ -457,7 +460,8 @@ public class AccountantService : IAccountantService
                 SenderAccountId = null,
                 RecipientAccountId = customerAccount.AccountId,
                 Title = "Từ chối xác nhận thanh toán",
-                Content = $"Hóa đơn '{GetInvoiceTypeName(invoice.InvoiceType)}' của bạn bị từ chối duyệt. Lý do: {reason}. Vui lòng kiểm tra lại minh chứng thanh toán."
+                Content = $"Hóa đơn '{GetInvoiceTypeName(invoice.InvoiceType)}' của bạn bị từ chối duyệt. Lý do: {reason}. Vui lòng kiểm tra lại minh chứng thanh toán.",
+                NotificationType = $"invoice|{invoiceId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
@@ -576,7 +580,8 @@ public class AccountantService : IAccountantService
                 SenderAccountId = null,
                 RecipientAccountId = customerAccount.AccountId,
                 Title = "Hóa đơn nhận phòng mới",
-                Content = $"Hệ thống đã phát hành hóa đơn nhận phòng cho hợp đồng {contract.ContractId}. Vui lòng thanh toán khoản phí {dto.FirstMonthRent + dto.OtherFees:#,##0} VNĐ để hoàn tất nhận phòng."
+                Content = $"Hệ thống đã phát hành hóa đơn nhận phòng cho hợp đồng {contract.ContractId}. Vui lòng thanh toán khoản phí {dto.FirstMonthRent + dto.OtherFees:#,##0} VNĐ để hoàn tất nhận phòng.",
+                NotificationType = $"invoice|{rentInvoice.InvoiceId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
@@ -855,6 +860,8 @@ public class AccountantService : IAccountantService
         await _dbContext.AdditionalCosts.AddRangeAsync(listFees);
 
         // Tính toán lại
+        recon.RefundRate = dto.RefundRate;
+        recon.BaseRefund = recon.OriginalDeposit * (dto.RefundRate / 100m);
         recon.TotalDeductions = dto.Damages + dto.Utilities + dto.RentArrears + dto.ViolationFines + dto.OtherDeductions;
         var finalAmt = recon.BaseRefund - recon.TotalDeductions;
 
@@ -963,6 +970,7 @@ public class AccountantService : IAccountantService
             {
                 InvoiceId = IdGenerator.Generate("HD", 12),
                 CustomerId = contract.CustomerId,
+                ContractId = contract.ContractId,
                 AccountantEmployeeId = employeeId,
                 ReconciliationId = recon.ReconciliationId,
                 InvoiceType = "hoan_coc",
@@ -987,6 +995,7 @@ public class AccountantService : IAccountantService
             {
                 InvoiceId = IdGenerator.Generate("HD", 12),
                 CustomerId = contract.CustomerId,
+                ContractId = contract.ContractId,
                 AccountantEmployeeId = employeeId,
                 ReconciliationId = recon.ReconciliationId,
                 InvoiceType = "thu_them",
@@ -1046,7 +1055,8 @@ public class AccountantService : IAccountantService
                 SenderAccountId = null,
                 RecipientAccountId = customerAccount.AccountId,
                 Title = "Hoàn tất đối soát trả phòng",
-                Content = $"Hồ sơ trả phòng cho hợp đồng {contract.ContractId} đã được Kế toán hoàn tất đối soát và thực hiện chi tiền."
+                Content = $"Hồ sơ trả phòng cho hợp đồng {contract.ContractId} đã được Kế toán hoàn tất đối soát và thực hiện chi tiền.",
+                NotificationType = $"invoice|{contract.ContractId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
         }
@@ -1077,6 +1087,24 @@ public class AccountantService : IAccountantService
         }
 
         recon.Status = "da_xac_nhan";
+
+        // Gửi thông báo cho Quản lý phê duyệt thanh lý
+        var managerAccount = await _dbContext.Accounts
+            .FirstOrDefaultAsync(a => a.Username == "manager");
+        if (managerAccount != null)
+        {
+            var notification = new Notification
+            {
+                NotificationId = IdGenerator.Generate("NT", 12),
+                RecipientAccountId = managerAccount.AccountId,
+                Title = "Cần trao đổi kết quả với khách",
+                Content = $"Bảng đối soát quyết toán của hợp đồng {recon.ContractId} đã được Kế toán gửi duyệt.",
+                NotificationType = $"manager|{reconciliationId}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _dbContext.Notifications.AddAsync(notification);
+        }
 
         await _dbContext.SaveChangesAsync();
     }

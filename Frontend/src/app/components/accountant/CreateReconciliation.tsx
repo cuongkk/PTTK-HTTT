@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { Calculator, AlertCircle, FileText, Send, Printer, Search } from "lucide-react";
 import { accountantService, ReconciliationListItem } from "../../services/accountantService";
 
@@ -63,6 +64,8 @@ const calculateProposedRefundRate = (recon: ReconciliationListItem): { rate: num
 };
 
 export function CreateReconciliation() {
+  const [searchParams] = useSearchParams();
+  const searchQ = searchParams.get("search") || "";
   const [showCalcModal, setShowCalcModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -89,6 +92,26 @@ export function CreateReconciliation() {
   useEffect(() => {
     loadReconciliations();
   }, []);
+
+  useEffect(() => {
+    if (reconciliationsList.length > 0 && searchQ) {
+      setSearchTerm(searchQ);
+      const matched = reconciliationsList.find(
+        (r) =>
+          r.reconciliationId.toLowerCase() === searchQ.toLowerCase() ||
+          r.contractId.toLowerCase() === searchQ.toLowerCase()
+      );
+      if (matched) {
+        const isDebt = matched.refundAmount < 0 && (matched.status === "Chờ xử lý" || matched.status === "Đã hoàn thành");
+        if (isDebt) {
+          setActiveTab("Theo dõi thu thêm");
+        } else {
+          setActiveTab("Chờ tính toán");
+          handleCalculateClick(matched);
+        }
+      }
+    }
+  }, [reconciliationsList, searchQ]);
 
   const handleCalculateClick = (contract: ReconciliationListItem) => {
     setSelectedContract(contract);

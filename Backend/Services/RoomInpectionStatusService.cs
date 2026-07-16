@@ -1,5 +1,6 @@
 using Backend.Dtos;
 using Backend.Data;
+using Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Services;
@@ -67,7 +68,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
             });
         }
 
-        // 4. Lọc thêm theo Condition nếu FE truyền lên
+        // 3. Lọc thêm theo Condition nếu FE truyền lên.
         if (!string.IsNullOrEmpty(filter.Status))
         {
             result = result.Where(r => r.Condition == filter.Status).ToList();
