@@ -9,7 +9,7 @@ interface Room {
   condition: string;
   availableBedsCount: number;
   customerName?: string;
-  contractId?: string;
+  applicationId?: string;
 }
 
 export function RoomInspectionStatus() {
@@ -19,12 +19,10 @@ export function RoomInspectionStatus() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isReviewing, setIsReviewing] = useState(false);
 
-  // 3. Sử dụng useEffect để gọi dữ liệu khi tải trang
-  useEffect(() => {
-    // 1. Lấy token đã lưu khi đăng nhập thành công
-    const token = localStorage.getItem("auth_token"); 
-
+  const fetchRooms = () => {
+    const token = localStorage.getItem("auth_token");
 
     if (!token) {
       setError("Bạn chưa đăng nhập hoặc phiên làm việc đã hết hạn!");
@@ -32,12 +30,11 @@ export function RoomInspectionStatus() {
       return;
     }
 
-    // 2. Gọi chính xác đường dẫn Route bạn cấu hình ở Backend
+    setLoading(true);
     fetch("http://localhost:5157/api/manager/room-inspections-status", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        // Đính kèm token vào Header để vượt qua cổng kiểm tra [Authorize] của Backend
         "Authorization": `Bearer ${token}` 
       }
     }) 
@@ -51,19 +48,68 @@ export function RoomInspectionStatus() {
         return res.json();
       })
       .then((data) => {
-        // Giả sử Backend trả về một mảng danh sách phòng trực tiếp, 
-        // hoặc bạn hãy check cấu trúc object trả về của `RoomStatusFilterRequest` để map cho đúng (ví dụ: data.items hoặc data)
         setRooms(data); 
-        console.log(data);
+        console.log("Fetched rooms:", data);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
+  };
+
+  // 2. Chạy lần đầu tiên khi tải trang
+  useEffect(() => {
+    fetchRooms();
   }, []);
 
-  // 4. Logic lọc phòng linh hoạt dựa trên từ khóa (giữ nguyên từ code cũ)
+  // 3. Xử lý nút bấm Xác nhận / Từ chối (Nhận vào kiểu string | undefined để an toàn TypeScript)
+  const handleReviewRoom = async (applicationId: string | undefined, isApproved: boolean) => {
+    if (!applicationId) {
+      alert("Hồ sơ đăng ký không hợp lệ!");
+      return;
+    }
+
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
+      return;
+    }
+
+    setIsReviewing(true);
+    try {
+      const res = await fetch(
+        `http://localhost:5157/api/manager/room-inspections-status/review/${applicationId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isApproved }),
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.log("ApplicationId:", applicationId);
+        console.log("Status:", res.status);
+        console.log("Response:", text);
+        throw new Error(text || "Cập nhật trạng thái thất bại!");
+      }
+
+      alert(isApproved ? "Xác nhận phòng thành công!" : "Đã từ chối yêu cầu!");
+      
+      // 🚀 Tải lại danh sách phòng mới nhất từ Server để đồng bộ lại toàn bộ UI
+      fetchRooms(); 
+    } catch (err: any) {
+      alert("Lỗi: " + err.message);
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
+  // 4. Logic lọc phòng linh hoạt dựa trên từ khóa
   const filteredRooms = rooms.filter((room) => {
     const query = search.toLowerCase();
     return (
@@ -74,51 +120,8 @@ export function RoomInspectionStatus() {
   });
 
   // 5. Thêm trạng thái hiển thị khi đang tải hoặc lỗi kết nối
-  if (loading) return <div className="text-center py-10 text-gray-600">Đang tải danh sách phòng...</div>;
+  if (loading && rooms.length === 0) return <div className="text-center py-10 text-gray-600">Đang tải danh sách phòng...</div>;
   if (error) return <div className="text-center py-10 text-red-600">Lỗi: {error}</div>;
-
-  // Xử lý button xác nhận
-  const handleReviewRoom = async (roomId: string, isApproved: boolean) => {
-  try {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      alert("Phiên làm việc đã hết hạn, vui lòng đăng nhập lại!");
-      return;
-    }
-
-    const res = await fetch(
-      `http://localhost:5157/api/manager/room-inspections-status/review/${roomId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isApproved }),
-      }
-    );
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => null);
-      throw new Error(errData?.message ?? "Cập nhật trạng thái thất bại!");
-    }
-
-    const data = await res.json(); // BE trả về { newStatus: string }
-
-    // Chỉ cập nhật UI nếu BE xác nhận có đổi trạng thái
-    if (isApproved) {
-      setRooms((prev) =>
-        prev.map((room) =>
-          room.id === roomId ? { ...room, condition: data.newStatus } : room
-        )
-      );
-    }
-
-    alert(isApproved ? "Xác nhận phòng thành công!" : "Đã từ chối yêu cầu!");
-  } catch (err: any) {
-    alert("Lỗi: " + err.message);
-  }
-};
 
 
   return (
@@ -200,14 +203,14 @@ export function RoomInspectionStatus() {
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => handleReviewRoom(room.id, true)}
+                    onClick={() => handleReviewRoom(room.applicationId!, true)}
                     className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Xác nhận
                   </button>
 
                   <button
-                    onClick={() => handleReviewRoom(room.id, false)}
+                    onClick={() => handleReviewRoom(room.applicationId!, false)}
                     className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
                   >
                     Từ chối

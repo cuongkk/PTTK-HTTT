@@ -24,12 +24,12 @@ public class TenantVerificationController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("review/{contractId}")]
-    public async Task<ActionResult<object>> ReviewTenantVerification(string contractId, [FromBody] ReviewTenantVerificationDto dto)
+    [HttpPut("review/{ApplicationId}")]
+    public async Task<ActionResult<object>> ReviewTenantVerification(string ApplicationId, [FromBody] ReviewTenantVerificationDto dto)
     {
         try
         {
-            var newStatus = await _tenantVerificationService.ReviewTenantVerificationAsync(contractId, dto.IsApproved);
+            var newStatus = await _tenantVerificationService.ReviewTenantVerificationAsync(ApplicationId, dto.IsApproved);
             return Ok(new { applicationStatus = newStatus });
         }
         catch (KeyNotFoundException ex)

@@ -15,47 +15,78 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
     public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
     {
-        var query = _db.Rooms
-            .Include(r => r.Branch)
-            .Include(r => r.Beds)
-            .Where(c => c.Status == "cho_quan_ly_xac_nhan_coc")
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(filter.BranchId))
-            query = query.Where(p => p.BranchId == filter.BranchId);
-
-        var rooms = await query.ToListAsync();
-
+        // 1. Lấy hợp đồng thỏa điều kiện, kèm theo Deposit -> Beds -> Room, Customer, TenantMembers
         var contracts = await _db.RentalContracts
             .Include(c => c.Customer)
-            .Where(c => c.RoomId != null)
+            .Include(c => c.TenantMembers)
+            .Include(c => c.Deposit)
+                .ThenInclude(d => d.Beds)
+            .Include(c => c.CheckoutRequests)
+            .Where(c => c.Status == "cho_kiem_tra_tra_phong"
+                    && c.Deposit != null
+                    && c.CheckoutRequests.Any(cr => cr.Status == "da_xac_nhan_lich"))
             .ToListAsync();
 
-        var contractByRoomId = contracts
-            .GroupBy(c => c.RoomId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.StartDate).First());
+        // 2. Lấy Bed -> Room cho các giường liên quan tới Deposit của các hợp đồng trên
+        var allBedIds = contracts
+            .SelectMany(c => c.Deposit!.Beds.Select(b => b.BedId))
+            .Distinct()
+            .ToList();
 
-        var result = rooms.Select(p =>
+        var beds = await _db.Beds
+            .Include(b => b.Room)
+                .ThenInclude(r => r.Branch)
+            .Include(b => b.Room)
+                .ThenInclude(r => r.Beds)
+            .Where(b => allBedIds.Contains(b.BedId))
+            .ToListAsync();
+
+        var bedLookup = beds.ToDictionary(b => b.BedId, b => b);
+
+        // 3. Lọc theo điều kiện phòng "dang_thue" và build DTO
+        var result = new List<RoomStatusDto>();
+
+        foreach (var contract in contracts)
         {
-            var contract = contractByRoomId.GetValueOrDefault(p.RoomId);
-            return new RoomStatusDto
-            {
-                Id = p.RoomId,
-                Name = p.RoomName,
-                Building = p.Branch?.BranchName ?? p.BranchId,
-                Condition = MapCondition(p.Status),
-                AvailableBedsCount = p.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
-                CustomerName = contract?.Customer?.FullName ?? null,
-                ContractId = contract?.ContractId ?? null,
-            };
-        }).ToList();
+            var relatedBeds = contract.Deposit!.Beds
+                .Select(db => bedLookup.GetValueOrDefault(db.BedId))
+                .Where(b => b != null)
+                .Select(b => b!)
+                .ToList();
 
+            var room = relatedBeds.FirstOrDefault()?.Room;
+
+            if (room is null || room.Status != RoomBedStatus.Rented)
+                continue;
+
+            if (!string.IsNullOrEmpty(filter.BranchId) && room.BranchId != filter.BranchId)
+                continue;
+
+            var tenantName = contract.Customer?.FullName
+                ?? contract.TenantMembers.FirstOrDefault(tm => tm.IsPrimaryTenant || tm.CustomerId == contract.CustomerId)?.FullName
+                ?? contract.TenantMembers.FirstOrDefault()?.FullName
+                ?? "";
+
+            result.Add(new RoomStatusDto
+            {
+                Id = room.RoomId,
+                ContractId = contract.ContractId,
+                Name = room.RoomName,
+                Building = room.Branch?.BranchName ?? room.BranchId,
+                Condition = MapCondition(room.Status),
+                AvailableBedsCount = room.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
+                CustomerName = tenantName,
+            });
+        }
+
+        // 4. Lọc thêm theo Condition nếu FE truyền lên
         if (!string.IsNullOrEmpty(filter.Status))
+        {
             result = result.Where(r => r.Condition == filter.Status).ToList();
+        }
 
         return result;
     }
-
 
     private static string MapCondition(string? status) 
     {
@@ -76,23 +107,24 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
         };
     }
 
-    public async Task<ReviewRoomStatusResultDto> ReviewRoomStatusAsync(string roomId, bool isApproved)
+    public async Task<ReviewRoomStatusResultDto> ReviewRoomStatusAsync(string applicationId, bool isApproved)
     {
-        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.RoomId == roomId);
-        if (room is null)
-            throw new KeyNotFoundException("Không tìm thấy phòng.");
+        var application = await _db.RentalApplications
+            .FirstOrDefaultAsync(a => a.ApplicationId == applicationId);
+
+        if (application == null)
+            throw new KeyNotFoundException("Không tìm thấy hồ sơ đăng ký.");
 
         if (isApproved)
         {
-            room.Status = "cho_khach_thanh_toan_coc"; // TODO: đổi đúng tên enum member
+            application.Status = "cho_khach_thanh_toan_coc";
             await _db.SaveChangesAsync();
         }
-        // Nếu từ chối: không đổi gì, giữ nguyên trạng thái hiện tại
 
         return new ReviewRoomStatusResultDto
         {
-            RoomId = room.RoomId,
-            NewStatus = MapCondition(room.Status) // dùng lại hàm MapStatus đã có
+            RoomId = application.DesiredRoomId ?? "",
+            NewStatus = application.Status
         };
     }
 }

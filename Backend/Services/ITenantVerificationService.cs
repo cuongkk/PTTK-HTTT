@@ -7,5 +7,5 @@ public interface ITenantVerificationService
 {
     Task<List<TenantVerificationDto>> GetTenantVerificationsAsync();
 
-    Task<string> ReviewTenantVerificationAsync(string contractId, bool isApproved);
+    Task<string> ReviewTenantVerificationAsync(string ApplicationId, bool isApproved);
 }
