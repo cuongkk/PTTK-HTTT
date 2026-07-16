@@ -8,7 +8,7 @@ import { roomService, type Room } from "../../services/system-admin/roomService"
 export function CreateRentalContract() {
   const navigate = useNavigate();
   const location = useLocation();
-  const backToTransactions = () => navigate("/sales/registrations?tab=deposits");
+  const backToTransactions = () => navigate("/sales/registrations?tab=contracts");
   const [application, setApplication] = useState<SalesApplication | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [rentalForm, setRentalForm] = useState({

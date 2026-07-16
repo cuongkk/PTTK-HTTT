@@ -91,13 +91,7 @@ export function RegistrationManagement() {
     setReasonDialog((prev) => ({ ...prev, open: false, value: "" }));
   };
 
-  // Room assignment states
-  const [selectedRegForAssign, setSelectedRegForAssign] = useState<SalesApplication | null>(null);
-  const [selectedRoomForAssign, setSelectedRoomForAssign] = useState<Room | null>(null);
-  const [assignFilterArea, setAssignFilterArea] = useState("all");
-  const [assignFilterPrice, setAssignFilterPrice] = useState("all");
-  const [assignAppointmentDate, setAssignAppointmentDate] = useState("");
-  const [assignAppointmentNote, setAssignAppointmentNote] = useState("");
+
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -371,7 +365,7 @@ export function RegistrationManagement() {
   };
   const needsSalesRegistrationAction = (reg: SalesApplication) => {
     const action = getRegistrationActionFilter(reg);
-    return action !== null && action !== "create_deposit";
+    return action !== null && action !== "create_deposit" && action !== "waiting_customer_confirmation";
   };
   const needsSalesRefundDepositAction = (deposit: SalesDepositSlip) => deposit.status === "cho_tiep_nhan_hoan_coc" && !deposit.hasContract;
   const needsSalesDepositAction = (deposit: SalesDepositSlip) => deposit.status === "het_han" || isDepositOverdue(deposit);
@@ -664,10 +658,8 @@ export function RegistrationManagement() {
             >
               <option value="all">Tất cả lịch hồ sơ</option>
               <option value="schedule">Sắp lịch xem phòng</option>
-              <option value="waiting_customer_confirmation">Chờ khách xác nhận</option>
               <option value="confirm_viewing">Xác nhận xem phòng</option>
               <option value="review_deposit">Rà soát cọc</option>
-              <option value="create_deposit">Lập phiếu đặt cọc</option>
               <option value="review_checkin">Đối chiếu nhận phòng</option>
             </select>
           </div>
@@ -726,10 +718,7 @@ export function RegistrationManagement() {
                         {/* Action: Sắp lịch xem phòng */}
                         {reg.status === "moi" && !reg.appointmentSent && (
                           <button
-                            onClick={() => {
-                              setSelectedRegForAssign(reg);
-                              setSelectedRoomForAssign(vacantRooms.find((room) => room.roomId === reg.roomId) ?? null);
-                            }}
+                            onClick={() => navigate(`/sales/assign-room?regRef=${reg.applicationId}`)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                           >
                             <ArrowRight className="w-3 h-3" /> Sắp lịch xem phòng
@@ -772,24 +761,7 @@ export function RegistrationManagement() {
                         {reg.status === "cho_sale_ra_soat_coc" && (
                           <>
                             <button
-                              onClick={() =>
-                                setConfirmDialog({
-                                  open: true,
-                                  title: "Rà soát hồ sơ cọc",
-                                  message: "Kiểm tra thông tin hồ sơ trước khi chuyển Quản lý xác nhận phòng còn trống.",
-                                  details: renderDepositReviewDetails(reg),
-                                  onConfirm: async () => {
-                                    setConfirmDialog((prev) => ({ ...prev, open: false }));
-                                    try {
-                                      await salesApi.reviewDeposit(reg.applicationId);
-                                      toast.success("Đã rà soát hồ sơ. Hệ thống thông báo Quản lý xác nhận.");
-                                      await loadData();
-                                    } catch {
-                                      toast.error("Rà soát thất bại.");
-                                    }
-                                  },
-                                })
-                              }
+                              onClick={() => navigate(`/sales/review-deposit?regRef=${reg.applicationId}`)}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                             >
                               <FileCheck className="w-3 h-3" /> Rà soát cọc
@@ -810,52 +782,10 @@ export function RegistrationManagement() {
                         {reg.status === "cho_sale_doi_chieu_nhan_phong" && (
                           <>
                             <button
-                              disabled={getCheckinReviewIssues(reg).length > 0}
-                              title={getCheckinReviewIssues(reg).length > 0 ? "Hồ sơ người thuê chưa đủ điều kiện đối chiếu" : "Xác nhận đối chiếu nhận phòng"}
-                              onClick={() =>
-                                setConfirmDialog({
-                                  open: true,
-                                  title: "Đối chiếu nhận phòng",
-                                  message: "Xác nhận đã đối chiếu hồ sơ khách đủ điều kiện nhận phòng?",
-                                  details: renderCheckinReviewDetails(reg),
-                                  onConfirm: async () => {
-                                    setConfirmDialog((prev) => ({ ...prev, open: false }));
-                                    try {
-                                      await salesApi.reviewCheckin(reg.applicationId);
-                                      toast.success("Đã ghi nhận đối chiếu. Chờ Quản lý duyệt nhận phòng.");
-                                      await loadData();
-                                    } catch {
-                                      toast.error("Đối chiếu thất bại.");
-                                    }
-                                  },
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                              onClick={() => navigate(`/sales/review-checkin?regRef=${reg.applicationId}`)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                             >
                               <FileCheck className="w-3 h-3" /> Đối chiếu nhận phòng
-                            </button>
-                            <button
-                              onClick={() =>
-                                openReasonDialog({
-                                  title: "Hủy hồ sơ nhận phòng",
-                                  message: "Nhập lý do hủy hồ sơ nhận phòng. Lý do này sẽ được lưu vào ghi chú xử lý.",
-                                  placeholder: "Ví dụ: thành viên không đạt điều kiện, khách không tiếp tục thuê...",
-                                  confirmLabel: "Hủy hồ sơ",
-                                  variant: "danger",
-                                  onConfirm: async (reason) => {
-                                    try {
-                                      await salesApi.cancelApplication(reg.applicationId, reason);
-                                      toast.success("Đã hủy hồ sơ.");
-                                      await loadData();
-                                    } catch {
-                                      toast.error("Không thể hủy hồ sơ.");
-                                    }
-                                  },
-                                })
-                              }
-                              className="hidden"
-                            >
-                              <X className="w-3 h-3" /> Hủy hồ sơ
                             </button>
                           </>
                         )}
@@ -1542,220 +1472,7 @@ export function RegistrationManagement() {
         </div>
       )}
 
-      {/* ── MODAL: Room Assignment & Schedule ── */}
-      {selectedRegForAssign && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto pt-[6vh] md:pt-[10vh]">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-gray-200 flex-shrink-0">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Phân phòng & Sắp lịch xem phòng</h2>
-              </div>
-              <button onClick={() => setSelectedRegForAssign(null)} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
 
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-              {/* Left: Registration Details & Comparison */}
-              <div className="flex-1 p-6 border-r border-gray-100 space-y-4 overflow-y-auto">
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-2 text-xs">
-                  <p className="font-semibold text-blue-900 uppercase">Yêu cầu của khách: {selectedRegForAssign.customerName}</p>
-                  <div className="grid grid-cols-2 gap-2 text-gray-700">
-                    <p>
-                      <strong>Liên hệ:</strong> {selectedRegForAssign.phoneNumber}{selectedRegForAssign.email ? ` · ${selectedRegForAssign.email}` : ""}
-                    </p>
-                    <p>
-                      <strong>Giới tính:</strong> {selectedRegForAssign.gender || "Chưa rõ"}
-                    </p>
-                    <p>
-                      <strong>Khu vực:</strong> {selectedRegForAssign.area}
-                    </p>
-                    <p>
-                      <strong>Sức chứa:</strong> {selectedRegForAssign.capacity} người
-                    </p>
-                    <p>
-                      <strong>Mức giá:</strong> {selectedRegForAssign.priceRange}
-                    </p>
-                    <p>
-                      <strong>Loại phòng:</strong> {selectedRegForAssign.desiredRoomType === "ghep" ? "Phòng ghép" : selectedRegForAssign.desiredRoomType === "nguyen_can" ? "Nguyên căn" : "Không yêu cầu"}
-                    </p>
-                    <p>
-                      <strong>Dự kiến vào:</strong> {selectedRegForAssign.expectedMoveInDate ? new Date(selectedRegForAssign.expectedMoveInDate).toLocaleDateString("vi-VN") : "Chưa xác định"}
-                    </p>
-                    <p>
-                      <strong>Thời hạn thuê:</strong> {selectedRegForAssign.expectedRentalMonths ? `${selectedRegForAssign.expectedRentalMonths} tháng` : "Chưa xác định"}
-                    </p>
-                    <p>
-                      <strong>Giờ sinh hoạt:</strong> {selectedRegForAssign.livingSchedule || "Không yêu cầu"}
-                    </p>
-                    <p>
-                      <strong>Tiện ích:</strong> {[
-                        selectedRegForAssign.requiresQuietLifestyle && "Yên tĩnh",
-                        selectedRegForAssign.requiresParking && "Gửi xe",
-                        selectedRegForAssign.requiresAirConditioner && "Điều hòa",
-                      ].filter(Boolean).join(", ") || "Không yêu cầu"}
-                    </p>
-                    <p className="col-span-2">
-                      <strong>Yêu cầu khác:</strong> {selectedRegForAssign.note || "Không có"}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedRoomForAssign ? (
-                  <div className="space-y-4">
-                    <h3 className="font-bold text-sm text-gray-800 border-b pb-1">Kết quả đối chiếu điều kiện cho thuê</h3>
-                    <div className="space-y-2 text-xs">
-                      {getRoomCompatibility(selectedRegForAssign, selectedRoomForAssign).map((item) => (
-                        <div
-                          key={item.label}
-                          className={`flex justify-between items-center p-2.5 rounded-lg border ${item.match ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}
-                        >
-                          <div>
-                            <p className="font-semibold text-xs">{item.label}</p>
-                            <p className="text-[10px] opacity-75">
-                              Khách cần: {item.req} · Phòng có: {item.roomVal}
-                            </p>
-                          </div>
-                          <span className="font-bold text-xs">{item.match ? "✓ Thỏa mãn" : "✗ Không khớp"}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {!getRoomCompatibility(selectedRegForAssign, selectedRoomForAssign).every(item => item.match) ? (
-                      <div className="p-3 bg-red-100 border border-red-200 rounded-xl space-y-3">
-                        <div className="flex gap-1.5 text-xs text-red-800 font-bold items-center">
-                          <AlertTriangle className="w-4 h-4 text-red-600" />
-                          <span>Cảnh báo: Khách thuê không thỏa mãn điều kiện thuê!</span>
-                        </div>
-                        <p className="text-[11px] text-red-700">Thông tin đối chiếu không khớp với điều kiện cho thuê. Hãy chọn lại phòng khác phù hợp.</p>
-                        <button onClick={() => setSelectedRoomForAssign(null)} className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-lg text-xs font-semibold">
-                          Chọn lại phòng khác
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                        <p className="font-bold text-xs text-gray-700 uppercase">Lên lịch hẹn xem phòng</p>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Thời gian xem phòng dự kiến <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="datetime-local"
-                            value={assignAppointmentDate}
-                            onChange={(e) => setAssignAppointmentDate(e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Ghi chú lịch hẹn</label>
-                          <input
-                            type="text"
-                            placeholder="Vd: Xem vào buổi sáng..."
-                            value={assignAppointmentNote}
-                            onChange={(e) => setAssignAppointmentNote(e.target.value)}
-                            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                          />
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <button
-                            onClick={async () => {
-                              if (!assignAppointmentDate) {
-                                toast.warning("Vui lòng chọn ngày giờ hẹn xem phòng.");
-                                return;
-                              }
-                              try {
-                                await salesApi.createSchedule(selectedRegForAssign.applicationId, {
-                                  roomId: selectedRoomForAssign.roomId,
-                                  appointmentAt: new Date(assignAppointmentDate).toISOString(),
-                                  note: assignAppointmentNote,
-                                });
-                                setSelectedRegForAssign(null);
-                                toast.success("Lên lịch hẹn thành công!\nHệ thống tự động gửi thông báo lịch xem phòng đến khách hàng.");
-                                await loadData();
-                              } catch (error) {
-                                toast.error(error instanceof Error ? error.message : "Không thể sắp lịch xem phòng.");
-                              }
-                            }}
-                            className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-xs transition-colors"
-                          >
-                            Xác nhận & Gửi lịch hẹn
-                          </button>
-                          <button onClick={() => setSelectedRoomForAssign(null)} className="px-3 py-2 border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700">
-                            Chọn lại
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    <Building2 className="w-12 h-12 mx-auto mb-2 opacity-30 text-blue-600" />
-                    <p className="text-xs font-medium">Chọn một phòng ở danh sách bên phải để đối chiếu điều kiện thuê</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Right: Room search and select */}
-              <div className="w-full md:w-96 p-6 bg-gray-50 flex flex-col border-t md:border-t-0 md:border-l border-gray-150 max-h-[50vh] md:max-h-none">
-                <h3 className="font-bold text-gray-950 text-sm mb-4">Danh sách phòng trống</h3>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-0.5">Khu vực</label>
-                    <select value={assignFilterArea} onChange={(e) => setAssignFilterArea(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white">
-                      <option value="all">Tất cả</option>
-                      {areas.map((area) => (
-                        <option key={area} value={area}>
-                          {area}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-gray-500 mb-0.5">Mức giá</label>
-                    <select value={assignFilterPrice} onChange={(e) => setAssignFilterPrice(e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white">
-                      <option value="all">Tất cả</option>
-                      <option value="low">Dưới 1.5 triệu</option>
-                      <option value="mid">1.5 – 2 triệu</option>
-                      <option value="high">Trên 2 triệu</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-                  {vacantRooms
-                    .filter((r) => {
-                      const matchArea = assignFilterArea === "all" || r.area === assignFilterArea;
-                      const matchPrice =
-                        assignFilterPrice === "all" ||
-                        (assignFilterPrice === "low" && (r.roomPrice ?? 0) <= 1500000) ||
-                        (assignFilterPrice === "mid" && (r.roomPrice ?? 0) > 1500000 && (r.roomPrice ?? 0) <= 2000000) ||
-                        (assignFilterPrice === "high" && (r.roomPrice ?? 0) > 2000000);
-                      return matchArea && matchPrice;
-                    })
-                    .map((room) => (
-                      <div
-                        key={room.roomId}
-                        onClick={() => setSelectedRoomForAssign(room)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedRoomForAssign?.roomId === room.roomId ? "bg-blue-100 border-blue-400 shadow-sm" : "bg-white border-gray-200 hover:border-gray-300"}`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-bold text-xs text-gray-950">
-                              {room.roomName} – {room.branchName}
-                            </p>
-                            <p className="text-[10px] text-gray-500">
-                              {room.area ?? "Chưa rõ"} · Sức chứa: {room.capacity} người · Cho: {room.allowedGender ?? "Không giới hạn"}
-                            </p>
-                          </div>
-                          <span className="text-xs font-bold text-blue-700">{room.roomPrice?.toLocaleString("vi-VN")} đ</span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {reasonDialog.open && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
