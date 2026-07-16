@@ -880,7 +880,6 @@ export function RegistrationManagement() {
                       <th className="px-5 py-3.5 font-bold">Số tiền cọc</th>
                       <th className="px-5 py-3.5 font-bold">Giữ đến</th>
                       <th className="px-5 py-3.5 font-bold">Trạng thái</th>
-                      <th className="px-5 py-3.5 text-right font-bold">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -917,62 +916,6 @@ export function RegistrationManagement() {
                           >
                             {getDepositWorkflowLabel(d)}
                           </span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            {isDepositOverdue(d) && (
-                              <button
-                                onClick={() =>
-                                  openReasonDialog({
-                                    title: "Đánh dấu phiếu cọc quá hạn",
-                                    message: "Nhập lý do đánh dấu quá hạn. Hệ thống sẽ hủy hóa đơn chờ thanh toán liên quan.",
-                                    placeholder: "Ví dụ: quá 24 giờ khách chưa thanh toán...",
-                                    confirmLabel: "Đánh dấu quá hạn",
-                                    variant: "warning",
-                                    onConfirm: async (reason) => {
-                                      try {
-                                        await salesApi.expireDepositSlip(d.depositId, reason);
-                                        toast.success("Đã đánh dấu phiếu cọc quá hạn.");
-                                        await loadData();
-                                      } catch {
-                                        toast.error("Không thể đánh dấu quá hạn phiếu cọc.");
-                                      }
-                                    },
-                                  })
-                                }
-                                className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-                              >
-                                <AlertTriangle className="w-3 h-3" /> Quá hạn
-                              </button>
-                            )}
-                            {(d.status === "cho_thanh_toan" || d.status === "het_han")
-                              && d.applicationStatus !== "cho_khach_thanh_toan_coc"
-                              && d.applicationStatus !== "cho_ke_toan_xac_nhan_coc" && (
-                              <button
-                                onClick={() =>
-                                  openReasonDialog({
-                                    title: "Hủy phiếu cọc",
-                                    message: "Nhập lý do hủy phiếu cọc. Lý do này sẽ được lưu vào ghi chú xử lý.",
-                                    placeholder: "Ví dụ: khách đổi ý, chọn phòng khác, lập sai phiếu...",
-                                    confirmLabel: "Hủy phiếu",
-                                    variant: "danger",
-                                    onConfirm: async (reason) => {
-                                      try {
-                                        await salesApi.cancelDepositSlip(d.depositId, reason);
-                                        toast.success("Đã hủy phiếu cọc.");
-                                        await loadData();
-                                      } catch {
-                                        toast.error("Không thể hủy phiếu cọc.");
-                                      }
-                                    },
-                                  })
-                                }
-                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-                              >
-                                <X className="w-3 h-3" /> Hủy phiếu
-                              </button>
-                            )}
-                          </div>
                         </td>
                       </tr>
                     ))}
