@@ -80,7 +80,7 @@ export const customerWorkflowService = {
     minimumPrice?: number; maximumPrice?: number;
   }) => apiClient.post<{ applicationId: string; status: string; message: string }>("/customer-workflow/rental-applications", request),
   getViewedRooms: () => apiClient.get<ViewedRoom[]>("/customer-workflow/viewed-rooms"),
-  getAvailableServices: () => apiClient.get<CustomerServiceItem[]>("/customer-workflow/services"),
+  getAvailableServices: (roomId?: string) => apiClient.get<CustomerServiceItem[]>(`/customer-workflow/services${roomId ? `?roomId=${encodeURIComponent(roomId)}` : ""}`),
   confirmRoomInformationViewed: (scheduleId: string) => apiClient.post<void>(`/customer-workflow/viewing-schedules/${scheduleId}/confirm-room-information`, {}),
   getDepositedRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/deposited-rooms"),
   getRentingRooms: () => apiClient.get<CustomerRoomSummary[]>("/customer-workflow/renting-rooms"),

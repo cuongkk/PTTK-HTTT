@@ -44,13 +44,6 @@ public class UsersController : ControllerBase
         return Ok(await _userService.UpdateAsync(accountId, request, User.GetAccountId()));
     }
 
-    [HttpDelete("{accountId}")]
-    public async Task<IActionResult> Delete(string accountId)
-    {
-        await _userService.DeleteAsync(accountId, User.GetAccountId());
-        return NoContent();
-    }
-
     [HttpPost("{accountId}/reset-password")]
     public async Task<ActionResult<ResetPasswordResponse>> ResetPassword(string accountId) =>
         Ok(await _userService.ResetPasswordAsync(accountId, User.GetAccountId()));

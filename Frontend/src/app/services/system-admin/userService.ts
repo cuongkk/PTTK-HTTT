@@ -76,7 +76,6 @@ export const userService = {
   create: (request: CreateUserRequest) => apiClient.post<UserListItem>("/users", request),
   update: (accountId: string, request: UpdateUserRequest) =>
     apiClient.put<UserListItem>(`/users/${accountId}`, request),
-  remove: (accountId: string) => apiClient.delete<void>(`/users/${accountId}`),
   resetPassword: (accountId: string) =>
     apiClient.post<ResetPasswordResponse>(`/users/${accountId}/reset-password`),
 };

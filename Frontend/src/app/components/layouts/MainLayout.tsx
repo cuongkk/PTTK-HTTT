@@ -25,6 +25,7 @@ import {
   FilePlus,
   DoorOpen,
   RefreshCcw,
+  KeyRound,
 } from "lucide-react";
 import { logout } from "../../services/system-admin/authService";
 import { getStoredUser, mapRoleIdToPath, mapRoleIdToRootPath } from "../../services/authStorage";
@@ -249,11 +250,13 @@ export function MainLayout() {
       { name: "Thông báo", path: "/manager/notifications", icon: Bell },
     ],
     "system-admin": [
-      { name: "Dashboard", path: "/system-admin", icon: Home },
+      { name: "Tổng quan", path: "/system-admin", icon: Home },
       { name: "Quản lý người dùng", path: "/system-admin/users", icon: Users },
+      { name: "Phân quyền", path: "/system-admin/access", icon: KeyRound },
       { name: "Cài đặt thông số hệ thống", path: "/system-admin/settings", icon: Settings },
       { name: "Quản lý danh mục phòng/giường", path: "/system-admin/rooms", icon: Building2 },
       { name: "Quản lý dịch vụ", path: "/system-admin/services", icon: Sparkles },
+      { name: "Danh mục vận hành", path: "/system-admin/catalogs", icon: Shield },
       { name: "Thông báo", path: "/system-admin/notifications", icon: Bell },
     ],
   };

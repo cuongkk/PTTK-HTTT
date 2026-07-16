@@ -10,6 +10,8 @@ import { UserManagement } from "./components/system-admin/UserManagement";
 import { SystemSettings } from "./components/system-admin/SystemSettings";
 import { RoomBedCatalog } from "./components/system-admin/RoomBedCatalog";
 import { ServiceCatalog } from "./components/system-admin/ServiceCatalog";
+import { AccessManagement } from "./components/system-admin/AccessManagement";
+import { OperationalCatalogs } from "./components/system-admin/OperationalCatalogs";
 import { NotificationCenter } from "./components/notifications/NotificationCenter";
 import { NotFound } from "./components/NotFound";
 
@@ -34,7 +36,8 @@ export const router = createBrowserRouter([
       { path: "system-admin", children: [
         { index: true, Component: SystemAdminDashboard }, { path: "users", Component: UserManagement },
         { path: "settings", Component: SystemSettings }, { path: "rooms", Component: RoomBedCatalog },
-        { path: "services", Component: ServiceCatalog }, { path: "notifications", Component: NotificationCenter },
+        { path: "services", Component: ServiceCatalog }, { path: "access", Component: AccessManagement },
+        { path: "catalogs", Component: OperationalCatalogs }, { path: "notifications", Component: NotificationCenter },
       ] },
       { path: "*", Component: NotFound },
     ],

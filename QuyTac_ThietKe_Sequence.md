@@ -61,6 +61,8 @@ Boundary → TaiKhoan → TaiKhoanDB → KhachHang → KhachHangDB
 - Boundary nhận sự kiện click, dữ liệu nhập và yêu cầu điều hướng từ Actor.
 - Boundary gọi các Control để xử lý nghiệp vụ.
 - Boundary không gọi trực tiếp Entity DB.
+- Nếu một chức năng có màn hình chính, cửa sổ chi tiết, hộp thoại nhập liệu hoặc biên lai được mô hình thành các lớp `MH` riêng trong sơ đồ 3 lớp thì mỗi lớp `MH` phải trở thành một Boundary riêng trong Sequence.
+- Khi có nhiều Boundary, đặt toàn bộ Boundary sau Actor và trước các Control; không đặt Boundary phụ xen giữa Control và Entity DB.
 
 Ví dụ:
 
@@ -162,6 +164,8 @@ Không dùng tên kỹ thuật của API làm nội dung hiển thị cho Actor.
 - Dùng activation bar để biểu diễn khoảng thời gian một đối tượng đang xử lý.
 - Boundary được kích hoạt từ khi nhận thao tác của Actor đến khi hiển thị kết quả.
 - Control được kích hoạt trong khoảng thời gian kiểm tra hoặc điều phối nghiệp vụ.
+- Mỗi lời gọi từ Boundary đến Control phải có activation bar trên Control, bắt đầu khi Control nhận message và kết thúc sau khi Control trả kết quả hoặc hoàn tất các lời gọi DB liên quan.
+- Nếu cùng một Control được gọi ở nhiều thời điểm khác nhau thì vẽ các activation bar riêng; không dùng một activation kéo dài xuyên qua những đoạn Control không xử lý.
 - Entity DB bắt buộc có activation bar trong khoảng thời gian thực hiện mỗi thao tác đọc, thêm, cập nhật hoặc xóa dữ liệu.
 - Mỗi lời gọi từ Control đến Entity DB sử dụng một activation bar ngắn riêng, bắt đầu khi DB nhận message và kết thúc khi DB trả kết quả.
 - Boundary, Control và Entity DB đều phải có activation bar khi đang trực tiếp xử lý; không chỉ vẽ activation cho màn hình và lớp nghiệp vụ.
@@ -235,20 +239,29 @@ Trước khi vẽ sequence phải đọc sơ đồ 3 lớp của chức năng.
 
 Nếu code và sơ đồ 3 lớp không thống nhất, phải kiểm tra code hiện tại và cập nhật thiết kế trước khi vẽ sequence.
 
+### 11.1. Quy ước ghép cặp file
+
+- Mỗi file `ThietKe3Lop_<TenChucNang>.drawio` phải có một file Sequence tương ứng là `Sequence_<TenChucNang>.drawio`.
+- File Sequence đặt cùng thư mục với file thiết kế 3 lớp của chức năng đó.
+- Khi rà soát một actor hoặc một thư mục, phải đối chiếu theo hậu tố `<TenChucNang>` để xác định chính xác file nào đã có và file nào còn thiếu.
+- Không xem hai file Sequence trùng nội dung là hai chức năng khác nhau.
+- Nếu sơ đồ 3 lớp có nhiều lớp `MH`, tất cả các lớp `MH` tham gia cùng chức năng vẫn nằm trong một file Sequence của chức năng đó.
+
 ## 12. Quy trình thiết kế
 
 1. Xác định Actor thực hiện chức năng.
-2. Đọc màn hình UI và xác định sự kiện bắt đầu.
-3. Đọc sơ đồ 3 lớp liên quan.
-4. Đọc controller, service và truy vấn dữ liệu thực tế.
-5. Liệt kê Boundary, Control và Entity DB tham gia.
-6. Xếp participant theo thứ tự Actor → Boundary → Control → Entity DB.
-7. Vẽ message theo đúng thứ tự xử lý.
-8. Bổ sung return message cho dữ liệu quan trọng.
-9. Thêm activation bar.
-10. Thêm `alt`, `opt` hoặc `loop` nếu luồng thực sự cần.
-11. Kiểm tra nhánh lỗi không tiếp tục ghi DB.
-12. Xuất file `.drawio` có thể chỉnh sửa từng thành phần.
+2. Ghép cặp tên chức năng giữa file `ThietKe3Lop_<TenChucNang>.drawio` và `Sequence_<TenChucNang>.drawio`.
+3. Đọc màn hình UI và xác định sự kiện bắt đầu.
+4. Đọc đầy đủ sơ đồ 3 lớp liên quan, bao gồm tất cả lớp `MH` phụ.
+5. Đọc controller, service và truy vấn dữ liệu thực tế.
+6. Liệt kê Boundary, Control và Entity DB tham gia.
+7. Xếp participant theo thứ tự Actor → tất cả Boundary → tất cả Control → tất cả Entity DB.
+8. Vẽ message theo đúng thứ tự xử lý.
+9. Bổ sung return message cho dữ liệu quan trọng.
+10. Thêm activation bar.
+11. Thêm `alt`, `opt` hoặc `loop` nếu luồng thực sự cần.
+12. Kiểm tra nhánh lỗi không tiếp tục ghi DB.
+13. Xuất file `.drawio` cùng thư mục và đúng hậu tố tên của file thiết kế 3 lớp.
 
 ## 13. Quy tắc trình bày Draw.io
 
@@ -260,7 +273,8 @@ Nếu code và sơ đồ 3 lớp không thống nhất, phải kiểm tra code h
 - Activation là hình chữ nhật hẹp đặt trên lifeline.
 - Message đồng bộ là đường liền, đầu mũi tên đặc.
 - Return message là đường nét đứt, đầu mũi tên rỗng.
-- Font sử dụng Times New Roman.
+- Font sử dụng Times New Roman, cỡ chữ `24pt` cho toàn bộ participant, message, dữ liệu trả về, guard condition và nhãn combined fragment.
+- Không sử dụng cỡ chữ nhỏ hơn `24pt` trong sơ đồ Sequence.
 - Message được bố trí từ trên xuống dưới theo thời gian.
 - Hạn chế đường chéo và đường cắt nhau.
 - Không đặt tiêu đề tầng trong sequence.
@@ -269,7 +283,9 @@ Nếu code và sơ đồ 3 lớp không thống nhất, phải kiểm tra code h
 ## 14. Checklist
 
 - [ ] Actor đúng với vai trò thực hiện chức năng.
+- [ ] File Sequence được ghép đúng hậu tố và đặt cùng thư mục với file thiết kế 3 lớp.
 - [ ] Giao diện dùng Boundary Object.
+- [ ] Tất cả lớp `MH` chính và phụ trong sơ đồ 3 lớp đã được biểu diễn bằng Boundary.
 - [ ] Nghiệp vụ dùng Control Object.
 - [ ] DB dùng Entity Object.
 - [ ] Participant được xếp Actor → Boundary → Control → Entity DB.
@@ -278,10 +294,12 @@ Nếu code và sơ đồ 3 lớp không thống nhất, phải kiểm tra code h
 - [ ] Tên message có căn cứ từ UI, sơ đồ 3 lớp hoặc code.
 - [ ] Lời gọi dùng đường liền và return dùng đường nét đứt.
 - [ ] Activation bar phản ánh đúng thời gian xử lý.
+- [ ] Mỗi lời gọi từ Boundary đến Control đều có activation bar nghiệp vụ tương ứng.
 - [ ] Mỗi lời gọi đọc hoặc ghi Entity DB đều có activation bar tương ứng.
 - [ ] Nhánh `alt` có guard condition rõ ràng.
 - [ ] Nhánh lỗi không thực hiện thao tác ghi DB.
 - [ ] Không tạo Entity DB giả theo tên thao tác.
 - [ ] Không dùng hậu tố `BUS` hoặc `DAO`.
 - [ ] Font Times New Roman.
+- [ ] Toàn bộ chữ trong sơ đồ sử dụng cỡ `24pt`.
 - [ ] File Draw.io mở được và chỉnh sửa được.

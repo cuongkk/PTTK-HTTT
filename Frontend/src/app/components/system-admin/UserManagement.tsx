@@ -24,7 +24,6 @@ import {
   UserPlus,
   ShieldCheck,
   PenSquare,
-  Trash2,
   Clock3,
   KeyRound,
   Eye,
@@ -39,16 +38,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../ui/alert-dialog";
 import { Label } from "../ui/label";
 import {
   Select,
@@ -149,7 +138,6 @@ export function UserManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEditLoading, setIsEditLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserListItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -324,21 +312,6 @@ export function UserManagement() {
         }
       },
     });
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsSubmitting(true);
-    try {
-      await userService.remove(deleteTarget.accountId);
-      toast.success(`Đã xóa tài khoản của "${deleteTarget.displayName}".`);
-      setDeleteTarget(null);
-      await loadUsers();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Xóa tài khoản thất bại.");
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleResetPassword = (user: UserListItem) => {
@@ -656,14 +629,6 @@ export function UserManagement() {
                           >
                             <PenSquare className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            aria-label="Delete account"
-                            onClick={() => setDeleteTarget(user)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -938,23 +903,6 @@ export function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa tài khoản?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hành động này sẽ xóa vĩnh viễn tài khoản của "{deleteTarget?.displayName}". Bạn không thể hoàn tác sau khi xác nhận.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Hủy</AlertDialogCancel>
-            <AlertDialogAction disabled={isSubmitting} onClick={handleConfirmDelete}>
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <ConfirmDialog
         open={confirmDialog.open}
