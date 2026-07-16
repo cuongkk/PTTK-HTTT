@@ -374,7 +374,7 @@ export function RegistrationManagement() {
   const actionableRegs = regs.filter(needsSalesRegistrationAction);
   // Phiếu đã lập thuộc bước thanh toán của Khách hàng hoặc đối chiếu của Kế toán.
   // Sale chỉ xử lý hồ sơ chưa có phiếu tại nhóm PHONG_44 bên dưới.
-  const actionableDeposits: SalesDepositSlip[] = [];
+  const actionableDeposits = deposits;
   const actionableRefundDeposits = deposits.filter(needsSalesRefundDepositAction);
   const actionableCheckoutContracts = contracts.filter(needsSalesCheckoutContractAction);
 
