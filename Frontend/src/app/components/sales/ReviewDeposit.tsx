@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
-  ArrowLeft, AlertTriangle, CheckCircle, FileCheck, X, FileText
+  ArrowLeft, AlertTriangle, CheckCircle, FileCheck, FileText
 } from "lucide-react";
 import { salesApi, type SalesApplication } from "../../services/sales/salesApi";
 import { toast } from "sonner";
@@ -12,10 +12,6 @@ export function ReviewDeposit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reg, setReg] = useState<SalesApplication | null>(null);
-
-  // Rejection/Revision reason state
-  const [reasonMode, setReasonMode] = useState<"revision" | "cancel" | null>(null);
-  const [reasonText, setReasonText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const regRef = new URLSearchParams(location.search).get("regRef");
@@ -73,32 +69,7 @@ export function ReviewDeposit() {
     }
   };
 
-  const handleReasonSubmit = async () => {
-    if (!reg || !reasonMode) return;
-    const reason = reasonText.trim();
-    if (!reason) {
-      toast.warning("Vui lòng nhập lý do.");
-      return;
-    }
 
-    try {
-      setSubmitting(true);
-      if (reasonMode === "revision") {
-        await salesApi.requestApplicationRevision(reg.applicationId, reason);
-        toast.success("Đã gửi yêu cầu bổ sung hồ sơ cho khách hàng.");
-      } else {
-        await salesApi.cancelApplication(reg.applicationId, reason);
-        toast.success("Đã hủy hồ sơ thành công.");
-      }
-      backToDashboard();
-    } catch (err) {
-      toast.error("Thực hiện thao tác thất bại.");
-    } finally {
-      setSubmitting(false);
-      setReasonMode(null);
-      setReasonText("");
-    }
-  };
 
   if (loading) {
     return (
@@ -187,69 +158,15 @@ export function ReviewDeposit() {
             </span>
           </div>
 
-          {reasonMode ? (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-              <h4 className="font-bold text-xs text-gray-800 uppercase tracking-wider">
-                {reasonMode === "revision" ? "Nhập lý do yêu cầu bổ sung hồ sơ" : "Nhập lý do hủy bỏ hồ sơ thuê"}
-              </h4>
-              <textarea
-                value={reasonText}
-                onChange={(e) => setReasonText(e.target.value)}
-                placeholder={
-                  reasonMode === "revision"
-                    ? "Nhập chi tiết thông tin còn thiếu (Vd: cần bổ sung CCCD người thuê chính...)"
-                    : "Nhập lý do hủy bỏ hồ sơ này (Vd: khách đổi ý không thuê nữa...)"
-                }
-                rows={3}
-                className="w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                autoFocus
-              />
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={handleReasonSubmit}
-                  disabled={submitting}
-                  className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors ${
-                    reasonMode === "cancel" ? "bg-red-600 hover:bg-red-700" : "bg-yellow-500 hover:bg-yellow-600"
-                  }`}
-                >
-                  Xác nhận gửi
-                </button>
-                <button
-                  onClick={() => {
-                    setReasonMode(null);
-                    setReasonText("");
-                  }}
-                  className="px-3 py-2 border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700 bg-white"
-                >
-                  Hủy bỏ
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
-              <button
-                onClick={handleApprove}
-                disabled={submitting}
-                className="flex-1 min-w-[150px] py-2.5 px-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <FileCheck className="w-4 h-4" /> Xác nhận rà soát cọc
-              </button>
-              <button
-                onClick={() => setReasonMode("revision")}
-                disabled={submitting}
-                className="py-2.5 px-4 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <AlertTriangle className="w-4 h-4" /> Yêu cầu bổ sung
-              </button>
-              <button
-                onClick={() => setReasonMode("cancel")}
-                disabled={submitting}
-                className="py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <X className="w-4 h-4" /> Hủy hồ sơ
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-3 pt-3 border-t border-gray-100">
+            <button
+              onClick={handleApprove}
+              disabled={submitting}
+              className="w-full py-2.5 px-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <FileCheck className="w-4 h-4" /> Xác nhận rà soát cọc
+            </button>
+          </div>
         </div>
       </div>
     </div>
