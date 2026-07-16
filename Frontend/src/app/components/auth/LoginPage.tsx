@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Building2, LogIn, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { login } from "../../services/system-admin/authService";
 import { ApiError, getStoredToken } from "../../services/apiClient";
@@ -7,6 +7,7 @@ import { getStoredUser, mapRoleIdToPath } from "../../services/authStorage";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,7 +30,8 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       const result = await login(email, password);
-      navigate(`/${mapRoleIdToPath(result.roleId)}`);
+      const previousPath = (location.state as { from?: string } | null)?.from;
+      navigate(previousPath || `/${mapRoleIdToPath(result.roleId)}`, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {
@@ -46,7 +48,6 @@ export function LoginPage() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">RoomManager</h1>
-          <p className="text-gray-600">Manage rooms, beds, and contracts efficiently</p>
         </div>
 
         {/* Login Card */}
@@ -54,9 +55,7 @@ export function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             {/* Username */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tên đăng nhập
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tên đăng nhập</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -71,16 +70,14 @@ export function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder="Nhập mật khẩu"
                   className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
@@ -106,23 +103,18 @@ export function LoginPage() {
 
             {/* Forgot Password */}
             <div className="text-center">
-              <button
-                type="button"
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Forgot your password?
+              <button type="button" onClick={() => navigate("/forgot-password")} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Quên mật khẩu?
+              </button>
+            </div>
+
+            <div className="border-t border-gray-100 pt-5 text-center text-sm text-gray-600">
+              Chưa có tài khoản?{" "}
+              <button type="button" onClick={() => navigate("/register")} className="font-semibold text-blue-600 hover:text-blue-700">
+                Đăng ký tài khoản
               </button>
             </div>
           </form>
-        </div>
-
-        {/* Default Admin Credentials */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-sm text-blue-900 font-medium mb-2">Tài khoản quản trị mặc định</p>
-          <p className="text-sm text-blue-700">
-            Tên đăng nhập: <span className="font-mono">admin</span> · Mật khẩu:{" "}
-            <span className="font-mono">Admin@123</span>
-          </p>
         </div>
       </div>
     </div>

@@ -12,7 +12,7 @@ public interface ICustomerWorkflowService
     Task<CreateCustomerRentalApplicationResponse> CreateRentalApplicationAsync(string accountId, CreateCustomerRentalApplicationRequest request);
     Task<List<ViewedRoomDto>> GetViewedRoomsAsync(string accountId);
     Task ConfirmRoomInformationViewedAsync(string accountId, string scheduleId);
-    Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync();
+    Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync(string? roomId = null);
     Task<List<CustomerRoomSummaryDto>> GetDepositedRoomsAsync(string accountId);
     Task<List<CustomerRoomSummaryDto>> GetRentingRoomsAsync(string accountId);
     Task<DepositRequestDetailDto> GetDepositRequestDetailAsync(string accountId, string applicationId, string roomId);
@@ -302,11 +302,26 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         await _db.SaveChangesAsync();
     }
 
-    public async Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync() => await _db.Services
-        .Where(x => x.IsActive)
-        .OrderBy(x => x.ServiceName)
-        .Select(x => new CustomerServiceItemDto(x.ServiceId, x.ServiceName, x.Unit, x.UnitPrice, x.Description))
-        .ToListAsync();
+    public async Task<List<CustomerServiceItemDto>> GetAvailableServicesAsync(string? roomId = null)
+    {
+        string? branchId = null;
+        if (!string.IsNullOrWhiteSpace(roomId))
+            branchId = await _db.Rooms.Where(x => x.RoomId == roomId).Select(x => x.BranchId).SingleOrDefaultAsync()
+                ?? throw new NotFoundException("Không tìm thấy phòng.");
+
+        return await _db.Services.Where(x => x.IsActive).OrderBy(x => x.ServiceName)
+            .Select(x => new CustomerServiceItemDto(
+                x.ServiceId,
+                x.ServiceName,
+                x.Unit,
+                roomId == null ? x.UnitPrice : _db.ServiceRates
+                    .Where(rate => rate.ServiceId == x.ServiceId && rate.IsActive && (rate.RoomId == roomId || (rate.RoomId == null && rate.BranchId == branchId)))
+                    .OrderByDescending(rate => rate.RoomId != null)
+                    .Select(rate => (decimal?)rate.UnitPrice)
+                    .FirstOrDefault() ?? x.UnitPrice,
+                x.Description))
+            .ToListAsync();
+    }
 
     public async Task ConfirmRoomInformationViewedAsync(string accountId, string scheduleId)
     {

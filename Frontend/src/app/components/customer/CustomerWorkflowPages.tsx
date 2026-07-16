@@ -434,7 +434,7 @@ export function ViewingAppointment() {
         const item = items.find((entry) => entry.scheduleId === scheduleId) ?? null;
         setViewing(item);
         if (!item) return;
-        const [rooms, residenceRules, serviceItems] = await Promise.all([roomService.getAll(), roomService.getResidenceRules(item.roomId), customerWorkflowService.getAvailableServices()]);
+        const [rooms, residenceRules, serviceItems] = await Promise.all([roomService.getAll(), roomService.getResidenceRules(item.roomId), customerWorkflowService.getAvailableServices(item.roomId)]);
         setRoom(rooms.find((entry) => entry.roomId === item.roomId) ?? null);
         setRules(residenceRules);
         setServices(serviceItems);

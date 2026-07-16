@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<SystemParameter> SystemParameters => Set<SystemParameter>();
     public DbSet<Service> Services => Set<Service>();
+    public DbSet<ServiceRate> ServiceRates => Set<ServiceRate>();
     public DbSet<RoomImage> RoomImages => Set<RoomImage>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<RoomAmenity> RoomAmenities => Set<RoomAmenity>();
@@ -354,6 +355,27 @@ public class AppDbContext : DbContext
 
             e.HasIndex(x => x.ServiceName).IsUnique().HasDatabaseName("uq_dichvu_ten");
             e.HasIndex(x => new { x.ServiceType, x.IsActive }).HasDatabaseName("idx_dichvu_loai");
+        });
+
+        modelBuilder.Entity<ServiceRate>(e =>
+        {
+            e.ToTable("gia_dich_vu_ap_dung", t =>
+            {
+                t.HasCheckConstraint("chk_giadv_dongia", "[don_gia] >= 0");
+                t.HasCheckConstraint("chk_giadv_phamvi", "([ma_chi_nhanh] IS NOT NULL AND [ma_phong] IS NULL) OR ([ma_chi_nhanh] IS NULL AND [ma_phong] IS NOT NULL)");
+            });
+            e.HasKey(x => x.ServiceRateId).HasName("pk_gia_dich_vu_ap_dung");
+            e.Property(x => x.ServiceRateId).HasColumnName("ma_gia_ap_dung").HasMaxLength(12);
+            e.Property(x => x.ServiceId).HasColumnName("ma_dich_vu").HasMaxLength(12).IsRequired();
+            e.Property(x => x.BranchId).HasColumnName("ma_chi_nhanh").HasMaxLength(10);
+            e.Property(x => x.RoomId).HasColumnName("ma_phong").HasMaxLength(10);
+            e.Property(x => x.UnitPrice).HasColumnName("don_gia").HasColumnType("decimal(12,2)");
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.HasOne(x => x.Service).WithMany().HasForeignKey(x => x.ServiceId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Room).WithMany().HasForeignKey(x => x.RoomId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.ServiceId, x.BranchId }).IsUnique().HasFilter("[ma_chi_nhanh] IS NOT NULL").HasDatabaseName("uq_giadv_dichvu_chinhanh");
+            e.HasIndex(x => new { x.ServiceId, x.RoomId }).IsUnique().HasFilter("[ma_phong] IS NOT NULL").HasDatabaseName("uq_giadv_dichvu_phong");
         });
 
         modelBuilder.ConfigureWorkflowModels();

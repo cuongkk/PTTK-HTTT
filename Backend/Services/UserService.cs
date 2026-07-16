@@ -179,15 +179,6 @@ public class UserService : IUserService
         return ToDto(account);
     }
 
-    public async Task DeleteAsync(string accountId, string actorAccountId)
-    {
-        var account = await _accountRepository.GetByIdWithDetailsAsync(accountId)
-            ?? throw new NotFoundException("Không tìm thấy tài khoản.");
-
-        _accountRepository.Remove(account);
-        await _accountRepository.SaveChangesAsync();
-    }
-
     public async Task<ResetPasswordResponse> ResetPasswordAsync(string accountId, string actorAccountId)
     {
         var account = await _accountRepository.GetByIdAsync(accountId)

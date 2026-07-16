@@ -18,6 +18,38 @@ public static class DbSeeder
         await SeedServicesAsync(db);
         await SeedResidenceRulesAsync(db);
         await SeedStatePipelineDemoAsync(db);
+        await SeedSystemAdminCatalogDemoAsync(db);
+    }
+
+    private static async Task SeedSystemAdminCatalogDemoAsync(AppDbContext db)
+    {
+        var amenities = new[]
+        {
+            new Amenity { AmenityId = "wifi", AmenityName = "WiFi", Description = "Internet không dây" },
+            new Amenity { AmenityId = "tu_ca_nhan", AmenityName = "Tủ cá nhân", Description = "Tủ riêng cho người thuê" },
+            new Amenity { AmenityId = "ban_hoc", AmenityName = "Bàn học", Description = "Bàn học hoặc làm việc" },
+            new Amenity { AmenityId = "dieu_hoa", AmenityName = "Điều hòa", Description = "Điều hòa trong phòng" },
+            new Amenity { AmenityId = "cho_de_xe", AmenityName = "Chỗ để xe", Description = "Khu vực gửi xe của chi nhánh" },
+        };
+        foreach (var item in amenities)
+            if (!await db.Amenities.AnyAsync(x => x.AmenityId == item.AmenityId)) db.Amenities.Add(item);
+        await db.SaveChangesAsync();
+
+        var assignments = new[]
+        {
+            new RoomAmenity { RoomId = "PHONG_3", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_3", AmenityId = "dieu_hoa" },
+            new RoomAmenity { RoomId = "PHONG_18", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_18", AmenityId = "tu_ca_nhan" },
+            new RoomAmenity { RoomId = "PHONG_42", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_42", AmenityId = "cho_de_xe" },
+        };
+        foreach (var item in assignments)
+            if (await db.Rooms.AnyAsync(x => x.RoomId == item.RoomId) && !await db.RoomAmenities.AnyAsync(x => x.RoomId == item.RoomId && x.AmenityId == item.AmenityId)) db.RoomAmenities.Add(item);
+
+        if (!await db.ServiceRates.AnyAsync() && await db.Services.AnyAsync(x => x.ServiceId == "DV00000003"))
+            db.ServiceRates.Add(new ServiceRate { ServiceRateId = "GDV000000001", ServiceId = "DV00000003", BranchId = "CN0000001", UnitPrice = 150000, IsActive = true });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedStatePipelineDemoAsync(AppDbContext db)
@@ -370,6 +402,8 @@ public static class DbSeeder
         {
             new Permission { PermissionId = "quan_ly_nguoi_dung", PermissionName = "Quản lý người dùng" },
             new Permission { PermissionId = "quan_ly_danh_muc", PermissionName = "Quản lý phòng, giường và dịch vụ" },
+            new Permission { PermissionId = "quan_ly_tham_so", PermissionName = "Quản lý thông số hệ thống" },
+            new Permission { PermissionId = "phan_quyen", PermissionName = "Phân quyền hệ thống" },
             new Permission { PermissionId = "tiep_nhan_dang_ky", PermissionName = "Tiếp nhận đăng ký thuê" },
             new Permission { PermissionId = "lap_hop_dong", PermissionName = "Lập hợp đồng" },
             new Permission { PermissionId = "phe_duyet_hop_dong", PermissionName = "Phê duyệt hợp đồng" },
