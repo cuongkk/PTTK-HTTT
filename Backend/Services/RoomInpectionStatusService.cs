@@ -1,5 +1,6 @@
 using Backend.Dtos;
 using Backend.Data;
+using Backend.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Services;
@@ -15,46 +16,25 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
     public async Task<List<RoomStatusDto>> GetRoomStatusesAsync(RoomStatusFilterRequest filter)
     {
-        // 1. Lấy hợp đồng thỏa điều kiện, kèm theo Deposit -> Beds -> Room, Customer, TenantMembers
+        // 1. Lấy hợp đồng có yêu cầu trả phòng đã xác nhận lịch và đọc phòng trực tiếp từ hợp đồng.
         var contracts = await _db.RentalContracts
             .Include(c => c.Customer)
             .Include(c => c.TenantMembers)
-            .Include(c => c.Deposit)
-                .ThenInclude(d => d.Beds)
-            .Include(c => c.CheckoutRequests)
-            .Where(c => c.Status == "cho_kiem_tra_tra_phong"
-                    && c.Deposit != null
-                    && c.CheckoutRequests.Any(cr => cr.Status == "da_xac_nhan_lich"))
-            .ToListAsync();
-
-        // 2. Lấy Bed -> Room cho các giường liên quan tới Deposit của các hợp đồng trên
-        var allBedIds = contracts
-            .SelectMany(c => c.Deposit!.Beds.Select(b => b.BedId))
-            .Distinct()
-            .ToList();
-
-        var beds = await _db.Beds
-            .Include(b => b.Room)
+            .Include(c => c.Room)
                 .ThenInclude(r => r.Branch)
-            .Include(b => b.Room)
+            .Include(c => c.Room)
                 .ThenInclude(r => r.Beds)
-            .Where(b => allBedIds.Contains(b.BedId))
+            .Where(c => c.Status == "cho_kiem_tra_tra_phong"
+                    && _db.CheckoutRequests.Any(cr => cr.ContractId == c.ContractId
+                        && cr.Status == "da_xac_nhan_lich"))
             .ToListAsync();
 
-        var bedLookup = beds.ToDictionary(b => b.BedId, b => b);
-
-        // 3. Lọc theo điều kiện phòng "dang_thue" và build DTO
+        // 2. Lọc theo điều kiện phòng "dang_thue" và build DTO.
         var result = new List<RoomStatusDto>();
 
         foreach (var contract in contracts)
         {
-            var relatedBeds = contract.Deposit!.Beds
-                .Select(db => bedLookup.GetValueOrDefault(db.BedId))
-                .Where(b => b != null)
-                .Select(b => b!)
-                .ToList();
-
-            var room = relatedBeds.FirstOrDefault()?.Room;
+            var room = contract.Room;
 
             if (room is null || room.Status != RoomBedStatus.Rented)
                 continue;
@@ -79,7 +59,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
             });
         }
 
-        // 4. Lọc thêm theo Condition nếu FE truyền lên
+        // 3. Lọc thêm theo Condition nếu FE truyền lên.
         if (!string.IsNullOrEmpty(filter.Status))
         {
             result = result.Where(r => r.Condition == filter.Status).ToList();
