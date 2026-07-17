@@ -108,7 +108,10 @@ export function RegistrationManagement() {
 
       const distinctAreas = Array.from(new Set(roomsData.map((r) => r.area).filter(Boolean))) as string[];
       setAreas(distinctAreas);
-      setVacantRooms(roomsData.filter((r) => r.status === "trong"));
+      setVacantRooms(roomsData.filter((r) => 
+        (r.roomType === "nguyen_can" && r.status === "trong") ||
+        (r.roomType === "ghep" && r.beds && r.beds.some((b) => b.status === "trong"))
+      ));
     } catch (err) {
       console.error(err);
       setError("Không thể đồng bộ dữ liệu từ máy chủ.");
@@ -303,12 +306,16 @@ export function RegistrationManagement() {
       (reg.minimumPrice == null || roomPrice >= reg.minimumPrice) &&
       (reg.maximumPrice == null || roomPrice <= reg.maximumPrice);
 
+    const isRoomAvailable = 
+      (room.roomType === "nguyen_can" && room.status === "trong") ||
+      (room.roomType === "ghep" && room.beds && room.beds.some((b) => b.status === "trong"));
+
     return [
       {
         label: "Trạng thái phòng",
         req: "Còn trống",
-        roomVal: room.status === "trong" ? "Còn trống" : room.status,
-        match: room.status === "trong",
+        roomVal: isRoomAvailable ? "Còn trống" : room.status,
+        match: isRoomAvailable,
       },
       {
         label: "Khu vực",
