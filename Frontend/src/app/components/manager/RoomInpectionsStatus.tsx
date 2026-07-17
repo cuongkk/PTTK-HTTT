@@ -10,6 +10,7 @@ interface Room {
   availableBedsCount: number;
   customerName?: string;
   applicationId?: string;
+  requestedBedsCount?: number;
 }
 
 export function RoomInspectionStatus() {
@@ -186,6 +187,10 @@ export function RoomInspectionStatus() {
                 <div className="text-sm mb-4">
                   <p className="text-gray-600">Chi nhánh:</p>
                   <p className="font-medium text-gray-900">{room.building}</p>
+                  <p className="text-gray-600">Số giường khách yêu cầu:</p>
+                  <p className="font-medium text-gray-900">{room.requestedBedsCount}</p>
+                  <p className="text-gray-600">Số giường còn trống:</p>
+                  <p className="font-medium text-gray-900">{room.availableBedsCount}</p>
                 </div>
 
                 {/* Hiển thị thông tin khách thuê/ghi chú trạng thái */}

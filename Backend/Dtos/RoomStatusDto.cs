@@ -10,6 +10,7 @@ public class RoomStatusDto
     public string Condition { get; set; } = default!;
     public string? CustomerName { get; set; }
     public string? ApplicationId { get; set; }
+    public int RequestedBedsCount { get; set; }
 }
 
 public class RoomStatusFilterRequest

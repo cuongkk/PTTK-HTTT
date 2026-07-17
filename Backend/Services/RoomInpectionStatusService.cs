@@ -65,6 +65,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
                 AvailableBedsCount = room.Beds.Count(b => b.Status.Trim().ToLower() == "trong"),
                 CustomerName = app.Customer?.FullName ?? "",
                 ApplicationId = app.ApplicationId,
+                RequestedBedsCount = app.NumberOfPeople,
             });
         }
 
