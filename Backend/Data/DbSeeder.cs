@@ -43,6 +43,14 @@ public static class DbSeeder
             new RoomAmenity { RoomId = "PHONG_18", AmenityId = "tu_ca_nhan" },
             new RoomAmenity { RoomId = "PHONG_42", AmenityId = "wifi" },
             new RoomAmenity { RoomId = "PHONG_42", AmenityId = "cho_de_xe" },
+            new RoomAmenity { RoomId = "PHONG_UC1", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_UC1", AmenityId = "ban_hoc", Quantity = 2 },
+            new RoomAmenity { RoomId = "PHONG_UC2", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_UC2", AmenityId = "dieu_hoa" },
+            new RoomAmenity { RoomId = "PHONG_UC3", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_UC3", AmenityId = "tu_ca_nhan", Quantity = 4 },
+            new RoomAmenity { RoomId = "PHONG_UC4", AmenityId = "wifi" },
+            new RoomAmenity { RoomId = "PHONG_UC4", AmenityId = "cho_de_xe" },
         };
         foreach (var item in assignments)
             if (await db.Rooms.AnyAsync(x => x.RoomId == item.RoomId) && !await db.RoomAmenities.AnyAsync(x => x.RoomId == item.RoomId && x.AmenityId == item.AmenityId)) db.RoomAmenities.Add(item);
@@ -87,6 +95,14 @@ public static class DbSeeder
         AddRoom("PHONG_39", "Phòng 39 - Kế toán xác nhận thu thêm", RoomBedStatus.Rented);
         AddRoom("PHONG_40", "Phòng 40 - Không phát sinh thanh toán", RoomBedStatus.Rented);
 
+        // Bốn phòng mốc để chuẩn bị và trình bày lần lượt bốn UC nghiệp vụ.
+        rooms.AddRange(
+            new Room { RoomId = "PHONG_UC1", BranchId = "CN0000001", RoomName = "Phong_UC1", RoomType = RoomType.Shared, Capacity = 4, Area = "Khu UC - Nam", RoomPrice = 6000000, Floor = 5, AreaSquareMeters = 30, Description = "Phòng ghép 4 giường demo UC1 - đăng ký thuê và xem phòng", AllowedGender = "nam", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(23, 0), HasAirConditioner = false, HasParking = true, Status = RoomBedStatus.Empty },
+            new Room { RoomId = "PHONG_UC2", BranchId = "CN0000001", RoomName = "Phong_UC2", RoomType = RoomType.Whole, Capacity = 2, Area = "Khu UC - Nguyên phòng", RoomPrice = 4200000, Floor = 5, AreaSquareMeters = 24, Description = "Phòng nguyên căn cho tối đa 2 người demo UC2 - đặt cọc và xác nhận thuê", AllowedGender = "khong_gioi_han", RequiresQuietLifestyle = false, HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Empty },
+            new Room { RoomId = "PHONG_UC3", BranchId = "CN0000002", RoomName = "Phong_UC3", RoomType = RoomType.Shared, Capacity = 4, Area = "Khu UC - Nữ", RoomPrice = 5600000, Floor = 3, AreaSquareMeters = 29, Description = "Phòng ghép 4 giường, có 2 giường đã đặt cọc demo UC3 - ký hợp đồng và nhận phòng", AllowedGender = "nu", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(22, 30), HasAirConditioner = true, HasParking = false, Status = RoomBedStatus.Deposited },
+            new Room { RoomId = "PHONG_UC4", BranchId = "CN0000002", RoomName = "Phong_UC4", RoomType = RoomType.Shared, Capacity = 6, Area = "Khu UC - Nam", RoomPrice = 7200000, Floor = 4, AreaSquareMeters = 38, Description = "Phòng ghép 6 giường, có 3 giường đang thuê demo UC4 - trả phòng, đối soát và hoàn cọc", AllowedGender = "nam", RequiresQuietLifestyle = false, CurfewTime = new TimeOnly(23, 30), HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Rented }
+        );
+
         foreach (var room in rooms)
         {
             var existingRoom = await db.Rooms.FirstOrDefaultAsync(x => x.RoomId == room.RoomId);
@@ -95,9 +111,51 @@ public static class DbSeeder
             {
                 existingRoom.RoomName = room.RoomName;
                 existingRoom.Description = room.Description;
+                if (room.RoomId.StartsWith("PHONG_UC"))
+                {
+                    existingRoom.BranchId = room.BranchId;
+                    existingRoom.RoomType = room.RoomType;
+                    existingRoom.Capacity = room.Capacity;
+                    existingRoom.Area = room.Area;
+                    existingRoom.RoomPrice = room.RoomPrice;
+                    existingRoom.Floor = room.Floor;
+                    existingRoom.AreaSquareMeters = room.AreaSquareMeters;
+                    existingRoom.AllowedGender = room.AllowedGender;
+                    existingRoom.RequiresQuietLifestyle = room.RequiresQuietLifestyle;
+                    existingRoom.CurfewTime = room.CurfewTime;
+                    existingRoom.HasAirConditioner = room.HasAirConditioner;
+                    existingRoom.HasParking = room.HasParking;
+                    existingRoom.Status = room.Status;
+                }
             }
             var bedId = $"G{room.RoomId.Replace("_", "")}1";
-            if (!await db.Beds.AnyAsync(x => x.BedId == bedId)) db.Beds.Add(new Bed { BedId = bedId, RoomId = room.RoomId, BedNumber = 1, MonthlyRent = room.RoomPrice!.Value, Status = room.Status });
+            if (room.RoomId.StartsWith("PHONG_UC"))
+            {
+                for (short number = 1; number <= room.Capacity; number++)
+                {
+                    var demoBedId = $"G{room.RoomId.Replace("_", "")}{number}";
+                    var bedStatus = room.RoomId switch
+                    {
+                        "PHONG_UC3" => number <= 2 ? RoomBedStatus.Deposited : RoomBedStatus.Empty,
+                        "PHONG_UC4" => number <= 3 ? RoomBedStatus.Rented : RoomBedStatus.Empty,
+                        _ => RoomBedStatus.Empty,
+                    };
+                    var monthlyRent = room.RoomPrice!.Value / room.Capacity;
+                    var existingBed = await db.Beds.FirstOrDefaultAsync(x => x.BedId == demoBedId);
+                    if (existingBed is null)
+                        db.Beds.Add(new Bed { BedId = demoBedId, RoomId = room.RoomId, BedNumber = number, MonthlyRent = monthlyRent, Status = bedStatus });
+                    else
+                    {
+                        existingBed.BedNumber = number;
+                        existingBed.MonthlyRent = monthlyRent;
+                        existingBed.Status = bedStatus;
+                    }
+                }
+            }
+            else if (!await db.Beds.AnyAsync(x => x.BedId == bedId))
+            {
+                db.Beds.Add(new Bed { BedId = bedId, RoomId = room.RoomId, BedNumber = 1, MonthlyRent = room.RoomPrice!.Value, Status = room.Status });
+            }
         }
         await db.SaveChangesAsync();
 

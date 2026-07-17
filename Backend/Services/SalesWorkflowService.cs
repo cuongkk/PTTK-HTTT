@@ -48,7 +48,9 @@ public class SalesWorkflowService : ISalesWorkflowService
     {
         var today = DateTime.Today;
 
-        var vacantRoomsCount = await _db.Rooms.CountAsync(r => r.Status == RoomBedStatus.Empty);
+        var vacantRoomsCount = await _db.Rooms.CountAsync(r =>
+            (r.RoomType == RoomType.Whole && r.Status == RoomBedStatus.Empty)
+            || (r.RoomType == RoomType.Shared && r.Beds.Any(b => b.Status == RoomBedStatus.Empty)));
         var newAppsToday = await _db.RentalApplications.CountAsync(a => a.CreatedAt >= today);
         var pendingDeposits = await _db.DepositSlips.CountAsync(d => d.Status == "cho_thanh_toan");
         var todayAppts = await _db.RoomViewingSchedules.CountAsync(s => s.AppointmentAt >= today && s.AppointmentAt < today.AddDays(1));
@@ -466,7 +468,7 @@ public class SalesWorkflowService : ISalesWorkflowService
             ?? throw new NotFoundException("Không tìm thấy phòng được chọn.");
 
         var incompatibilities = new List<string>();
-        if (room.Status != RoomBedStatus.Empty)
+        if (room.RoomType == RoomType.Whole && room.Status != RoomBedStatus.Empty)
             incompatibilities.Add("phòng không còn trống");
         if (!string.IsNullOrWhiteSpace(app.DesiredArea))
         {

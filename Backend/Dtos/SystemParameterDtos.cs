@@ -11,4 +11,4 @@ public record SystemParameterDto(
     DateTime? UpdatedAt
 );
 
-public record UpdateSystemParameterRequest(string Value);
+public record UpdateSystemParameterRequest(string Value, bool IsActive);

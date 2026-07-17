@@ -788,6 +788,11 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
   const paymentAmount = paymentContext?.invoiceAmount ?? paymentContext?.depositAmount ?? 0;
   const amount = `${paymentAmount.toLocaleString("vi-VN")} đ`;
   const transferContent = isDeposit ? `DAT COC ${paymentContext?.roomId ?? paymentRoomId}` : `NHAN PHONG ${paymentContext?.roomId ?? paymentRoomId}`;
+  const confirmPayment = async () => {
+    if (!paymentContext?.invoiceId) return;
+    await customerWorkflowService.confirmPayment(paymentContext.invoiceId);
+    setPaid(true);
+  };
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title={isDeposit ? "Thanh toán tiền cọc" : "Thanh toán khoản nhận phòng"} backTo={isDeposit ? "/customer/my-rooms?tab=viewed" : "/customer/my-rooms?tab=deposited"} />
@@ -814,7 +819,7 @@ function PaymentPage({ kind }: { kind: "deposit" | "checkin" }) {
             <InfoRow label="Hạn thanh toán" value="23:59 ngày 12/07/2026" />
           </Section>
           <Section title="Quét QR để thanh toán">
-            <PaymentQrPanel amount={paymentAmount} transferContent={transferContent} onConfirm={() => setPaid(true)} />
+            <PaymentQrPanel amount={paymentAmount} transferContent={transferContent} onConfirm={() => void confirmPayment()} />
           </Section>
         </>
       )}

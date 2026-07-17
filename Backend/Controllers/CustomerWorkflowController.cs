@@ -82,4 +82,11 @@ public class CustomerWorkflowController : ControllerBase
 
     [HttpGet("payments")]
     public async Task<ActionResult<List<CustomerPaymentDto>>> GetPayments() => Ok(await _service.GetPaymentsAsync(User.GetAccountId()));
+
+    [HttpPost("payments/{invoiceId}/confirm")]
+    public async Task<IActionResult> ConfirmPayment(string invoiceId)
+    {
+        await _service.ConfirmPaymentAsync(User.GetAccountId(), invoiceId);
+        return NoContent();
+    }
 }

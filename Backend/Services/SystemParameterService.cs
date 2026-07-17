@@ -26,6 +26,7 @@ public class SystemParameterService : ISystemParameterService
             ?? throw new NotFoundException($"Không tìm thấy thông số '{parameterId}'.");
 
         parameter.Value = request.Value;
+        parameter.IsActive = request.IsActive;
         parameter.UpdatedAt = DateTime.UtcNow;
         parameter.UpdatedByAccountId = actorAccountId;
 

@@ -106,7 +106,7 @@ public class RoomInspectionStatusService : IRoomInspectionStatusService
 
         if (isApproved)
         {
-            application.Status = "cho_khach_thanh_toan_coc";
+            application.Status = "cho_khach_xac_nhan_dieu_kien_coc";
             await _db.SaveChangesAsync();
         }
 

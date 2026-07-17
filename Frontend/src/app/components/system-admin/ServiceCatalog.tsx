@@ -438,6 +438,23 @@ export function ServiceCatalog() {
                   onChange={(e) => setEditService((s) => ({ ...s, unitPrice: e.target.value }))}
                 />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-service-status">Trạng thái</Label>
+                <Select
+                  value={editService.isActive ? "hoat_dong" : "ngung"}
+                  onValueChange={(value) =>
+                    setEditService((s) => ({ ...s, isActive: value === "hoat_dong" }))
+                  }
+                >
+                  <SelectTrigger id="edit-service-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hoat_dong">Hoạt động</SelectItem>
+                    <SelectItem value="ngung">Ngừng hoạt động</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
           <DialogFooter>

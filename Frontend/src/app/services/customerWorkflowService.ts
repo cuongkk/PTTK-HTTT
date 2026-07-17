@@ -96,4 +96,5 @@ export const customerWorkflowService = {
   confirmHandover: (roomId: string) => apiClient.post<void>(`/customer-workflow/rooms/${roomId}/handover/confirm`, {}),
   getRoomContext: (roomId: string) => apiClient.get<CustomerRoomContext>(`/customer-workflow/rooms/${roomId}/context`),
   getPayments: () => apiClient.get<CustomerPayment[]>("/customer-workflow/payments"),
+  confirmPayment: (invoiceId: string) => apiClient.post<void>(`/customer-workflow/payments/${invoiceId}/confirm`, {}),
 };

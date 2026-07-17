@@ -103,6 +103,16 @@ public class AccountantService : IAccountantService
 
         await _dbContext.Invoices.AddAsync(invoice);
 
+        if (request.InvoiceType == "tien_coc" && !string.IsNullOrWhiteSpace(request.DepositId))
+        {
+            var deposit = await _dbContext.DepositSlips.Include(x => x.Application)
+                .FirstOrDefaultAsync(x => x.DepositId == request.DepositId)
+                ?? throw new NotFoundException($"Không tìm thấy phiếu đặt cọc '{request.DepositId}'.");
+            deposit.DepositAmount = request.TotalAmount;
+            deposit.PaymentDueAt = dueDate;
+            deposit.Application.Status = "cho_khach_thanh_toan_coc";
+        }
+
         // Tạo thông báo cho khách hàng
         var customerAccount = await _dbContext.Accounts
             .FirstOrDefaultAsync(a => a.CustomerId == request.CustomerId);

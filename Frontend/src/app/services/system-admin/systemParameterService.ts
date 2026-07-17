@@ -13,6 +13,6 @@ export interface SystemParameter {
 
 export const systemParameterService = {
   getAll: () => apiClient.get<SystemParameter[]>("/system-parameters"),
-  update: (parameterId: string, value: string) =>
-    apiClient.put<SystemParameter>(`/system-parameters/${parameterId}`, { value }),
+  update: (parameterId: string, value: string, isActive: boolean) =>
+    apiClient.put<SystemParameter>(`/system-parameters/${parameterId}`, { value, isActive }),
 };

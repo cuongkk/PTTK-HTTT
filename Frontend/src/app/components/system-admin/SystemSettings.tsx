@@ -4,6 +4,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
+import { Checkbox } from "../ui/checkbox";
 import { Slider } from "../ui/slider";
 import { Percent, Clock3, Layers3, Save, Loader2 } from "lucide-react";
 import { ApiError } from "../../services/apiClient";
@@ -36,6 +37,7 @@ export function SystemSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [activeDraft, setActiveDraft] = useState<Record<string, boolean>>({});
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
 
   const load = async () => {
@@ -44,6 +46,7 @@ export function SystemSettings() {
       const data = await systemParameterService.getAll();
       setParameters(data);
       setDraft(Object.fromEntries(data.map((p) => [p.parameterId, p.value])));
+      setActiveDraft(Object.fromEntries(data.map((p) => [p.parameterId, p.isActive])));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Không thể tải thông số hệ thống.");
     } finally {
@@ -59,7 +62,9 @@ export function SystemSettings() {
 
   const changedParams = ALL_FIELDS
     .map((f) => findParam(f.id))
-    .filter((p): p is SystemParameter => !!p && draft[p.parameterId] !== p.value);
+    .filter((p): p is SystemParameter =>
+      !!p && (draft[p.parameterId] !== p.value || activeDraft[p.parameterId] !== p.isActive)
+    );
 
   const hasChanges = changedParams.length > 0;
 
@@ -77,7 +82,11 @@ export function SystemSettings() {
         setIsSaving(true);
         try {
           for (const p of changedParams) {
-            await systemParameterService.update(p.parameterId, draft[p.parameterId]);
+            await systemParameterService.update(
+              p.parameterId,
+              draft[p.parameterId],
+              activeDraft[p.parameterId]
+            );
           }
           toast.success("Đã lưu thay đổi chính sách.");
           await load();
@@ -155,6 +164,15 @@ export function SystemSettings() {
                     value={draft[field.id] ?? ""}
                     onChange={(e) => setDraft((d) => ({ ...d, [field.id]: e.target.value }))}
                   />
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <Checkbox
+                      checked={activeDraft[field.id] ?? false}
+                      onCheckedChange={(checked) =>
+                        setActiveDraft((current) => ({ ...current, [field.id]: checked === true }))
+                      }
+                    />
+                    Đang áp dụng
+                  </label>
                   {param.description && <p className="text-xs text-slate-500">{param.description}</p>}
                 </div>
               );
@@ -183,6 +201,15 @@ export function SystemSettings() {
                     step={5}
                     onValueChange={([value]) => setDraft((d) => ({ ...d, [field.id]: String(value) }))}
                   />
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <Checkbox
+                      checked={activeDraft[field.id] ?? false}
+                      onCheckedChange={(checked) =>
+                        setActiveDraft((current) => ({ ...current, [field.id]: checked === true }))
+                      }
+                    />
+                    Đang áp dụng
+                  </label>
                   {param.description && <p className="text-xs text-slate-500">{param.description}</p>}
                 </div>
               );

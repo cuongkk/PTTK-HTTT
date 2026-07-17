@@ -12,6 +12,11 @@ export function CustomerPayments() {
   const [error, setError] = useState("");
   const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
 
+  const confirmPayment = async (invoiceId: string) => {
+    await customerWorkflowService.confirmPayment(invoiceId);
+    setConfirmedIds((current) => current.includes(invoiceId) ? current : [...current, invoiceId]);
+  };
+
   useEffect(() => {
     customerWorkflowService.getPayments().then(setPayments).catch(() => setError("Không thể tải danh sách thanh toán.")).finally(() => setLoading(false));
   }, []);
@@ -45,7 +50,7 @@ export function CustomerPayments() {
                     accountNumber={item.bankAccountNumber}
                     accountHolder={item.bankAccountHolder}
                     confirmed={confirmed}
-                    onConfirm={() => setConfirmedIds((current) => current.includes(item.invoiceId) ? current : [...current, item.invoiceId])}
+                    onConfirm={() => void confirmPayment(item.invoiceId)}
                   />
                   {item.paidAt && <p className="mt-3 text-xs text-gray-500">Đã xác nhận lúc {new Date(item.paidAt).toLocaleString("vi-VN")}</p>}
                 </div>
