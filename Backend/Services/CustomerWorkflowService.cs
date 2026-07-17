@@ -19,12 +19,16 @@ public interface ICustomerWorkflowService
     Task<SubmitDepositResponse> SubmitDepositRequestAsync(string accountId, string applicationId, string roomId);
     Task<ViewedRoomDto> GetDepositTermsAsync(string accountId, string applicationId, string roomId);
     Task<SubmitDepositResponse> ConfirmDepositTermsAsync(string accountId, string applicationId, string roomId);
+    Task SubmitCheckInProfileAsync(string accountId, string roomId);
     Task<SubmitDepositRefundResponse> SubmitDepositRefundAsync(string accountId, string roomId, SubmitDepositRefundRequest request);
+    Task ConfirmDepositRefundAsync(string accountId, string roomId);
     Task<CustomerContractDetailDto> GetContractDetailAsync(string accountId, string roomId);
+    Task ConfirmRentalContractAsync(string accountId, string roomId);
     Task<CustomerHandoverDetailDto> GetHandoverDetailAsync(string accountId, string roomId);
     Task ConfirmHandoverAsync(string accountId, string roomId);
     Task<CustomerCheckoutDetailDto> GetCheckoutDetailAsync(string accountId, string roomId);
     Task ConfirmCheckoutReconciliationAsync(string accountId, string roomId, ConfirmCheckoutReconciliationRequest request);
+    Task SubmitCheckoutRequestAsync(string accountId, string roomId, SubmitCheckoutRequest request);
     Task<CustomerRoomContextDto> GetRoomContextAsync(string accountId, string roomId);
     Task<List<CustomerPaymentDto>> GetPaymentsAsync(string accountId);
     Task ConfirmPaymentAsync(string accountId, string invoiceId);
@@ -165,7 +169,11 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                           join link in _db.RoomViewingScheduleRooms on schedule.ScheduleId equals link.ScheduleId
                           join room in _db.Rooms on link.RoomId equals room.RoomId
                             join branch in _db.Branches on room.BranchId equals branch.BranchId
-                            where application.CustomerId == customerId && deposit.Status == "hoan_thanh"
+                            where application.CustomerId == customerId && new[]
+                                {
+                                    "hoan_thanh", "cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc",
+                                    "cho_doi_soat_hoan_coc", "cho_khach_xac_nhan_hoan_coc", "cho_hoan_tien"
+                                }.Contains(deposit.Status)
                                 && !_db.RentalContracts.Any(contract => contract.DepositId == deposit.DepositId && contract.Status == "hieu_luc")
                             select new { deposit, application, room, branch, ContractStatus = _db.RentalContracts.Where(contract => contract.DepositId == deposit.DepositId).Select(contract => contract.Status).FirstOrDefault() }).ToListAsync();
           return rows.Select(x => new CustomerRoomSummaryDto(x.room.RoomId, x.room.RoomName, null, null, x.branch.BranchName,
@@ -261,6 +269,29 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         return new SubmitDepositResponse(applicationId, application.Status, "Đã xác nhận tuân thủ điều kiện thuê và nội quy; hồ sơ được chuyển sang Kế toán tính tiền cọc.");
     }
 
+    public async Task SubmitCheckInProfileAsync(string accountId, string roomId)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        var application = await _db.RentalApplications
+            .Include(x => x.DepositSlips)
+            .Include(x => x.RoomViewingSchedules).ThenInclude(x => x.Rooms)
+            .FirstOrDefaultAsync(x => x.CustomerId == customerId
+                && x.RoomViewingSchedules.Any(schedule => schedule.Rooms.Any(room => room.RoomId == roomId)))
+            ?? throw new NotFoundException("Không tìm thấy hồ sơ nhận phòng của phòng này.");
+
+        // Khách tải lại trang khi Sale đang xử lý thì coi đây là yêu cầu đã gửi,
+        // không trả lỗi để giao diện có thể hiển thị trạng thái chờ đối chiếu.
+        if (application.Status == "cho_sale_doi_chieu_nhan_phong")
+            return;
+        if (application.Status != "da_dat_coc")
+            throw new ConflictException("Hồ sơ không còn ở bước bổ sung thông tin nhận phòng.");
+        if (!application.DepositSlips.Any(x => x.Status == "hoan_thanh" && x.PaidAt != null))
+            throw new ValidationException("Chỉ được gửi hồ sơ nhận phòng sau khi phiếu cọc đã thanh toán.");
+
+        application.Status = "cho_sale_doi_chieu_nhan_phong";
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<CustomerContractDetailDto> GetContractDetailAsync(string accountId, string roomId)
     {
         var customerId = await GetCustomerIdAsync(accountId);
@@ -332,12 +363,40 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         if (!report.KeysReturned)
             throw new ValidationException("Khách hàng chưa bàn giao chìa khóa/thẻ.");
 
+        var hasAdditionalPayment = reconciliation.AdditionalPaymentAmount > 0;
+        if (hasAdditionalPayment)
+        {
+            var invoice = await _db.Invoices.FirstOrDefaultAsync(x => x.ReconciliationId == reconciliation.ReconciliationId && x.InvoiceType == "thu_them");
+            if (invoice?.Status != "da_thanh_toan")
+                throw new ConflictException("Khoản phát sinh chưa được Kế toán xác nhận thanh toán.");
+        }
+
         reconciliation.Status = "da_xac_nhan";
-        checkoutRequest.Status = "cho_hoan_tien";
+        checkoutRequest.Status = hasAdditionalPayment ? "hoan_tat" : "cho_hoan_tien";
         checkoutRequest.Note = string.IsNullOrWhiteSpace(checkoutRequest.Note)
             ? $"Khách xác nhận đối soát và ký thanh lý: {confirmation.SignerName.Trim()}."
             : $"{checkoutRequest.Note}\nKhách xác nhận đối soát và ký thanh lý: {confirmation.SignerName.Trim()}.";
-        contract.Status = "cho_hoan_coc";
+        contract.Status = hasAdditionalPayment ? "thanh_ly" : "cho_hoan_coc";
+        if (hasAdditionalPayment)
+        {
+            reconciliation.Status = "hoan_tat";
+            var room = await _db.Rooms.FirstAsync(x => x.RoomId == contract.RoomId);
+            if (room.RoomType == "nguyen_can")
+            {
+                room.Status = "trong";
+                room.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                var bedIds = await _db.DepositBeds.Where(x => x.DepositId == contract.DepositId).Select(x => x.BedId).ToListAsync();
+                var beds = await _db.Beds.Where(x => bedIds.Contains(x.BedId)).ToListAsync();
+                foreach (var bed in beds)
+                {
+                    bed.Status = "trong";
+                    bed.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+        }
         await _db.SaveChangesAsync();
     }
 
@@ -360,6 +419,46 @@ public class CustomerWorkflowService : ICustomerWorkflowService
                     .FirstOrDefault() ?? x.UnitPrice,
                 x.Description))
             .ToListAsync();
+    }
+
+    public async Task SubmitCheckoutRequestAsync(string accountId, string roomId, SubmitCheckoutRequest request)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        if (!DateTime.TryParse(request.ExpectedCheckoutDate, out var expectedDate))
+            throw new ValidationException("Ngày dự kiến trả phòng không hợp lệ.");
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ValidationException("Vui lòng nhập lý do trả phòng.");
+
+        var contract = await _db.RentalContracts.FirstOrDefaultAsync(x => x.CustomerId == customerId && x.RoomId == roomId)
+            ?? throw new NotFoundException("Không tìm thấy hợp đồng của phòng này.");
+        if (contract.Status != "hieu_luc")
+            throw new ConflictException("Chỉ được yêu cầu trả phòng khi hợp đồng đang hiệu lực.");
+        if (await _db.CheckoutRequests.AnyAsync(x => x.ContractId == contract.ContractId && x.Status != "huy" && x.Status != "hoan_tat"))
+            throw new ConflictException("Phòng này đã có yêu cầu trả phòng đang xử lý.");
+
+        _db.CheckoutRequests.Add(new CheckoutRequest
+        {
+            CheckoutRequestId = IdGenerator.Generate("YT", 12), ContractId = contract.ContractId,
+            CustomerId = customerId, SalesEmployeeId = contract.SalesEmployeeId,
+            RequestedCheckoutAt = expectedDate, Reason = request.Reason.Trim(), Status = "cho_tiep_nhan", CreatedAt = DateTime.UtcNow
+        });
+        contract.Status = "cho_tra_phong";
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task ConfirmRentalContractAsync(string accountId, string roomId)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        var contract = await _db.RentalContracts
+            .FirstOrDefaultAsync(x => x.CustomerId == customerId && x.RoomId == roomId)
+            ?? throw new NotFoundException("Không tìm thấy hợp đồng của phòng này.");
+
+        if (contract.Status == "cho_thanh_toan_nhan_phong") return;
+        if (contract.Status != "cho_ky")
+            throw new ConflictException("Hợp đồng không ở trạng thái chờ khách ký.");
+
+        contract.Status = "cho_thanh_toan_nhan_phong";
+        await _db.SaveChangesAsync();
     }
 
     public async Task ConfirmRoomInformationViewedAsync(string accountId, string scheduleId)
@@ -460,6 +559,23 @@ public class CustomerWorkflowService : ICustomerWorkflowService
         return new SubmitDepositRefundResponse(deposit.DepositId, deposit.Status, "Yêu cầu hoàn cọc đã được gửi đến Sale tiếp nhận.");
     }
 
+    public async Task ConfirmDepositRefundAsync(string accountId, string roomId)
+    {
+        var customerId = await GetCustomerIdAsync(accountId);
+        var deposit = await (from d in _db.DepositSlips
+                             join a in _db.RentalApplications on d.ApplicationId equals a.ApplicationId
+                             join s in _db.RoomViewingSchedules on a.ApplicationId equals s.ApplicationId
+                             join link in _db.RoomViewingScheduleRooms on s.ScheduleId equals link.ScheduleId
+                             where a.CustomerId == customerId && link.RoomId == roomId
+                             select d).FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Không tìm thấy phiếu cọc của phòng này.");
+        if (deposit.Status != "cho_khach_xac_nhan_hoan_coc")
+            throw new ConflictException("Phiếu cọc chưa ở bước khách hàng xác nhận thông tin nhận tiền.");
+
+        deposit.Status = "cho_hoan_tien";
+        await _db.SaveChangesAsync();
+    }
+
     public async Task<List<CustomerPaymentDto>> GetPaymentsAsync(string accountId)
     {
         var customerId = await GetCustomerIdAsync(accountId);
@@ -477,9 +593,41 @@ public class CustomerWorkflowService : ICustomerWorkflowService
             if (roomId is null) continue;
             var roomName = await _db.Rooms.Where(x => x.RoomId == roomId).Select(x => x.RoomName).FirstAsync();
             var type = invoice.InvoiceType switch { "tien_coc" => "Tiền cọc", "tien_thue" => "Khoản nhận phòng", "thu_them" => "Khoản phát sinh", "hoan_coc" => "Hoàn cọc", _ => "Thanh toán dịch vụ" };
-            result.Add(new CustomerPaymentDto(invoice.InvoiceId, type, roomId, roomName, invoice.TotalAmount, invoice.CreatedAt, invoice.PaidAt, invoice.Status, invoice.PaymentMethod, invoice.BankName ?? "Vietcombank", invoice.BankAccountNumber ?? "0123456789", invoice.BankAccountHolder ?? "HOMESTAY DORM", $"{invoice.InvoiceType.ToUpperInvariant()} {roomId}", invoice.ProofImageUrl));
+            result.Add(new CustomerPaymentDto(invoice.InvoiceId, new List<string> { invoice.InvoiceId }, type, roomId, roomName, invoice.TotalAmount, invoice.CreatedAt, invoice.PaidAt, invoice.Status, invoice.PaymentMethod, invoice.BankName ?? "Vietcombank", invoice.BankAccountNumber ?? "0123456789", invoice.BankAccountHolder ?? "HOMESTAY DORM", $"{invoice.InvoiceType.ToUpperInvariant()} {roomId}", invoice.ProofImageUrl));
         }
-        return result;
+
+        // Khoản nhận phòng và các dịch vụ được lưu thành hóa đơn riêng để kế toán đối soát,
+        // nhưng Khách hàng thanh toán chúng trong một lần cho cùng phòng/cùng đợt lập hóa đơn.
+        return result
+            .GroupBy(payment => payment.PaymentType is "Khoản nhận phòng" or "Thanh toán dịch vụ"
+                ? $"check-in:{payment.RoomId}:{payment.CreatedAt:yyyyMMdd}"
+                : $"invoice:{payment.InvoiceId}")
+            .Select(group =>
+            {
+                var payments = group.ToList();
+                if (payments.Count == 1) return payments[0];
+
+                var first = payments[0];
+                var allPaid = payments.All(x => x.Status == "da_thanh_toan");
+                return new CustomerPaymentDto(
+                    first.InvoiceId,
+                    payments.SelectMany(x => x.InvoiceIds).ToList(),
+                    "Khoản nhận phòng và dịch vụ",
+                    first.RoomId,
+                    first.RoomName,
+                    payments.Sum(x => x.Amount),
+                    payments.Min(x => x.CreatedAt),
+                    allPaid ? payments.Max(x => x.PaidAt) : null,
+                    allPaid ? "da_thanh_toan" : "cho_thanh_toan",
+                    first.PaymentMethod,
+                    first.BankName,
+                    first.BankAccountNumber,
+                    first.BankAccountHolder,
+                    $"NHAN PHONG {first.RoomId}",
+                    allPaid ? first.ProofImageUrl : null);
+            })
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
     }
 
     public async Task ConfirmPaymentAsync(string accountId, string invoiceId)

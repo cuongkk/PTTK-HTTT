@@ -18,7 +18,162 @@ public static class DbSeeder
         await SeedServicesAsync(db);
         await SeedResidenceRulesAsync(db);
         await SeedStatePipelineDemoAsync(db);
+        await SeedAssignmentUcDemosAsync(db);
         await SeedSystemAdminCatalogDemoAsync(db);
+    }
+
+    private static async Task SeedAssignmentUcDemosAsync(AppDbContext db)
+    {
+        // UC2 - Đặt cọc và xác nhận thuê: bắt đầu sau khi khách đã xem nguyên phòng UC2.
+        const string uc2ApplicationId = "HSUC20000001";
+        const string uc2ScheduleId = "LXUC20000001";
+        if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == uc2ApplicationId))
+            db.RentalApplications.Add(new RentalApplication
+            {
+                ApplicationId = uc2ApplicationId,
+                CustomerId = "KH0000000001",
+                SalesEmployeeId = "NV00000003",
+                NumberOfPeople = 2,
+                ExpectedMoveInDate = new DateOnly(2026, 8, 15),
+                ExpectedRentalMonths = 12,
+                DesiredArea = "Quận 5",
+                DesiredRoomId = "PHONG_UC2",
+                DesiredRoomType = RoomType.Whole,
+                MinimumPrice = 4000000,
+                MaximumPrice = 4500000,
+                Gender = "Nam",
+                LivingSchedule = "Không yêu cầu",
+                RequiresParking = true,
+                RequiresAirConditioner = true,
+                Status = "da_xem_phong",
+                CreatedAt = new DateTime(2026, 7, 13, 8, 0, 0, DateTimeKind.Utc),
+            });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == uc2ScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule
+            {
+                ScheduleId = uc2ScheduleId,
+                ApplicationId = uc2ApplicationId,
+                SalesEmployeeId = "NV00000003",
+                AppointmentAt = new DateTime(2026, 7, 14, 9, 0, 0),
+                Status = "hoan_thanh",
+                Note = "Dữ liệu demo UC2 - khách đã xem và chọn thuê nguyên Phòng UC2",
+            });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == uc2ScheduleId && x.RoomId == "PHONG_UC2"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = uc2ScheduleId, RoomId = "PHONG_UC2" });
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC20000001"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC20000001", ApplicationId = uc2ApplicationId, CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = true, IsEligible = true });
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC20000002"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC20000002", ApplicationId = uc2ApplicationId, FullName = "Phạm Minh Khang", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000012", DateOfBirth = new DateOnly(2003, 9, 18), PermanentAddress = "18 Lý Thường Kiệt, Quận 10, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
+        await db.SaveChangesAsync();
+
+        // UC3 - Khách đã bổ sung hồ sơ nhận phòng; Sale cần đối chiếu trước khi chuyển Quản lý duyệt.
+        const string uc3ApplicationId = "HSUC30000001";
+        const string uc3ScheduleId = "LXUC30000001";
+        const string uc3DepositId = "DCUC30000001";
+        const string uc3ContractId = "HDUC30000001";
+        if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == uc3ApplicationId))
+            db.RentalApplications.Add(new RentalApplication
+            {
+                ApplicationId = uc3ApplicationId,
+                CustomerId = "KH0000000001",
+                SalesEmployeeId = "NV00000005",
+                NumberOfPeople = 2,
+                ExpectedMoveInDate = new DateOnly(2026, 8, 20),
+                ExpectedRentalMonths = 12,
+                DesiredArea = "Thủ Đức",
+                DesiredRoomId = "PHONG_UC3",
+                DesiredRoomType = RoomType.Shared,
+                MinimumPrice = 1200000,
+                MaximumPrice = 1600000,
+                Gender = "Nữ",
+                LivingSchedule = "Về trước 22:30",
+                RequiresQuietLifestyle = true,
+                RequiresAirConditioner = true,
+                Status = "du_dieu_kien_nhan_phong",
+                CreatedAt = new DateTime(2026, 7, 12, 8, 0, 0, DateTimeKind.Utc),
+            });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == uc3ScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = uc3ScheduleId, ApplicationId = uc3ApplicationId, SalesEmployeeId = "NV00000005", AppointmentAt = new DateTime(2026, 7, 13, 9, 0, 0), Status = "hoan_thanh", Note = "Dữ liệu demo UC3 - khách đã xem Phòng UC3" });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == uc3ScheduleId && x.RoomId == "PHONG_UC3"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = uc3ScheduleId, RoomId = "PHONG_UC3" });
+        if (!await db.DepositSlips.AnyAsync(x => x.DepositId == uc3DepositId))
+            db.DepositSlips.Add(new DepositSlip { DepositId = uc3DepositId, ApplicationId = uc3ApplicationId, SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", DepositAmount = 5600000, CreatedAt = new DateTime(2026, 7, 14, 8, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 15, 8, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 14, 10, 0, 0, DateTimeKind.Utc), Status = "hoan_thanh" });
+        await db.SaveChangesAsync();
+        foreach (var bedId in new[] { "GPHONGUC31", "GPHONGUC32" })
+            if (!await db.DepositBeds.AnyAsync(x => x.DepositId == uc3DepositId && x.BedId == bedId))
+                db.DepositBeds.Add(new DepositBed { DepositId = uc3DepositId, BedId = bedId });
+        if (!await db.RentalContracts.AnyAsync(x => x.ContractId == uc3ContractId))
+            db.RentalContracts.Add(new RentalContract { ContractId = uc3ContractId, DepositId = uc3DepositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", RoomId = "PHONG_UC3", NumberOfBeds = 2, MonthlyRent = 2800000, PaymentCycle = "hang_thang", SignedDate = new DateOnly(2026, 7, 17), StartDate = new DateOnly(2026, 8, 20), EndDate = new DateOnly(2027, 8, 19), Status = "cho_xac_nhan_ban_giao" });
+        await db.SaveChangesAsync();
+        if (!await db.Invoices.AnyAsync(x => x.InvoiceId == "HDUC3NP00001"))
+            db.Invoices.Add(new Invoice { InvoiceId = "HDUC3NP00001", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = uc3ContractId, InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 2800000, PaymentMethod = "chuyen_khoan", TransactionId = "DEMO-HDUC3NP00001", ProofImageUrl = "/demo/demo-payment-proof.png", CreatedAt = new DateTime(2026, 7, 17, 9, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 17, 9, 10, 0, 0, DateTimeKind.Utc), Status = "da_thanh_toan", Note = "Khoản nhận phòng UC3 đã được Kế toán xác nhận." });
+        await db.SaveChangesAsync();
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC30000001"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000001", ApplicationId = uc3ApplicationId, ContractId = uc3ContractId, CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", FinancialDocumentUrl = "/demo/demo-document.png", IsPrimaryTenant = true, IsEligible = true });
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC30000002"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000002", ApplicationId = uc3ApplicationId, ContractId = uc3ContractId, FullName = "Lê Minh Anh", Gender = "Nu", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079204000013", DateOfBirth = new DateOnly(2004, 10, 8), PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
+        await db.SaveChangesAsync();
+
+        // UC4 - Trả phòng và hoàn cọc: bắt đầu từ hợp đồng hiệu lực đã nhận bàn giao.
+        const string uc4ApplicationId = "HSUC40000001";
+        const string uc4ScheduleId = "LXUC40000001";
+        const string uc4DepositId = "DCUC40000001";
+        const string uc4ContractId = "HDUC40000001";
+        if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == uc4ApplicationId))
+            db.RentalApplications.Add(new RentalApplication { ApplicationId = uc4ApplicationId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", NumberOfPeople = 3, ExpectedMoveInDate = new DateOnly(2026, 1, 15), ExpectedRentalMonths = 12, DesiredArea = "Thủ Đức", DesiredRoomId = "PHONG_UC4", DesiredRoomType = RoomType.Shared, MinimumPrice = 1000000, MaximumPrice = 1400000, Gender = "Nam", LivingSchedule = "Về trước 23:30", RequiresParking = true, RequiresAirConditioner = true, Status = "du_dieu_kien_nhan_phong", CreatedAt = new DateTime(2026, 1, 5, 8, 0, 0, DateTimeKind.Utc) });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == uc4ScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = uc4ScheduleId, ApplicationId = uc4ApplicationId, SalesEmployeeId = "NV00000005", AppointmentAt = new DateTime(2026, 1, 6, 9, 0, 0), Status = "hoan_thanh", Note = "Dữ liệu nền UC4 - khách đã xem Phòng UC4" });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == uc4ScheduleId && x.RoomId == "PHONG_UC4"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = uc4ScheduleId, RoomId = "PHONG_UC4" });
+        if (!await db.DepositSlips.AnyAsync(x => x.DepositId == uc4DepositId))
+            db.DepositSlips.Add(new DepositSlip { DepositId = uc4DepositId, ApplicationId = uc4ApplicationId, SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", DepositAmount = 7200000, CreatedAt = new DateTime(2026, 1, 7, 8, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 1, 8, 8, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 1, 7, 10, 0, 0, DateTimeKind.Utc), Status = "hoan_thanh" });
+        await db.SaveChangesAsync();
+        foreach (var bedId in new[] { "GPHONGUC41", "GPHONGUC42", "GPHONGUC43" })
+            if (!await db.DepositBeds.AnyAsync(x => x.DepositId == uc4DepositId && x.BedId == bedId))
+                db.DepositBeds.Add(new DepositBed { DepositId = uc4DepositId, BedId = bedId });
+        if (!await db.RentalContracts.AnyAsync(x => x.ContractId == uc4ContractId))
+            db.RentalContracts.Add(new RentalContract { ContractId = uc4ContractId, DepositId = uc4DepositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", RoomId = "PHONG_UC4", NumberOfBeds = 3, MonthlyRent = 3600000, PaymentCycle = "hang_thang", SignedDate = new DateOnly(2026, 1, 10), StartDate = new DateOnly(2026, 1, 15), EndDate = new DateOnly(2027, 1, 14), Status = "cho_doi_soat" });
+        await db.SaveChangesAsync();
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC40000001"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC40000001", ApplicationId = uc4ApplicationId, ContractId = uc4ContractId, CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = true, IsEligible = true });
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC40000002"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC40000002", ApplicationId = uc4ApplicationId, ContractId = uc4ContractId, FullName = "Nguyễn Minh Quân", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079202000014", DateOfBirth = new DateOnly(2002, 4, 18), PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
+        if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC40000003"))
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC40000003", ApplicationId = uc4ApplicationId, ContractId = uc4ContractId, FullName = "Phạm Hoàng Nam", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079202000015", DateOfBirth = new DateOnly(2001, 12, 5), PermanentAddress = "TP.HCM", OccupationOrSchool = "Nhân viên kỹ thuật", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
+        if (!await db.HandoverReports.AnyAsync(x => x.HandoverId == "BBUC40000001"))
+            db.HandoverReports.Add(new HandoverReport { HandoverId = "BBUC40000001", ContractId = uc4ContractId, ManagerEmployeeId = "NV00000002", HandoverDate = new DateOnly(2026, 1, 15), RoomCondition = "Phòng sạch, ba giường và tủ cá nhân hoạt động tốt", InitialElectricityReading = 520, InitialWaterReading = 145, Note = "Biên bản bàn giao nền cho demo UC4" });
+        if (!await db.Reconciliations.AnyAsync(x => x.ReconciliationId == "DSUC40000001"))
+            db.Reconciliations.Add(new Reconciliation { ReconciliationId = "DSUC40000001", ContractId = uc4ContractId, AccountantEmployeeId = "NV00000004", ManagerEmployeeId = "NV00000002", CreatedDate = new DateOnly(2026, 7, 17), RefundRate = 70, OriginalDeposit = 7200000, BaseRefund = 5040000, TotalDeductions = 0, RefundAmount = 5040000, Status = "cho_xac_nhan" });
+        if (!await db.CheckoutReports.AnyAsync(x => x.CheckoutReportId == "BTUC40000001"))
+            db.CheckoutReports.Add(new CheckoutReport { CheckoutReportId = "BTUC40000001", ReconciliationId = "DSUC40000001", ManagerEmployeeId = "NV00000002", CheckoutDate = new DateOnly(2026, 7, 17), RoomCondition = "Phòng sạch, tài sản đầy đủ; đã bàn giao chìa khóa", FinalElectricityReading = 680, FinalWaterReading = 186, KeysReturned = true, Note = "Biên bản trả phòng UC4 đã được khách xác nhận." });
+        if (!await db.CheckoutRequests.AnyAsync(x => x.CheckoutRequestId == "YTUC40000001"))
+            db.CheckoutRequests.Add(new CheckoutRequest { CheckoutRequestId = "YTUC40000001", ContractId = uc4ContractId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", ReconciliationId = "DSUC40000001", RequestedCheckoutAt = new DateTime(2026, 7, 17, 9, 0, 0), ConfirmedInspectionAt = new DateTime(2026, 7, 17, 10, 0, 0), Reason = "Kết thúc nhu cầu thuê, đã hoàn tất bàn giao phòng.", Status = "cho_doi_soat", CreatedAt = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 7, 17, 10, 0, 0, DateTimeKind.Utc), Note = "Quản lý đã lập biên bản; chờ Kế toán xác nhận đối soát." });
+        await db.SaveChangesAsync();
+
+        // UCHoanTien - nhánh hoàn cọc trước ký hợp đồng, đã được khách xác nhận nhận tiền.
+        const string refundApplicationId = "HSUCHT000001";
+        const string refundScheduleId = "LXUCHT000001";
+        const string refundDepositId = "DCUCHT000001";
+        if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == refundApplicationId))
+            db.RentalApplications.Add(new RentalApplication { ApplicationId = refundApplicationId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", NumberOfPeople = 1, ExpectedMoveInDate = new DateOnly(2026, 8, 1), ExpectedRentalMonths = 6, DesiredRoomId = "PHONG_UCHT", DesiredRoomType = RoomType.Whole, Status = "da_dat_coc", CreatedAt = new DateTime(2026, 7, 10, 8, 0, 0, DateTimeKind.Utc) });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == refundScheduleId))
+            db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = refundScheduleId, ApplicationId = refundApplicationId, SalesEmployeeId = "NV00000005", AppointmentAt = new DateTime(2026, 7, 11, 9, 0, 0), Status = "hoan_thanh", Note = "Demo UCHoanTien" });
+        await db.SaveChangesAsync();
+        if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == refundScheduleId && x.RoomId == "PHONG_UCHT"))
+            db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = refundScheduleId, RoomId = "PHONG_UCHT" });
+        if (!await db.DepositSlips.AnyAsync(x => x.DepositId == refundDepositId))
+            db.DepositSlips.Add(new DepositSlip { DepositId = refundDepositId, ApplicationId = refundApplicationId, SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", DepositAmount = 3000000, CreatedAt = new DateTime(2026, 7, 11, 10, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 12, 10, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 11, 10, 10, 0, DateTimeKind.Utc), Status = "cho_hoan_tien", RefundReason = "Khách thay đổi kế hoạch thuê; đã xác nhận thông tin nhận tiền.", RefundRate = 80, RefundAmount = 2400000 });
+        await db.SaveChangesAsync();
+        if (!await db.DepositBeds.AnyAsync(x => x.DepositId == refundDepositId && x.BedId == "GPHONGUCHT1"))
+            db.DepositBeds.Add(new DepositBed { DepositId = refundDepositId, BedId = "GPHONGUCHT1" });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedSystemAdminCatalogDemoAsync(AppDbContext db)
@@ -45,12 +200,16 @@ public static class DbSeeder
             new RoomAmenity { RoomId = "PHONG_42", AmenityId = "cho_de_xe" },
             new RoomAmenity { RoomId = "PHONG_UC1", AmenityId = "wifi" },
             new RoomAmenity { RoomId = "PHONG_UC1", AmenityId = "ban_hoc", Quantity = 2 },
+            new RoomAmenity { RoomId = "PHONG_UC1", AmenityId = "cho_de_xe" },
             new RoomAmenity { RoomId = "PHONG_UC2", AmenityId = "wifi" },
             new RoomAmenity { RoomId = "PHONG_UC2", AmenityId = "dieu_hoa" },
+            new RoomAmenity { RoomId = "PHONG_UC2", AmenityId = "cho_de_xe" },
             new RoomAmenity { RoomId = "PHONG_UC3", AmenityId = "wifi" },
             new RoomAmenity { RoomId = "PHONG_UC3", AmenityId = "tu_ca_nhan", Quantity = 4 },
+            new RoomAmenity { RoomId = "PHONG_UC3", AmenityId = "dieu_hoa" },
             new RoomAmenity { RoomId = "PHONG_UC4", AmenityId = "wifi" },
             new RoomAmenity { RoomId = "PHONG_UC4", AmenityId = "cho_de_xe" },
+            new RoomAmenity { RoomId = "PHONG_UC4", AmenityId = "dieu_hoa" },
         };
         foreach (var item in assignments)
             if (await db.Rooms.AnyAsync(x => x.RoomId == item.RoomId) && !await db.RoomAmenities.AnyAsync(x => x.RoomId == item.RoomId && x.AmenityId == item.AmenityId)) db.RoomAmenities.Add(item);
@@ -97,10 +256,11 @@ public static class DbSeeder
 
         // Bốn phòng mốc để chuẩn bị và trình bày lần lượt bốn UC nghiệp vụ.
         rooms.AddRange(
-            new Room { RoomId = "PHONG_UC1", BranchId = "CN0000001", RoomName = "Phong_UC1", RoomType = RoomType.Shared, Capacity = 4, Area = "Khu UC - Nam", RoomPrice = 6000000, Floor = 5, AreaSquareMeters = 30, Description = "Phòng ghép 4 giường demo UC1 - đăng ký thuê và xem phòng", AllowedGender = "nam", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(23, 0), HasAirConditioner = false, HasParking = true, Status = RoomBedStatus.Empty },
-            new Room { RoomId = "PHONG_UC2", BranchId = "CN0000001", RoomName = "Phong_UC2", RoomType = RoomType.Whole, Capacity = 2, Area = "Khu UC - Nguyên phòng", RoomPrice = 4200000, Floor = 5, AreaSquareMeters = 24, Description = "Phòng nguyên căn cho tối đa 2 người demo UC2 - đặt cọc và xác nhận thuê", AllowedGender = "khong_gioi_han", RequiresQuietLifestyle = false, HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Empty },
-            new Room { RoomId = "PHONG_UC3", BranchId = "CN0000002", RoomName = "Phong_UC3", RoomType = RoomType.Shared, Capacity = 4, Area = "Khu UC - Nữ", RoomPrice = 5600000, Floor = 3, AreaSquareMeters = 29, Description = "Phòng ghép 4 giường, có 2 giường đã đặt cọc demo UC3 - ký hợp đồng và nhận phòng", AllowedGender = "nu", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(22, 30), HasAirConditioner = true, HasParking = false, Status = RoomBedStatus.Deposited },
-            new Room { RoomId = "PHONG_UC4", BranchId = "CN0000002", RoomName = "Phong_UC4", RoomType = RoomType.Shared, Capacity = 6, Area = "Khu UC - Nam", RoomPrice = 7200000, Floor = 4, AreaSquareMeters = 38, Description = "Phòng ghép 6 giường, có 3 giường đang thuê demo UC4 - trả phòng, đối soát và hoàn cọc", AllowedGender = "nam", RequiresQuietLifestyle = false, CurfewTime = new TimeOnly(23, 30), HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Rented }
+            new Room { RoomId = "PHONG_UC1", BranchId = "CN0000001", RoomName = "Phòng UC1", RoomType = RoomType.Shared, Capacity = 4, Area = "Quận 5", RoomPrice = 6000000, Floor = 5, AreaSquareMeters = 30, Description = "Phòng ghép 4 giường demo UC1 - đăng ký thuê và xem phòng", AllowedGender = "nam", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(23, 0), HasAirConditioner = false, HasParking = true, Status = RoomBedStatus.Empty },
+            new Room { RoomId = "PHONG_UC2", BranchId = "CN0000001", RoomName = "Phòng UC2", RoomType = RoomType.Whole, Capacity = 2, Area = "Quận 5", RoomPrice = 4200000, Floor = 5, AreaSquareMeters = 24, Description = "Phòng nguyên căn cho tối đa 2 người demo UC2 - đặt cọc và xác nhận thuê", AllowedGender = "khong_gioi_han", RequiresQuietLifestyle = false, HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Empty },
+            new Room { RoomId = "PHONG_UC3", BranchId = "CN0000002", RoomName = "Phòng UC3", RoomType = RoomType.Shared, Capacity = 4, Area = "Thủ Đức", RoomPrice = 5600000, Floor = 3, AreaSquareMeters = 29, Description = "Phòng ghép 4 giường, có 2 giường đã đặt cọc demo UC3 - ký hợp đồng và nhận phòng", AllowedGender = "nu", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(22, 30), HasAirConditioner = true, HasParking = false, Status = RoomBedStatus.Deposited },
+            new Room { RoomId = "PHONG_UC4", BranchId = "CN0000002", RoomName = "Phòng UC4", RoomType = RoomType.Shared, Capacity = 6, Area = "Thủ Đức", RoomPrice = 7200000, Floor = 4, AreaSquareMeters = 38, Description = "Phòng ghép 6 giường, có 3 giường đang thuê demo UC4 - trả phòng, đối soát và hoàn cọc", AllowedGender = "nam", RequiresQuietLifestyle = false, CurfewTime = new TimeOnly(23, 30), HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Rented },
+            new Room { RoomId = "PHONG_UCHT", BranchId = "CN0000001", RoomName = "UCHoanTien", RoomType = RoomType.Whole, Capacity = 1, Area = "Quận 5", RoomPrice = 3000000, Floor = 6, AreaSquareMeters = 20, Description = "Phòng demo hoàn tiền cọc trước ký hợp đồng; Kế toán có thể thực hiện chi hoàn.", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = "cho_hoan_coc" }
         );
 
         foreach (var room in rooms)

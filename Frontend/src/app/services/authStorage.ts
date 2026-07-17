@@ -37,7 +37,7 @@ export function mapRoleIdToPath(roleId: string): string {
     case "ke_toan":
       return "accountant";
     default:
-      return "customer";
+      return "customer/my-rooms";
   }
 }
 

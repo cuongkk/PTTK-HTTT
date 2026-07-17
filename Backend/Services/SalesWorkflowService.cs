@@ -993,7 +993,7 @@ public class SalesWorkflowService : ISalesWorkflowService
         if (existingRequest != null)
         {
             // Transition: confirm customer's request
-            existingRequest.Status = "da_xac_nhan_lich";
+            existingRequest.Status = "cho_kiem_tra";
             existingRequest.SalesEmployeeId = employeeId;
             existingRequest.ConfirmedInspectionAt = DateTime.UtcNow;
             existingRequest.UpdatedAt = DateTime.UtcNow;

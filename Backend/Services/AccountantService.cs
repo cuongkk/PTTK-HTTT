@@ -401,15 +401,15 @@ public class AccountantService : IAccountantService
 
             if (contract != null)
             {
-                contract.Status = "hieu_luc";
+                contract.Status = "cho_xac_nhan_ban_giao";
 
                 // Cập nhật trạng thái giường/phòng sang 'dang_thue'
-                if (contract.Room.RoomType == "nguyen_can")
+                if (contract.Status == "hieu_luc" && contract.Room.RoomType == "nguyen_can")
                 {
                     contract.Room.Status = "dang_thue";
                     contract.Room.UpdatedAt = DateTime.UtcNow;
                 }
-                else
+                else if (contract.Status == "hieu_luc")
                 {
                     var deposit = await _dbContext.DepositSlips
                         .Include(d => d.Beds)
@@ -444,6 +444,18 @@ public class AccountantService : IAccountantService
                 NotificationType = $"invoice|{invoice.InvoiceId}"
             };
             await _dbContext.Notifications.AddAsync(notification);
+        }
+
+        if (invoice.InvoiceType == "thu_them" && !string.IsNullOrEmpty(invoice.ContractId))
+        {
+            var checkoutRequest = await _dbContext.CheckoutRequests.FirstOrDefaultAsync(x => x.ContractId == invoice.ContractId);
+            var checkoutContract = await _dbContext.RentalContracts.FirstOrDefaultAsync(x => x.ContractId == invoice.ContractId);
+            if (checkoutRequest != null && checkoutContract != null)
+            {
+                checkoutRequest.Status = "cho_khach_xac_nhan";
+                checkoutRequest.UpdatedAt = DateTime.UtcNow;
+                checkoutContract.Status = "cho_khach_xac_nhan";
+            }
         }
 
         await _dbContext.SaveChangesAsync();
@@ -967,9 +979,17 @@ public class AccountantService : IAccountantService
             .FirstOrDefaultAsync(c => c.ContractId == recon.ContractId)
             ?? throw new NotFoundException($"Không tìm thấy hợp đồng '{recon.ContractId}'.");
 
+        var checkoutRequest = await _dbContext.CheckoutRequests
+            .FirstOrDefaultAsync(r => r.ContractId == contract.ContractId);
+
         var employeeId = await GetEmployeeIdFromAccountIdAsync(accountantId);
 
         var finalAmt = recon.RefundAmount ?? (recon.BaseRefund - recon.TotalDeductions);
+
+        if (recon.AdditionalPaymentAmount > 0)
+            throw new ConflictException("Hồ sơ có khoản phải thu thêm; chờ khách thanh toán, Kế toán xác nhận và khách ký biên bản đối soát.");
+        if (checkoutRequest != null && (checkoutRequest.Status != "cho_hoan_tien" || contract.Status != "cho_hoan_coc"))
+            throw new ConflictException("Khách hàng chưa ký biên bản đối soát; chưa thể thực hiện hoàn cọc.");
 
         string dbPaymentMethod = dto.Method == "transfer" ? "chuyen_khoan" : "tien_mat";
 
@@ -1024,6 +1044,11 @@ public class AccountantService : IAccountantService
 
         recon.Status = "hoan_tat";
         contract.Status = "thanh_ly"; // Thanh lý hợp đồng
+        if (checkoutRequest != null)
+        {
+            checkoutRequest.Status = "hoan_tat";
+            checkoutRequest.UpdatedAt = DateTime.UtcNow;
+        }
 
         // Giải phóng phòng/giường về trạng thái 'trong'
         var room = await _dbContext.Rooms.FindAsync(contract.RoomId);
@@ -1096,11 +1121,60 @@ public class AccountantService : IAccountantService
             throw new NotFoundException($"Không tìm thấy bản ghi đối soát hoặc phiếu cọc '{reconciliationId}'.");
         }
 
-        recon.Status = "da_xac_nhan";
+        recon.Status = "cho_xac_nhan";
+
+        var contract = await _dbContext.RentalContracts.FirstOrDefaultAsync(x => x.ContractId == recon.ContractId)
+            ?? throw new NotFoundException($"Không tìm thấy hợp đồng '{recon.ContractId}'.");
+        var checkoutRequest = await _dbContext.CheckoutRequests.FirstOrDefaultAsync(x => x.ContractId == contract.ContractId)
+            ?? throw new NotFoundException("Không tìm thấy yêu cầu trả phòng.");
+        var customerAccount = await _dbContext.Accounts.FirstOrDefaultAsync(x => x.CustomerId == contract.CustomerId);
+
+        if (recon.AdditionalPaymentAmount > 0)
+        {
+            var invoice = await _dbContext.Invoices.FirstOrDefaultAsync(x => x.ReconciliationId == recon.ReconciliationId && x.InvoiceType == "thu_them");
+            if (invoice == null)
+            {
+                invoice = new Invoice
+                {
+                    InvoiceId = IdGenerator.Generate("HD", 12), CustomerId = contract.CustomerId, ContractId = contract.ContractId,
+                    AccountantEmployeeId = recon.AccountantEmployeeId, ReconciliationId = recon.ReconciliationId,
+                    InvoiceType = "thu_them", DocumentType = "thu", TotalAmount = recon.AdditionalPaymentAmount.Value,
+                    Status = "cho_thanh_toan", CreatedAt = DateTime.UtcNow,
+                    Note = $"Khoản phải thu thêm theo bảng đối soát {recon.ReconciliationId}."
+                };
+                await _dbContext.Invoices.AddAsync(invoice);
+            }
+            checkoutRequest.Status = "cho_doi_soat";
+            checkoutRequest.UpdatedAt = DateTime.UtcNow;
+            contract.Status = "cho_doi_soat";
+            if (customerAccount != null)
+                await _dbContext.Notifications.AddAsync(new Notification
+                {
+                    NotificationId = IdGenerator.Generate("TB", 12), RecipientAccountId = customerAccount.AccountId,
+                    Title = "Khoản phát sinh cần thanh toán",
+                    Content = $"Vui lòng thanh toán {invoice.TotalAmount:#,##0} VNĐ và gửi minh chứng trước khi ký biên bản đối soát.",
+                    NotificationType = $"invoice|{invoice.InvoiceId}", CreatedAt = DateTime.UtcNow
+                });
+        }
+        else
+        {
+            checkoutRequest.Status = "cho_khach_xac_nhan";
+            checkoutRequest.UpdatedAt = DateTime.UtcNow;
+            contract.Status = "cho_khach_xac_nhan";
+            if (customerAccount != null)
+                await _dbContext.Notifications.AddAsync(new Notification
+                {
+                    NotificationId = IdGenerator.Generate("TB", 12), RecipientAccountId = customerAccount.AccountId,
+                    Title = "Cần ký biên bản đối soát",
+                    Content = $"Bảng đối soát hợp đồng {contract.ContractId} đã sẵn sàng. Vui lòng ký xác nhận để Kế toán hoàn cọc.",
+                    NotificationType = $"checkout|{contract.RoomId}", CreatedAt = DateTime.UtcNow
+                });
+        }
+
+        await _dbContext.SaveChangesAsync();
 
         // Gửi thông báo cho Quản lý phê duyệt thanh lý
-        var managerAccount = await _dbContext.Accounts
-            .FirstOrDefaultAsync(a => a.Username == "manager");
+        Account? managerAccount = null;
         if (managerAccount != null)
         {
             var notification = new Notification

@@ -163,6 +163,8 @@ export function CustomerRooms() {
   const [rentingRooms, setRentingRooms] = useState<CustomerRoomSummary[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [roomsError, setRoomsError] = useState("");
+  const [refundConfirmationRoom, setRefundConfirmationRoom] = useState<{ id: string; name: string } | null>(null);
+  const [confirmingRefund, setConfirmingRefund] = useState(false);
   const requestedTab = params.get("tab") as RoomTab | null;
   const tab: RoomTab = roomTabs.some((item) => item.value === requestedTab) ? requestedTab! : "viewed";
 
@@ -282,7 +284,20 @@ export function CustomerRooms() {
                 {tab === "viewed" && ["cho_sale_ra_soat_coc", "cho_quan_ly_xac_nhan_coc", "cho_ke_toan_xac_nhan_coc"].includes(room.applicationStatus) && (
                   <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Yêu cầu đặt cọc đang được xử lý</span>
                 )}
-                {tab === "deposited" && (
+                {tab === "deposited" && room.workflowStatus === "cho_khach_xac_nhan_hoan_coc" && (
+                  <button
+                    onClick={() => setRefundConfirmationRoom({ id: room.id, name: room.name })}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Xác nhận thông tin nhận tiền
+                  </button>
+                )}
+                {tab === "deposited" && ["cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc", "cho_doi_soat_hoan_coc", "cho_hoan_tien"].includes(room.workflowStatus ?? "") && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+                    {room.workflowStatus === "cho_hoan_tien" ? "Chờ Kế toán hoàn cọc" : "Yêu cầu hoàn cọc đang được xử lý"}
+                  </span>
+                )}
+                {tab === "deposited" && !["cho_tiep_nhan_hoan_coc", "dang_xac_nhan_hoan_coc", "cho_doi_soat_hoan_coc", "cho_khach_xac_nhan_hoan_coc", "cho_hoan_tien"].includes(room.workflowStatus ?? "") && (
                   <>
                     {room.workflowStatus === "cho_xac_nhan_ban_giao" ? (
                       <button onClick={() => navigate(`/customer/handovers/${room.id}`)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
@@ -306,16 +321,65 @@ export function CustomerRooms() {
                     Xác nhận hiện trạng và đối soát
                   </button>
                 )}
-                {tab === "renting" && room.workflowStatus !== "cho_khach_xac_nhan" && (
+                {tab === "renting" && room.workflowStatus === "hieu_luc" && (
                   <button onClick={() => navigate(`/customer/checkouts/${room.id}/request`)} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">
                     Yêu cầu trả phòng
                   </button>
+                )}
+                {tab === "renting" && room.workflowStatus === "cho_tra_phong" && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Chờ Sale tiếp nhận yêu cầu trả phòng</span>
+                )}
+                {tab === "renting" && room.workflowStatus === "cho_kiem_tra_tra_phong" && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Chờ Quản lý kiểm tra phòng</span>
+                )}
+                {tab === "renting" && room.workflowStatus === "cho_doi_soat" && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Chờ Kế toán lập bảng đối soát</span>
+                )}
+                {tab === "renting" && room.workflowStatus === "cho_hoan_coc" && (
+                  <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">Chờ Kế toán hoàn cọc</span>
                 )}
               </div>
             </div>
           </article>
         ))}
       </div>
+      {refundConfirmationRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-gray-900">Xác nhận thông tin nhận tiền</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600">
+              Bạn xác nhận đồng ý nhận tiền hoàn cọc của {refundConfirmationRoom.name}. Sau khi xác nhận, hồ sơ sẽ chuyển cho Kế toán thực hiện hoàn tiền.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                disabled={confirmingRefund}
+                onClick={() => setRefundConfirmationRoom(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={confirmingRefund}
+                onClick={async () => {
+                  setConfirmingRefund(true);
+                  try {
+                    await customerWorkflowService.confirmDepositRefund(refundConfirmationRoom.id);
+                    setDepositedRooms((current) => current.map((item) => item.roomId === refundConfirmationRoom.id ? { ...item, status: "cho_hoan_tien" } : item));
+                    setRefundConfirmationRoom(null);
+                  } catch (error) {
+                    setRoomsError(error instanceof Error ? error.message : "Không thể xác nhận thông tin nhận tiền.");
+                  } finally {
+                    setConfirmingRefund(false);
+                  }
+                }}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300"
+              >
+                {confirmingRefund ? "Đang xác nhận..." : "Xác nhận"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -837,10 +901,14 @@ export function CheckInPayment() {
 export function CustomerCheckIn() {
   const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [params] = useSearchParams();
   const profileApproved = params.get("profileApproved") === "true";
   const [showContract, setShowContract] = useState(profileApproved);
   const [signatureName, setSignatureName] = useState("");
+  const [signingContract, setSigningContract] = useState(false);
+  const [contractError, setContractError] = useState("");
   const [residenceRules, setResidenceRules] = useState<ResidenceRule[]>([]);
   const { checkInId } = useParams();
   const contractRoomId = (checkInId ?? "").replace(/^NP-/, "");
@@ -852,6 +920,7 @@ export function CustomerCheckIn() {
       .then(([rules, context]) => {
         setResidenceRules(rules);
         setCheckInContext(context);
+        if (context.applicationStatus === "cho_sale_doi_chieu_nhan_phong") setSubmitted(true);
       })
       .catch(() => setResidenceRules([]));
     customerWorkflowService
@@ -971,12 +1040,25 @@ export function CustomerCheckIn() {
             />
           </label>
           <button
-            disabled={!signatureName.trim()}
-            onClick={() => navigate(`/customer/check-in-payments/TT-${contractRoomId}`)}
+            onClick={async () => {
+              if (!contractRoomId) return;
+              setSigningContract(true);
+              setContractError("");
+              try {
+                await customerWorkflowService.confirmRentalContract(contractRoomId);
+                navigate("/customer/my-rooms?tab=deposited");
+              } catch (error) {
+                setContractError(error instanceof Error ? error.message : "Không thể ký hợp đồng.");
+              } finally {
+                setSigningContract(false);
+              }
+            }}
+            disabled={!signatureName.trim() || signingContract}
             className="mt-5 rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white disabled:bg-gray-300"
           >
-            {contractDetail?.contractStatus === "cho_ky" ? "Ký hợp đồng" : "Tiếp tục thanh toán"}
+            {signingContract ? "Đang ký..." : contractDetail?.contractStatus === "cho_ky" ? "Ký hợp đồng" : "Quay về Phòng của tôi"}
           </button>
+          {contractError && <StatusBanner tone="amber">{contractError}</StatusBanner>}
         </Section>
       </div>
     );
@@ -984,16 +1066,28 @@ export function CustomerCheckIn() {
     return (
       <div className="space-y-6">
         <PageHeader title="Bổ sung hồ sơ nhận phòng" backTo="/customer/my-rooms?tab=deposited" />
-        <StatusBanner tone="amber">Hồ sơ đã được gửi và đang chờ Quản lý kiểm tra. Hợp đồng chỉ hiển thị sau khi toàn bộ người ở được xác nhận đủ điều kiện.</StatusBanner>
+        <StatusBanner tone="amber">
+          Hồ sơ đã được gửi và đang chờ Sale đối chiếu trước khi chuyển Quản lý kiểm tra. Hợp đồng chỉ hiển thị sau khi toàn bộ người ở được xác nhận đủ điều kiện.
+        </StatusBanner>
       </div>
     );
   return (
     <div className="space-y-6">
       <PageHeader title="Bổ sung hồ sơ nhận phòng" backTo="/customer/my-rooms?tab=deposited" />
       <form
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
-          setSubmitted(true);
+          if (!contractRoomId) return;
+          setSubmitting(true);
+          setSubmitError("");
+          try {
+            await customerWorkflowService.submitCheckInProfile(contractRoomId);
+            setSubmitted(true);
+          } catch (error) {
+            setSubmitError(error instanceof Error ? error.message : "Không thể gửi hồ sơ nhận phòng.");
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
         <Section title="Danh sách người ở chính thức">
@@ -1061,10 +1155,11 @@ export function CustomerCheckIn() {
               </tbody>
             </table>
           </div>
+          {submitError && <StatusBanner tone="amber">{submitError}</StatusBanner>}
           <div className="mt-5 flex justify-end gap-3">
             {!profileApproved && (
-              <button type="submit" className="rounded-lg border border-blue-600 px-5 py-2.5 font-semibold text-blue-600">
-                Gửi hồ sơ để Quản lý kiểm tra
+              <button disabled={submitting} type="submit" className="rounded-lg border border-blue-600 px-5 py-2.5 font-semibold text-blue-600 disabled:opacity-60">
+                {submitting ? "Đang gửi..." : "Gửi hồ sơ để đối chiếu"}
               </button>
             )}
             {profileApproved && (
@@ -1164,7 +1259,24 @@ export function CheckoutRequestPage() {
           <textarea defaultValue={detail?.reason ?? ""} rows={3} className="mt-2 w-full rounded-lg border border-gray-300 p-3" />
         </label>
         <div className="mt-5 flex justify-end">
-          <button onClick={() => setSubmitted(true)} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white">
+          <button
+            onClick={async () => {
+              const expectedCheckoutDate = (document.querySelector('input[type="datetime-local"]') as HTMLInputElement | null)?.value ?? "";
+              const reason = (document.querySelector('textarea') as HTMLTextAreaElement | null)?.value.trim() ?? "";
+              if (!expectedCheckoutDate || !reason) {
+                alert("Vui lòng nhập ngày trả phòng và lý do.");
+                return;
+              }
+              try {
+                await customerWorkflowService.submitCheckoutRequest(checkoutId ?? "", expectedCheckoutDate, reason);
+                setSubmitted(true);
+                navigate("/customer/my-rooms?tab=renting");
+              } catch (requestError) {
+                alert(requestError instanceof Error ? requestError.message : "Không thể gửi yêu cầu trả phòng.");
+              }
+            }}
+            className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white"
+          >
             Gửi yêu cầu trả phòng
           </button>
         </div>
@@ -1175,6 +1287,7 @@ export function CheckoutRequestPage() {
 
 export function CheckoutReconciliation() {
   const { checkoutId } = useParams();
+  const navigate = useNavigate();
   const [detail, setDetail] = useState<CustomerCheckoutDetail | null>(null);
   const [liquidationSignature, setLiquidationSignature] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -1185,15 +1298,15 @@ export function CheckoutReconciliation() {
     if (checkoutId) customerWorkflowService.getCheckoutDetail(checkoutId).then(setDetail);
   }, [checkoutId]);
   const costAmount = (type: string) => (detail?.costs ?? []).filter((cost) => cost.costType === type).reduce((sum, cost) => sum + cost.amount, 0);
-  const isConfirmed = confirmed || detail?.requestStatus === "cho_hoan_tien" || detail?.contractStatus === "cho_hoan_coc" || detail?.contractStatus === "thanh_ly";
+  const isConfirmed = confirmed || detail?.requestStatus === "cho_hoan_tien" || detail?.requestStatus === "hoan_tat" || detail?.contractStatus === "cho_hoan_coc" || detail?.contractStatus === "thanh_ly";
+  const canSign = detail?.requestStatus === "cho_khach_xac_nhan" && detail?.contractStatus === "cho_khach_xac_nhan";
   const confirmReconciliation = async () => {
     if (!checkoutId || !liquidationSignature.trim()) return;
     setSubmitting(true);
     setError("");
     try {
       await customerWorkflowService.confirmCheckoutReconciliation(checkoutId, liquidationSignature.trim());
-      setConfirmed(true);
-      setDetail((current) => (current ? { ...current, reconciliationStatus: "da_xac_nhan", requestStatus: "cho_hoan_tien", contractStatus: "cho_hoan_coc" } : current));
+      navigate("/customer/my-rooms?tab=renting");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Không thể xác nhận đối soát.");
     } finally {
@@ -1256,7 +1369,7 @@ export function CheckoutReconciliation() {
                 amount={detail?.additionalPaymentAmount ?? 0}
                 transferContent={`THU THEM ${detail?.roomId ?? checkoutId ?? ""}`}
                 confirmed={additionalPaid}
-                onConfirm={() => setAdditionalPaid(true)}
+                onConfirm={() => window.location.assign("/customer/payments")}
               />
             </div>
           )}
@@ -1271,7 +1384,7 @@ export function CheckoutReconciliation() {
             />
           </label>
           <button
-            disabled={!liquidationSignature.trim() || submitting || isConfirmed || ((detail?.additionalPaymentAmount ?? 0) > 0 && !additionalPaid)}
+            disabled={!liquidationSignature.trim() || submitting || isConfirmed || !canSign}
             onClick={confirmReconciliation}
             className="mt-4 w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
           >

@@ -96,11 +96,7 @@ export function CreateReconciliation() {
   useEffect(() => {
     if (reconciliationsList.length > 0 && searchQ) {
       setSearchTerm(searchQ);
-      const matched = reconciliationsList.find(
-        (r) =>
-          r.reconciliationId.toLowerCase() === searchQ.toLowerCase() ||
-          r.contractId.toLowerCase() === searchQ.toLowerCase()
-      );
+      const matched = reconciliationsList.find((r) => r.reconciliationId.toLowerCase() === searchQ.toLowerCase() || r.contractId.toLowerCase() === searchQ.toLowerCase());
       if (matched) {
         const isDebt = matched.refundAmount < 0 && (matched.status === "Chờ xử lý" || matched.status === "Đã hoàn thành");
         if (isDebt) {
@@ -124,7 +120,7 @@ export function CreateReconciliation() {
       violationFines: contract.violationFines.toString(),
       otherDeductions: contract.otherDeductions.toString(),
       otherDeductionsNote: contract.otherDeductionsNote || "",
-      notes: ""
+      notes: "",
     });
     setShowCalcModal(true);
   };
@@ -156,12 +152,12 @@ export function CreateReconciliation() {
   };
 
   const handleSubmitToManager = async (reconciliationId: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn gửi bảng đối soát quyết toán này đến Quản lý phê duyệt không?")) {
+    if (!window.confirm("Xác nhận kết quả đối soát? Hệ thống sẽ gửi khoản phải thu thêm cho khách (nếu có), hoặc mở bước khách ký biên bản.")) {
       return;
     }
     try {
       await accountantService.submitReconciliation(reconciliationId);
-      alert("Đã gửi đối soát quyết toán đến Quản lý thành công!");
+      alert("Đã xác nhận kết quả đối soát thành công!");
       loadReconciliations();
     } catch (err) {
       console.error("Lỗi khi gửi đối soát đến Quản lý:", err);
@@ -200,9 +196,7 @@ export function CreateReconciliation() {
 
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-gray-900">
-            {activeTab === "Chờ tính toán" ? "Danh sách chờ đối soát" : "Danh sách khách nợ thu thêm"}
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900">{activeTab === "Chờ tính toán" ? "Danh sách chờ đối soát" : "Danh sách khách nợ thu thêm"}</h2>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -222,9 +216,7 @@ export function CreateReconciliation() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               {tab}
@@ -233,15 +225,10 @@ export function CreateReconciliation() {
         </div>
 
         {filteredReconciliations.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-550 shadow-sm">
-            Không có thông tin đối soát nào trong danh mục này.
-          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-550 shadow-sm">Không có thông tin đối soát nào trong danh mục này.</div>
         ) : (
           filteredReconciliations.map((recon) => (
-            <div
-              key={recon.reconciliationId}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-            >
+            <div key={recon.reconciliationId} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div>
@@ -252,11 +239,7 @@ export function CreateReconciliation() {
                   </div>
                   <span
                     className={`px-3 py-1 text-sm font-medium rounded-full ${
-                      recon.status === "Chờ tính toán"
-                        ? "bg-orange-100 text-orange-700"
-                        : recon.status === "Chờ xử lý"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-green-100 text-green-700"
+                      recon.status === "Chờ tính toán" ? "bg-orange-100 text-orange-700" : recon.status === "Chờ xử lý" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
                     }`}
                   >
                     {recon.status}
@@ -279,9 +262,7 @@ export function CreateReconciliation() {
                     {activeTab === "Chờ tính toán" && !recon.isCalculated ? (
                       <span className="text-gray-400 italic font-semibold">Chưa tính toán</span>
                     ) : (
-                      <span className={`text-2xl font-black ${recon.refundAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {Math.abs(recon.refundAmount).toLocaleString()} VNĐ
-                      </span>
+                      <span className={`text-2xl font-black ${recon.refundAmount >= 0 ? "text-green-600" : "text-red-600"}`}>{Math.abs(recon.refundAmount).toLocaleString()} VNĐ</span>
                     )}
                   </div>
 
@@ -299,13 +280,11 @@ export function CreateReconciliation() {
                           disabled={!recon.isCalculated}
                           onClick={() => handleSubmitToManager(recon.reconciliationId)}
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-sm shadow-sm ${
-                            recon.isCalculated
-                              ? "bg-blue-600 hover:bg-blue-700 text-white"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                            recon.isCalculated ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
                           }`}
                         >
                           <Send className="w-4 h-4" />
-                          Gửi đến Quản lý
+                          Gửi đến khách hàng
                         </button>
                       </>
                     ) : (
@@ -325,13 +304,7 @@ export function CreateReconciliation() {
                         {!recon.invoiceId && (
                           <button
                             onClick={async () => {
-                              if (
-                                !window.confirm(
-                                  `Bạn có chắc chắn muốn phát hành yêu cầu thanh toán thu thêm số tiền ${Math.abs(
-                                    recon.refundAmount
-                                  ).toLocaleString()} VNĐ cho khách hàng không?`
-                                )
-                              ) {
+                              if (!window.confirm(`Bạn có chắc chắn muốn phát hành yêu cầu thanh toán thu thêm số tiền ${Math.abs(recon.refundAmount).toLocaleString()} VNĐ cho khách hàng không?`)) {
                                 return;
                               }
                               try {
@@ -342,11 +315,7 @@ export function CreateReconciliation() {
                                   totalAmount: Math.abs(recon.refundAmount),
                                   notes: `Yêu cầu thu thêm tiền chênh lệch đối soát trả phòng hợp đồng ${recon.contractId}.`,
                                 });
-                                alert(
-                                  `Đã phát hành yêu cầu thanh toán thêm số tiền ${Math.abs(
-                                    recon.refundAmount
-                                  ).toLocaleString()} VNĐ cho khách hàng!`
-                                );
+                                alert(`Đã phát hành yêu cầu thanh toán thêm số tiền ${Math.abs(recon.refundAmount).toLocaleString()} VNĐ cho khách hàng!`);
                                 loadReconciliations();
                               } catch (err) {
                                 console.error(err);
@@ -360,21 +329,15 @@ export function CreateReconciliation() {
                         )}
 
                         {recon.invoiceId && recon.invoiceStatus === "cho_thanh_toan" && !recon.invoiceHasProof && (
-                          <span className="px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full flex items-center">
-                            Chờ khách thanh toán
-                          </span>
+                          <span className="px-3 py-1.5 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full flex items-center">Chờ khách thanh toán</span>
                         )}
 
                         {recon.invoiceId && recon.invoiceStatus === "cho_thanh_toan" && recon.invoiceHasProof && (
-                          <span className="px-3 py-1.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full flex items-center">
-                            Chờ xác nhận thanh toán
-                          </span>
+                          <span className="px-3 py-1.5 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full flex items-center">Chờ xác nhận thanh toán</span>
                         )}
 
                         {recon.invoiceId && recon.invoiceStatus === "da_thanh_toan" && (
-                          <span className="px-3 py-1.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full flex items-center">
-                            Đã thu tiền (Hoàn tất quyết toán)
-                          </span>
+                          <span className="px-3 py-1.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full flex items-center">Đã thu tiền (Hoàn tất quyết toán)</span>
                         )}
                       </>
                     )}
@@ -426,10 +389,7 @@ export function CreateReconciliation() {
                     Ngày trả thực tế: <span className="font-bold text-gray-900">{selectedContract.moveOutDate}</span>
                   </div>
                   <div>
-                    Thời gian lưu trú:{" "}
-                    <span className="font-bold text-gray-900">
-                      {getStayDuration(selectedContract.moveInDate, selectedContract.moveOutDate).text}
-                    </span>
+                    Thời gian lưu trú: <span className="font-bold text-gray-900">{getStayDuration(selectedContract.moveInDate, selectedContract.moveOutDate).text}</span>
                   </div>
                 </div>
               )}
@@ -440,9 +400,7 @@ export function CreateReconciliation() {
               const info = calculateProposedRefundRate(selectedContract);
               return (
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5 text-sm flex items-start gap-3">
-                  <div className="p-2 bg-emerald-100 rounded-lg text-emerald-800 font-extrabold text-lg flex items-center justify-center min-w-[50px]">
-                    {info.rate}%
-                  </div>
+                  <div className="p-2 bg-emerald-100 rounded-lg text-emerald-800 font-extrabold text-lg flex items-center justify-center min-w-[50px]">{info.rate}%</div>
                   <div>
                     <h4 className="font-bold text-emerald-950">Tỷ lệ hoàn cọc đề xuất</h4>
                     <p className="text-xs text-emerald-800 font-medium mt-0.5">{info.reason}</p>
@@ -529,11 +487,7 @@ export function CreateReconciliation() {
                 const currentBaseRefund = Math.round(selectedContract.deposit * (refundRate / 100));
                 const totalDeductions = selectedContract.isDepositRefund
                   ? 0
-                  : Number(deductions.damages) +
-                    Number(deductions.utilities) +
-                    Number(deductions.rentArrears) +
-                    Number(deductions.violationFines) +
-                    Number(deductions.otherDeductions);
+                  : Number(deductions.damages) + Number(deductions.utilities) + Number(deductions.rentArrears) + Number(deductions.violationFines) + Number(deductions.otherDeductions);
                 const finalAmount = currentBaseRefund - totalDeductions;
                 return (
                   <div className="space-y-4">
@@ -553,12 +507,8 @@ export function CreateReconciliation() {
                         </div>
                       )}
                       <div className="flex justify-between items-center text-sm pt-1.5 font-bold">
-                        <span className="text-gray-800">
-                          {finalAmount >= 0 ? "Tiền cọc trả lại khách dự kiến:" : "Tiền thu thêm dự kiến:"}
-                        </span>
-                        <span className={finalAmount >= 0 ? "text-emerald-600 text-base" : "text-red-600 text-base"}>
-                          {Math.abs(finalAmount).toLocaleString()} VNĐ
-                        </span>
+                        <span className="text-gray-800">{finalAmount >= 0 ? "Tiền cọc trả lại khách dự kiến:" : "Tiền thu thêm dự kiến:"}</span>
+                        <span className={finalAmount >= 0 ? "text-emerald-600 text-base" : "text-red-600 text-base"}>{Math.abs(finalAmount).toLocaleString()} VNĐ</span>
                       </div>
                     </div>
 
@@ -569,8 +519,7 @@ export function CreateReconciliation() {
                         <div>
                           <h4 className="font-bold text-red-950">Khách hàng còn nợ thêm</h4>
                           <p className="text-xs font-semibold mt-0.5">
-                            Số tiền khách cần nộp bổ sung là {Math.abs(finalAmount).toLocaleString()} VNĐ. Vui lòng gửi yêu cầu
-                            thanh toán thêm sau khi lưu bảng đối soát.
+                            Số tiền khách cần nộp bổ sung là {Math.abs(finalAmount).toLocaleString()} VNĐ. Vui lòng gửi yêu cầu thanh toán thêm sau khi lưu bảng đối soát.
                           </p>
                         </div>
                       </div>
@@ -581,16 +530,10 @@ export function CreateReconciliation() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowCalcModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setShowCalcModal(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
                 Hủy
               </button>
-              <button
-                onClick={handleConfirmCalculate}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-              >
+              <button onClick={handleConfirmCalculate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
                 Xác nhận & Lưu lại
               </button>
             </div>
@@ -646,24 +589,18 @@ export function CreateReconciliation() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Tiền hoàn cơ bản ({selectedContract.refundRate}%):</span>
-                      <span className="font-medium text-green-600">
-                        +{selectedContract.baseRefundAmount.toLocaleString()} VNĐ
-                      </span>
+                      <span className="font-medium text-green-600">+{selectedContract.baseRefundAmount.toLocaleString()} VNĐ</span>
                     </div>
 
                     <div className="pl-4 py-2 my-2 border-l-2 border-gray-200 space-y-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                        Các khoản đã khấu trừ
-                      </p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Các khoản đã khấu trừ</p>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Hư hại tài sản phòng:</span>
                         <span className="font-medium text-red-600">-{selectedContract.damages.toLocaleString()} VNĐ</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Nợ điện nước dịch vụ:</span>
-                        <span className="font-medium text-red-600">
-                          -{selectedContract.unpaidUtilities.toLocaleString()} VNĐ
-                        </span>
+                        <span className="font-medium text-red-600">-{selectedContract.unpaidUtilities.toLocaleString()} VNĐ</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Nợ tiền phòng lưu trú:</span>
@@ -671,31 +608,21 @@ export function CreateReconciliation() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Phạt vi phạm quy định:</span>
-                        <span className="font-medium text-red-600">
-                          -{selectedContract.violationFines.toLocaleString()} VNĐ
-                        </span>
+                        <span className="font-medium text-red-600">-{selectedContract.violationFines.toLocaleString()} VNĐ</span>
                       </div>
                       {selectedContract.otherDeductions > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">
-                            Khấu trừ khác {selectedContract.otherDeductionsNote ? `(${selectedContract.otherDeductionsNote})` : ""}:
-                          </span>
-                          <span className="font-medium text-red-600">
-                            -{selectedContract.otherDeductions.toLocaleString()} VNĐ
-                          </span>
+                          <span className="text-gray-600">Khấu trừ khác {selectedContract.otherDeductionsNote ? `(${selectedContract.otherDeductionsNote})` : ""}:</span>
+                          <span className="font-medium text-red-600">-{selectedContract.otherDeductions.toLocaleString()} VNĐ</span>
                         </div>
                       )}
                     </div>
 
                     <div className="flex justify-between items-center text-lg pt-4 border-t border-gray-200">
-                      <span className="font-bold text-gray-900">
-                        {selectedContract.refundAmount >= 0 ? "Tiền cọc chi trả lại khách" : "Số tiền thu thêm của khách"}
-                      </span>
-                      <span
-                        className={`text-xl font-bold ${selectedContract.refundAmount >= 0 ? "text-blue-600" : "text-red-600"}`}
-                      >
-                        {selectedContract.refundAmount >= 0 ? "" : "-"}{Math.abs(selectedContract.refundAmount).toLocaleString()}{" "}
-                        VNĐ
+                      <span className="font-bold text-gray-900">{selectedContract.refundAmount >= 0 ? "Tiền cọc chi trả lại khách" : "Số tiền thu thêm của khách"}</span>
+                      <span className={`text-xl font-bold ${selectedContract.refundAmount >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                        {selectedContract.refundAmount >= 0 ? "" : "-"}
+                        {Math.abs(selectedContract.refundAmount).toLocaleString()} VNĐ
                       </span>
                     </div>
                   </div>
@@ -715,10 +642,7 @@ export function CreateReconciliation() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setShowDetailsModal(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
                 Đóng
               </button>
               <button

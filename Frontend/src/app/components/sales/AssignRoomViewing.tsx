@@ -99,7 +99,8 @@ export function AssignRoomViewing() {
       setSubmitting(true);
       await salesApi.createSchedule(reg.applicationId, {
         roomId: selectedRoom.roomId,
-        appointmentAt: new Date(appointmentDate).toISOString(),
+        // Lịch xem là mốc giờ địa phương do Sale nhập, không phải thời điểm UTC.
+        appointmentAt: appointmentDate,
         note: appointmentNote,
       });
 

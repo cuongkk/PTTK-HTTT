@@ -19,8 +19,8 @@ Các trường hợp hiển thị chi tiết được xác định bằng cách 
 | --------- | ---------------- | --------------------------------------- | ---------------------------- | --------------- | ------------------------------------------------------------------------------------ |
 | `PHONG_1` | `trong`          | Không có hồ sơ/lịch                     | Chưa có khách đăng ký        | Khách hàng      | Gửi đăng ký → tạo hồ sơ `moi`                                                        |
 | `PHONG_2` | `trong`          | Hồ sơ `moi`, chưa có lịch               | Khách vừa đăng ký            | Sale            | Tiếp nhận và tạo lịch xem `sap_den`                                                  |
-| `PHONG_3` | `trong`          | Hồ sơ `moi`, lịch `sap_den`             | Lịch xem phòng sắp đến       | Khách hàng      | Xem ngày giờ hẹn, chờ Sale bắt đầu buổi xem                                          |
-| `PHONG_4` | `trong`          | Hồ sơ `moi`, lịch `dang_xem`            | Khách và Sale đang xem phòng | Khách hàng      | Mở thông tin giá, sức chứa, nội quy, dịch vụ và quy định cọc; Sale kết thúc buổi xem |
+| `PHONG_3` | `trong`          | Hồ sơ `moi`, lịch `sap_den`             | Chờ khách xác nhận lịch      | Khách hàng      | Xác nhận thông tin phòng → lịch `dang_xem`                                           |
+| `PHONG_4` | `trong`          | Hồ sơ `moi`, lịch `dang_xem`            | Khách và Sale đang xem phòng | Sale            | Xác nhận khách đã xem xong → lịch `hoan_thanh`, hồ sơ `da_xem_phong`                 |
 | `PHONG_5` | `trong`          | Hồ sơ `da_xem_phong`, lịch `hoan_thanh` | Sale đã xác nhận xem xong    | Khách hàng      | Gửi yêu cầu cọc → hồ sơ `cho_sale_ra_soat_coc`                                       |
 
 Phòng vẫn `trong` trong cả bốn trường hợp. Chỉ sau khi Kế toán xác nhận tiền cọc, phòng mới chuyển `da_dat_coc`.
@@ -53,6 +53,7 @@ Nhóm này bổ sung các trạng thái từ lúc khách yêu cầu đặt cọc
 | `PHONG_7`          | `trong`          | `cho_quan_ly_xac_nhan_coc` | Chưa có                              | Sale đã rà soát, chờ kiểm tra chỗ trống | Quản lý         | Xác nhận phòng còn trống → hồ sơ `cho_khach_xac_nhan_dieu_kien_coc`                                  |
 | `PHONG_42`         | `trong`          | `cho_khach_xac_nhan_dieu_kien_coc` | Chưa có                       | Điều kiện thuê đã được rà soát           | Khách hàng      | Xem và đồng ý điều kiện thuê, nội quy → hồ sơ `cho_ke_toan_tinh_tien_coc`                             |
 | `PHONG_43`         | `trong`          | `cho_ke_toan_tinh_tien_coc` | Chưa có                             | Khách đã xác nhận tuân thủ                | Kế toán         | Tính tiền cọc, lập yêu cầu thanh toán → hồ sơ `cho_khach_thanh_toan_coc`, phiếu `cho_thanh_toan`     |
+| `PHONG_44`         | `trong`          | `cho_khach_thanh_toan_coc` | Chưa có                              | Đủ điều kiện nhưng chưa có phiếu cọc      | Sale            | Lập phiếu đặt cọc và thời hạn giữ chỗ → phiếu `cho_thanh_toan`                                      |
 | `PHONG_8`          | `trong`          | `cho_khach_thanh_toan_coc` | `cho_thanh_toan`, chưa có minh chứng | Phiếu cọc đã lập                        | Khách hàng      | Thanh toán và tải minh chứng → hồ sơ `cho_ke_toan_xac_nhan_coc`                                     |
 | `PHONG_9`          | `trong`          | `cho_ke_toan_xac_nhan_coc` | `cho_thanh_toan`, đã có minh chứng   | Khách đã thanh toán                     | Kế toán         | Đối chiếu → phiếu `hoan_thanh`, hồ sơ `da_dat_coc`, phòng `da_dat_coc`                              |
 | `PHONG_10`         | `da_dat_coc`     | `da_dat_coc`               | `hoan_thanh`                         | Đặt cọc hoàn tất                        | Khách hàng      | Tiếp tục UC3 hoặc yêu cầu hoàn cọc                                                                  |
@@ -112,6 +113,15 @@ Sau khi khách xác nhận bảng hiện trạng/đối soát, actor tiếp theo
 | `PHONG_38`         | `so_tien_thu_them > 0`; yêu cầu `cho_hoan_tien`; hợp đồng `cho_hoan_coc` | Hóa đơn `thu_them = cho_thanh_toan`, chưa có minh chứng | Khách hàng      | Thanh toán khoản phát sinh và tải minh chứng                                        |
 | `PHONG_39`         | Yêu cầu `cho_hoan_tien`; hợp đồng `cho_hoan_coc`                         | Hóa đơn `thu_them = cho_thanh_toan` + minh chứng        | Kế toán         | Xác nhận tiền → hóa đơn `da_thanh_toan`, hợp đồng `thanh_ly`, phòng `trong`         |
 | `PHONG_40`         | Yêu cầu `cho_doi_soat`; hợp đồng `cho_doi_soat`; đối soát `da_xac_nhan`  | Không phát sinh giao dịch                               | Kế toán         | Xác nhận hoàn tất → hợp đồng `thanh_ly`, phòng `trong`                              |
+
+## Bốn phòng mốc dùng để chuẩn bị demo theo UC
+
+| Mã phòng | Khu vực | Hình thức | Giường và trạng thái | Mục đích |
+|---|---|---|---|---|
+| `PHONG_UC1` | Quận 5 | Ở ghép, 4 giường | 4 giường `trong` | UC1 - Đăng ký thuê và xem phòng |
+| `PHONG_UC2` | Quận 5 | Nguyên phòng, sức chứa 2 | 2 vị trí `trong`; hồ sơ `HSUC20000001` đã xem phòng | UC2 - Đặt cọc và xác nhận thuê |
+| `PHONG_UC3` | Thủ Đức | Ở ghép, 4 giường | Giường 1-2 `da_dat_coc` bởi phiếu `DCUC30000001`; giường 3-4 `trong` | UC3 - Ký hợp đồng và nhận phòng |
+| `PHONG_UC4` | Thủ Đức | Ở ghép, 6 giường | Giường 1-3 `dang_thue` theo hợp đồng `HDUC40000001`; giường 4-6 `trong` | UC4 - Trả phòng, đối soát và hoàn cọc |
 
 Phân biệt rõ:
 

@@ -10,6 +10,8 @@ function GetInvoiceTypeName(type: string) {
       return "Tiền thuê phòng tháng";
     case "dich_vu":
       return "Phí dịch vụ sinh hoạt";
+    case "nhan_phong_dich_vu":
+      return "Khoản nhận phòng và dịch vụ";
     case "hoan_coc":
       return "Hoàn tiền cọc";
     case "thu_them":
@@ -17,6 +19,26 @@ function GetInvoiceTypeName(type: string) {
     default:
       return type;
   }
+}
+
+function groupCheckInPayments(invoices: Invoice[]): Invoice[] {
+  return Object.values(invoices.reduce<Record<string, Invoice[]>>((groups, invoice) => {
+    const isCheckInCharge = invoice.invoiceType === "tien_thue" || invoice.invoiceType === "dich_vu";
+    const day = new Date(invoice.createdAt).toISOString().slice(0, 10);
+    const key = isCheckInCharge ? `check-in:${invoice.roomName}:${day}` : `invoice:${invoice.invoiceId}`;
+    (groups[key] ??= []).push(invoice);
+    return groups;
+  }, {})).map((group) => {
+    if (group.length === 1) return group[0];
+    const first = group[0];
+    return {
+      ...first,
+      invoiceId: group.map((invoice) => invoice.invoiceId).join("|"),
+      invoiceType: "nhan_phong_dich_vu",
+      totalAmount: group.reduce((total, invoice) => total + invoice.totalAmount, 0),
+      notes: `Gồm ${group.length} khoản thu: ${group.map((invoice) => GetInvoiceTypeName(invoice.invoiceType)).join(", ")}`,
+    };
+  });
 }
 
 export function PaymentConfirmation() {
@@ -37,7 +59,7 @@ export function PaymentConfirmation() {
         accountantService.getPendingConfirmations(),
         accountantService.getSentRequests(),
       ]);
-      setPendingPayments(list);
+      setPendingPayments(groupCheckInPayments(list));
       
       const todayStr = new Date().toDateString();
       const todayConfirmed = allInvoices.filter(i => 
@@ -67,7 +89,7 @@ export function PaymentConfirmation() {
     if (!window.confirm(`Bạn có chắc chắn muốn phê duyệt thanh toán cho hóa đơn ${receiptPayment.invoiceId} không?`)) return;
     setActioning(true);
     try {
-      await accountantService.approvePayment(receiptPayment.invoiceId);
+      await Promise.all(receiptPayment.invoiceId.split("|").map((invoiceId) => accountantService.approvePayment(invoiceId)));
       alert(`Thanh toán cho hóa đơn ${receiptPayment.invoiceId} đã được phê duyệt thành công!`);
       setShowReceiptModal(false);
       setReceiptPayment(null);
@@ -88,7 +110,7 @@ export function PaymentConfirmation() {
     
     setActioning(true);
     try {
-      await accountantService.rejectPayment(invoiceId, reason);
+      await Promise.all(invoiceId.split("|").map((id) => accountantService.rejectPayment(id, reason)));
       alert(`Đã từ chối thanh toán hóa đơn ${invoiceId}.`);
       loadConfirmations();
     } catch (err) {

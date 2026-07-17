@@ -12,9 +12,9 @@ export function CustomerPayments() {
   const [error, setError] = useState("");
   const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
 
-  const confirmPayment = async (invoiceId: string) => {
-    await customerWorkflowService.confirmPayment(invoiceId);
-    setConfirmedIds((current) => current.includes(invoiceId) ? current : [...current, invoiceId]);
+  const confirmPayment = async (invoiceIds: string[]) => {
+    await Promise.all(invoiceIds.map((invoiceId) => customerWorkflowService.confirmPayment(invoiceId)));
+    setConfirmedIds((current) => [...new Set([...current, ...invoiceIds])]);
   };
 
   useEffect(() => {
@@ -29,12 +29,12 @@ export function CustomerPayments() {
       <div className="space-y-3">
         {payments.map((item) => {
           const expanded = expandedId === item.invoiceId;
-          const confirmed = item.status === "da_thanh_toan" || confirmedIds.includes(item.invoiceId);
+          const confirmed = item.status === "da_thanh_toan" || item.invoiceIds.every((invoiceId) => confirmedIds.includes(invoiceId));
           const Icon = confirmed ? CheckCircle2 : item.proofImageUrl ? Clock3 : AlertCircle;
           return (
             <article key={item.invoiceId} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
               <button onClick={() => setExpandedId(expanded ? null : item.invoiceId)} className="grid w-full gap-2 px-5 py-4 text-left md:grid-cols-[1fr_1.5fr_1fr_1fr_1fr_auto] md:items-center">
-                <span className="text-sm text-gray-500">{item.invoiceId}</span>
+                <span className="text-sm text-gray-500">{item.invoiceId}{item.invoiceIds.length > 1 ? ` (+${item.invoiceIds.length - 1} khoản)` : ""}</span>
                 <div><strong className="text-sm">{item.paymentType}</strong><p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleDateString("vi-VN")}</p></div>
                 <span className="text-sm">{item.roomName}</span>
                 <strong className="text-sm">{item.amount.toLocaleString("vi-VN")} đ</strong>
@@ -50,7 +50,7 @@ export function CustomerPayments() {
                     accountNumber={item.bankAccountNumber}
                     accountHolder={item.bankAccountHolder}
                     confirmed={confirmed}
-                    onConfirm={() => void confirmPayment(item.invoiceId)}
+                    onConfirm={() => void confirmPayment(item.invoiceIds)}
                   />
                   {item.paidAt && <p className="mt-3 text-xs text-gray-500">Đã xác nhận lúc {new Date(item.paidAt).toLocaleString("vi-VN")}</p>}
                 </div>
