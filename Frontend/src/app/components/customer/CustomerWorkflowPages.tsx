@@ -303,6 +303,14 @@ export function CustomerRooms() {
                       <button onClick={() => navigate(`/customer/handovers/${room.id}`)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                         Xem biên bản bàn giao
                       </button>
+                    ) : room.applicationStatus === "cho_sale_doi_chieu_nhan_phong" ? (
+                      <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+                        Chờ Sale đối chiếu hồ sơ nhận phòng
+                      </span>
+                    ) : room.applicationStatus === "cho_quan_ly_duyet_nhan_phong" ? (
+                      <span className="rounded-lg bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+                        Chờ Quản lý kiểm tra điều kiện lưu trú
+                      </span>
                     ) : (
                       <button
                         onClick={() => navigate(`/customer/check-ins/NP-${room.id}${room.applicationStatus === "du_dieu_kien_nhan_phong" ? "?profileApproved=true" : ""}`)}
@@ -1082,7 +1090,7 @@ export function CustomerCheckIn() {
           setSubmitError("");
           try {
             await customerWorkflowService.submitCheckInProfile(contractRoomId);
-            setSubmitted(true);
+            navigate("/customer/my-rooms?tab=deposited");
           } catch (error) {
             setSubmitError(error instanceof Error ? error.message : "Không thể gửi hồ sơ nhận phòng.");
           } finally {

@@ -109,8 +109,8 @@
 | Bước | Actor | Thao tác |
 |---:|---|---|
 | 1 | Khách hàng | Mở `UCHoanTien` trong Phòng của tôi, nhập lý do và gửi yêu cầu hoàn cọc. |
-| 2 | Sale | Tiếp nhận yêu cầu hoàn cọc và chuyển Quản lý xác nhận điều kiện. |
-| 3 | Quản lý | Xác nhận điều kiện hoàn cọc, chuyển phiếu sang `cho_doi_soat_hoan_coc`. |
+| 2 | Sale | Kiểm tra hồ sơ, phiếu cọc và lý do hoàn cọc; chuyển Quản lý xác nhận điều kiện, phiếu sang `dang_xac_nhan_hoan_coc`. |
+| 3 | Quản lý | Xác nhận điều kiện hoàn cọc; chuyển phiếu sang `cho_doi_soat_hoan_coc` cho Kế toán. |
 | 4 | Kế toán | Mở **Lập đối soát**, tính tỷ lệ/số tiền hoàn 2.400.000 VNĐ (80%) và gửi kết quả cho khách. |
 | 5 | Khách hàng | Xác nhận thông tin nhận tiền, chuyển phiếu sang `cho_hoan_tien`. |
 | 6 | Kế toán | Mở **Hoàn cọc**, thực hiện chi hoàn và tạo chứng từ. |
@@ -130,3 +130,16 @@ moi
 → cho_khach_thanh_toan_coc
 → da_dat_coc
 ```
+
+## Luồng hoàn cọc trước ký hợp đồng
+
+```text
+Khách hàng gửi yêu cầu hoàn cọc → cho_tiep_nhan_hoan_coc
+Sale kiểm tra hồ sơ, phiếu cọc và lý do; chuyển Quản lý → dang_xac_nhan_hoan_coc
+Quản lý xác nhận điều kiện hoàn cọc → cho_doi_soat_hoan_coc
+Kế toán tính số tiền hoàn và gửi Khách xác nhận → cho_khach_xac_nhan_hoan_coc
+Khách xác nhận thông tin nhận tiền → cho_hoan_tien
+Kế toán chi hoàn → da_hoan_coc
+```
+
+Sale luôn xử lý trước Quản lý; Kế toán chỉ nhận hồ sơ sau khi Quản lý xác nhận điều kiện hoàn cọc.

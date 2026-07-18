@@ -68,11 +68,10 @@ public static class DbSeeder
             db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC20000002", ApplicationId = uc2ApplicationId, FullName = "Phạm Minh Khang", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000012", DateOfBirth = new DateOnly(2003, 9, 18), PermanentAddress = "18 Lý Thường Kiệt, Quận 10, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
         await db.SaveChangesAsync();
 
-        // UC3 - Khách đã bổ sung hồ sơ nhận phòng; Sale cần đối chiếu trước khi chuyển Quản lý duyệt.
+        // UC3 - Khách đã đặt cọc và cần bổ sung thông tin nhận phòng.
         const string uc3ApplicationId = "HSUC30000001";
         const string uc3ScheduleId = "LXUC30000001";
         const string uc3DepositId = "DCUC30000001";
-        const string uc3ContractId = "HDUC30000001";
         if (!await db.RentalApplications.AnyAsync(x => x.ApplicationId == uc3ApplicationId))
             db.RentalApplications.Add(new RentalApplication
             {
@@ -91,9 +90,12 @@ public static class DbSeeder
                 LivingSchedule = "Về trước 22:30",
                 RequiresQuietLifestyle = true,
                 RequiresAirConditioner = true,
-                Status = "du_dieu_kien_nhan_phong",
+                Status = "da_dat_coc",
                 CreatedAt = new DateTime(2026, 7, 12, 8, 0, 0, DateTimeKind.Utc),
             });
+        await db.SaveChangesAsync();
+        var uc3Application = await db.RentalApplications.FirstAsync(x => x.ApplicationId == uc3ApplicationId);
+        uc3Application.Gender = "Nam";
         await db.SaveChangesAsync();
         if (!await db.RoomViewingSchedules.AnyAsync(x => x.ScheduleId == uc3ScheduleId))
             db.RoomViewingSchedules.Add(new RoomViewingSchedule { ScheduleId = uc3ScheduleId, ApplicationId = uc3ApplicationId, SalesEmployeeId = "NV00000005", AppointmentAt = new DateTime(2026, 7, 13, 9, 0, 0), Status = "hoan_thanh", Note = "Dữ liệu demo UC3 - khách đã xem Phòng UC3" });
@@ -106,19 +108,18 @@ public static class DbSeeder
         foreach (var bedId in new[] { "GPHONGUC31", "GPHONGUC32" })
             if (!await db.DepositBeds.AnyAsync(x => x.DepositId == uc3DepositId && x.BedId == bedId))
                 db.DepositBeds.Add(new DepositBed { DepositId = uc3DepositId, BedId = bedId });
-        if (!await db.RentalContracts.AnyAsync(x => x.ContractId == uc3ContractId))
-            db.RentalContracts.Add(new RentalContract { ContractId = uc3ContractId, DepositId = uc3DepositId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", RoomId = "PHONG_UC3", NumberOfBeds = 2, MonthlyRent = 2800000, PaymentCycle = "hang_thang", SignedDate = new DateOnly(2026, 7, 17), StartDate = new DateOnly(2026, 8, 20), EndDate = new DateOnly(2027, 8, 19), Status = "cho_xac_nhan_ban_giao" });
-        await db.SaveChangesAsync();
-        if (!await db.Invoices.AnyAsync(x => x.InvoiceId == "HDUC3NP00001"))
-            db.Invoices.Add(new Invoice { InvoiceId = "HDUC3NP00001", CustomerId = "KH0000000001", AccountantEmployeeId = "NV00000004", ContractId = uc3ContractId, InvoiceType = "tien_thue", DocumentType = "thu", TotalAmount = 2800000, PaymentMethod = "chuyen_khoan", TransactionId = "DEMO-HDUC3NP00001", ProofImageUrl = "/demo/demo-payment-proof.png", CreatedAt = new DateTime(2026, 7, 17, 9, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 17, 9, 10, 0, 0, DateTimeKind.Utc), Status = "da_thanh_toan", Note = "Khoản nhận phòng UC3 đã được Kế toán xác nhận." });
-        await db.SaveChangesAsync();
         if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC30000001"))
-            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000001", ApplicationId = uc3ApplicationId, ContractId = uc3ContractId, CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", FinancialDocumentUrl = "/demo/demo-document.png", IsPrimaryTenant = true, IsEligible = true });
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000001", ApplicationId = uc3ApplicationId, CustomerId = "KH0000000001", FullName = "Nguyễn Gia Bảo", Gender = "Nam", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079203000001", DateOfBirth = new DateOnly(2003, 5, 12), PermanentAddress = "25 Nguyễn Trãi, Quận 5, TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", FinancialDocumentUrl = "/demo/demo-document.png", IsPrimaryTenant = true, IsEligible = true });
         if (!await db.TenantMembers.AnyAsync(x => x.TenantMemberId == "TVUC30000002"))
-            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000002", ApplicationId = uc3ApplicationId, ContractId = uc3ContractId, FullName = "Lê Minh Anh", Gender = "Nu", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079204000013", DateOfBirth = new DateOnly(2004, 10, 8), PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
+            db.TenantMembers.Add(new TenantMember { TenantMemberId = "TVUC30000002", ApplicationId = uc3ApplicationId, FullName = "Lê Minh Anh", Gender = "Nu", Nationality = "Việt Nam", DocumentType = "CCCD", NationalId = "079204000013", DateOfBirth = new DateOnly(2004, 10, 8), PermanentAddress = "TP.HCM", OccupationOrSchool = "Sinh viên", DocumentImageUrl = "/demo/demo-document.png", IsPrimaryTenant = false, IsEligible = true });
         await db.SaveChangesAsync();
 
         // UC4 - Trả phòng và hoàn cọc: bắt đầu từ hợp đồng hiệu lực đã nhận bàn giao.
+        var uc3SecondaryTenant = await db.TenantMembers.FirstAsync(x => x.TenantMemberId == "TVUC30000002");
+        uc3SecondaryTenant.FullName = "Trần Minh Anh";
+        uc3SecondaryTenant.Gender = "Nam";
+        await db.SaveChangesAsync();
+
         const string uc4ApplicationId = "HSUC40000001";
         const string uc4ScheduleId = "LXUC40000001";
         const string uc4DepositId = "DCUC40000001";
@@ -157,6 +158,24 @@ public static class DbSeeder
         await db.SaveChangesAsync();
 
         // UCHoanTien - nhánh hoàn cọc trước ký hợp đồng, bắt đầu từ lúc khách tự gửi yêu cầu.
+        // UC4 phải bắt đầu trước bước Khách hàng gửi yêu cầu trả phòng.
+        // Xóa mọi dữ liệu phát sinh của luồng trả phòng/đối soát nhưng giữ hợp đồng
+        // đang hiệu lực, biên bản bàn giao đầu kỳ và ba giường đang thuê.
+        var uc4ReconciliationIds = await db.Reconciliations
+            .Where(x => x.ContractId == uc4ContractId)
+            .Select(x => x.ReconciliationId)
+            .ToListAsync();
+        db.CheckoutRequests.RemoveRange(await db.CheckoutRequests.Where(x => x.ContractId == uc4ContractId).ToListAsync());
+        if (uc4ReconciliationIds.Count > 0)
+        {
+            db.CheckoutReports.RemoveRange(await db.CheckoutReports.Where(x => uc4ReconciliationIds.Contains(x.ReconciliationId)).ToListAsync());
+            db.AdditionalCosts.RemoveRange(await db.AdditionalCosts.Where(x => uc4ReconciliationIds.Contains(x.ReconciliationId)).ToListAsync());
+            db.Reconciliations.RemoveRange(await db.Reconciliations.Where(x => x.ContractId == uc4ContractId).ToListAsync());
+        }
+        var uc4Contract = await db.RentalContracts.FirstAsync(x => x.ContractId == uc4ContractId);
+        uc4Contract.Status = "hieu_luc";
+        await db.SaveChangesAsync();
+
         const string refundApplicationId = "HSUCHT000001";
         const string refundScheduleId = "LXUCHT000001";
         const string refundDepositId = "DCUCHT000001";
@@ -265,6 +284,8 @@ public static class DbSeeder
 
         foreach (var room in rooms)
         {
+            if (room.RoomId == "PHONG_UC3")
+                room.AllowedGender = "nam";
             var existingRoom = await db.Rooms.FirstOrDefaultAsync(x => x.RoomId == room.RoomId);
             if (existingRoom is null) db.Rooms.Add(room);
             else

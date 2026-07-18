@@ -206,7 +206,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                 var bed = await _db.Beds.Include(b => b.Room).FirstOrDefaultAsync(b => b.BedId == firstBedId);
                 if (bed?.Room != null)
                 {
-                    roomName = $"{bed.Room.RoomName} (Giường {bed.BedNumber})";
+                    roomName = $"{bed.Room.RoomName}";
                     roomId = bed.Room.RoomId;
                 }
             }
@@ -250,7 +250,7 @@ public class SalesWorkflowService : ISalesWorkflowService
                 app.Customer?.FullName ?? "Chưa rõ",
                 app.Customer?.PhoneNumber ?? "Chưa rõ",
                 app.Customer?.Email ?? "Chưa rõ",
-                app.Customer?.Gender ?? "Nam",
+                app.Gender ?? app.Customer?.Gender ?? "Nam",
                 app.DesiredArea ?? "Quận 5",
                 app.NumberOfPeople,
                 priceRangeStr,

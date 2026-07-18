@@ -514,9 +514,12 @@ public class AccountantService : IAccountantService
         var result = new List<CheckInContractDto>();
         foreach (var c in contracts)
         {
-            // Chỉ hiển thị hợp đồng khi chưa có hóa đơn tiền thuê nhận phòng do kế toán tạo.
+            // Hóa đơn nháp do Sale tạo (chưa có mã Kế toán) vẫn cần hiện để Kế toán
+            // hoàn thiện khoản thu đầu kỳ. Chỉ ẩn khi Kế toán đã phát hành khoản thu.
             var hasCharges = await _dbContext.Invoices
-                .AnyAsync(i => i.ContractId == c.ContractId && i.InvoiceType == "tien_thue");
+                .AnyAsync(i => i.ContractId == c.ContractId
+                    && i.InvoiceType == "tien_thue"
+                    && i.AccountantEmployeeId != null);
 
             if (!hasCharges)
             {
@@ -554,22 +557,31 @@ public class AccountantService : IAccountantService
 
         var employeeId = await GetEmployeeIdFromAccountIdAsync(accountantId);
 
-        // Tạo hóa đơn tiền phòng tháng đầu
-        var rentInvoice = new Invoice
+        // Sale có thể đã tạo hóa đơn nháp cùng lúc lập hợp đồng. Kế toán nhận lại
+        // hóa đơn đó để tránh phát sinh hai khoản tiền thuê đầu kỳ cho cùng hợp đồng.
+        var rentInvoice = await _dbContext.Invoices.FirstOrDefaultAsync(i =>
+            i.ContractId == contract.ContractId
+            && i.InvoiceType == "tien_thue"
+            && i.AccountantEmployeeId == null);
+        if (rentInvoice == null)
         {
-            InvoiceId = IdGenerator.Generate("HD", 12),
-            CustomerId = contract.CustomerId,
-            AccountantEmployeeId = employeeId,
-            ContractId = contract.ContractId,
-            InvoiceType = "tien_thue",
-            DocumentType = "thu",
-            TotalAmount = dto.FirstMonthRent,
-            Status = "cho_thanh_toan",
-            BillingPeriod = contract.StartDate,
-            CreatedAt = DateTime.UtcNow,
-            Note = dto.Notes
-        };
-        await _dbContext.Invoices.AddAsync(rentInvoice);
+            rentInvoice = new Invoice
+            {
+                InvoiceId = IdGenerator.Generate("HD", 12),
+                CustomerId = contract.CustomerId,
+                ContractId = contract.ContractId,
+                InvoiceType = "tien_thue",
+                DocumentType = "thu",
+                Status = "cho_thanh_toan",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _dbContext.Invoices.AddAsync(rentInvoice);
+        }
+
+        rentInvoice.AccountantEmployeeId = employeeId;
+        rentInvoice.TotalAmount = dto.FirstMonthRent;
+        rentInvoice.BillingPeriod = contract.StartDate;
+        rentInvoice.Note = dto.Notes;
 
         // Tạo hóa đơn phí dịch vụ tháng đầu nếu có
         if (dto.OtherFees > 0)
