@@ -140,10 +140,9 @@ export function AssignRoomViewing() {
 
   const checkPriceMatch = reg && selectedRoom
     ? (() => {
-        const roomPrice = selectedRoom.roomPrice ?? 0;
-        const price = selectedRoom.roomType === "ghep" && selectedRoom.capacity > 0
-          ? roomPrice / selectedRoom.capacity
-          : roomPrice;
+        // Khoảng giá trên hồ sơ đăng ký là VNĐ/tháng của phòng.
+        // Không chia giá phòng ghép theo sức chứa khi đối chiếu.
+        const price = selectedRoom.roomPrice ?? 0;
 
         const min = reg.minimumPrice;
         const max = reg.maximumPrice;
@@ -244,9 +243,7 @@ export function AssignRoomViewing() {
                   {
                     label: "Mức giá thuê đề xuất",
                     req: reg.priceRange,
-                    roomVal: selectedRoom.roomType === "ghep"
-                      ? `${((selectedRoom.roomPrice ?? 0) / (selectedRoom.capacity || 1)).toLocaleString("vi-VN")} đ/giường (Tổng: ${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ)`
-                      : `${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ`,
+                    roomVal: `${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ/tháng`,
                     match: checkPriceMatch,
                   },
                 ].map((item) => (
