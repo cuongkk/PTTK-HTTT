@@ -55,7 +55,7 @@ public class AccountantService : IAccountantService
                     if (bed != null)
                     {
                         roomName = bed.Room.RoomName;
-                        monthlyRent = bed.Room.RoomType == "nguyen_can" ? (bed.Room.RoomPrice ?? 0) : bed.MonthlyRent;
+                        monthlyRent = bed.Room.RoomType == RoomType.Whole ? (bed.Room.RoomPrice ?? 0) : bed.MonthlyRent;
                     }
                 }
 
@@ -404,7 +404,7 @@ public class AccountantService : IAccountantService
                 contract.Status = "cho_xac_nhan_ban_giao";
 
                 // Cập nhật trạng thái giường/phòng sang 'dang_thue'
-                if (contract.Status == "hieu_luc" && contract.Room.RoomType == "nguyen_can")
+                if (contract.Status == "hieu_luc" && contract.Room.RoomType == RoomType.Whole)
                 {
                     contract.Room.Status = "dang_thue";
                     contract.Room.UpdatedAt = DateTime.UtcNow;
@@ -1066,7 +1066,7 @@ public class AccountantService : IAccountantService
         var room = await _dbContext.Rooms.FindAsync(contract.RoomId);
         if (room != null)
         {
-            if (room.RoomType == "nguyen_can")
+            if (room.RoomType == RoomType.Whole)
             {
                 room.Status = "trong";
                 room.UpdatedAt = DateTime.UtcNow;
