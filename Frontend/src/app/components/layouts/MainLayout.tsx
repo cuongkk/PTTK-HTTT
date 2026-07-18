@@ -48,21 +48,12 @@ const isCustomerNavigationActive = (itemPath: string, pathname: string) => {
   if (itemPath === "/customer") return pathname === itemPath;
   if (itemPath === "/customer/rooms") return pathname.startsWith("/customer/rooms");
   if (itemPath === "/customer/my-rooms") {
-    return [
-      "/customer/my-rooms",
-      "/customer/deposit-requests",
-      "/customer/deposit-refunds",
-      "/customer/check-ins",
-      "/customer/handovers",
-      "/customer/checkouts",
-    ].some((prefix) => pathname.startsWith(prefix));
+    return ["/customer/my-rooms", "/customer/deposit-requests", "/customer/deposit-refunds", "/customer/check-ins", "/customer/handovers", "/customer/checkouts"].some((prefix) =>
+      pathname.startsWith(prefix),
+    );
   }
   if (itemPath === "/customer/payments") {
-    return [
-      "/customer/payments",
-      "/customer/deposit-payments",
-      "/customer/check-in-payments",
-    ].some((prefix) => pathname.startsWith(prefix));
+    return ["/customer/payments", "/customer/deposit-payments", "/customer/check-in-payments"].some((prefix) => pathname.startsWith(prefix));
   }
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 };
@@ -194,15 +185,24 @@ export function MainLayout() {
       });
       return;
     }
+    if (location.pathname === "/") {
+      navigate(`/${mapRoleIdToPath(user.roleId)}`, { replace: true });
+      return;
+    }
+
     const allowedRoot = `/${mapRoleIdToRootPath(user.roleId)}`;
-    const currentRoot = location.pathname === "/" ? "/customer" : `/${location.pathname.split("/")[1]}`;
+    const currentRoot = `/${location.pathname.split("/")[1]}`;
     if (currentRoot !== allowedRoot) {
       navigate(`/${mapRoleIdToPath(user.roleId)}`, { replace: true });
     }
   }, [location.pathname, navigate]);
 
   useEffect(() => {
-    const loadUnread = () => notificationService.getMine().then((data) => setUnreadNotifications(data.unreadCount)).catch(() => undefined);
+    const loadUnread = () =>
+      notificationService
+        .getMine()
+        .then((data) => setUnreadNotifications(data.unreadCount))
+        .catch(() => undefined);
     loadUnread();
     const refreshTimer = window.setInterval(loadUnread, 10_000);
     const refreshWhenVisible = () => {
@@ -241,11 +241,11 @@ export function MainLayout() {
       { name: "Thông báo", path: "/accountant/notifications", icon: Bell },
     ],
     manager: [
-
       { name: "Trang chủ", path: "/manager", icon: Home },
       { name: "Kiểm tra trạng thái phòng", path: "/manager/inspection-status", icon: ClipboardList },
       { name: "Kiểm tra tình trạng phòng", path: "/manager/inspection-conditions", icon: ClipboardList },
       { name: "Xác nhận hoàn cọc", path: "/manager/deposit-confirmation", icon: ClipboardList },
+      { name: "Bàn giao nhận phòng", path: "/manager/handovers", icon: ClipboardList },
       { name: "Kiểm tra điều kiện lưu trú", path: "/manager/tenant-verification", icon: UserCheck },
       { name: "Thông báo", path: "/manager/notifications", icon: Bell },
     ],
@@ -283,17 +283,14 @@ export function MainLayout() {
             <nav className="hidden lg:flex items-center gap-1 xl:gap-3">
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentRole === "customer"
-                  ? isCustomerNavigationActive(item.path, location.pathname)
-                  : location.pathname === item.path;
+                const isActive = currentRole === "customer" ? isCustomerNavigationActive(item.path, location.pathname) : location.pathname === item.path;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-colors text-sm whitespace-nowrap ${isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-colors text-sm whitespace-nowrap ${
+                      isActive ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden xl:inline lg:inline-block">{item.name}</span>
@@ -306,11 +303,7 @@ export function MainLayout() {
             <div className="flex items-center gap-4">
               {/* Notifications */}
               <div className="relative notification-trigger-container">
-                <button
-                  onClick={toggleNotificationDropdown}
-                  aria-label="Mở thông báo"
-                  className="p-2 text-gray-400 hover:text-gray-650 rounded-lg hover:bg-gray-100 relative"
-                >
+                <button onClick={toggleNotificationDropdown} aria-label="Mở thông báo" className="p-2 text-gray-400 hover:text-gray-650 rounded-lg hover:bg-gray-100 relative">
                   <Bell className="w-5 h-5" />
                   {unreadNotifications > 0 && (
                     <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
@@ -327,7 +320,7 @@ export function MainLayout() {
                         <button
                           onClick={async () => {
                             await notificationService.markAllRead();
-                            setNotificationsList(prev => prev.map(n => ({ ...n, isRead: true })));
+                            setNotificationsList((prev) => prev.map((n) => ({ ...n, isRead: true })));
                             setUnreadNotifications(0);
                             window.dispatchEvent(new Event("notifications-updated"));
                           }}
@@ -347,21 +340,15 @@ export function MainLayout() {
                             onClick={async () => {
                               if (!n.isRead) {
                                 await notificationService.markRead(n.notificationId);
-                                setNotificationsList(prev =>
-                                  prev.map(item =>
-                                    item.notificationId === n.notificationId ? { ...item, isRead: true } : item
-                                  )
-                                );
-                                setUnreadNotifications(prev => Math.max(0, prev - 1));
+                                setNotificationsList((prev) => prev.map((item) => (item.notificationId === n.notificationId ? { ...item, isRead: true } : item)));
+                                setUnreadNotifications((prev) => Math.max(0, prev - 1));
                                 window.dispatchEvent(new Event("notifications-updated"));
                               }
                               const link = getNotificationLink(n);
                               navigate(link);
                               setShowNotificationDropdown(false);
                             }}
-                            className={`p-3 text-left block cursor-pointer transition-colors text-xs ${
-                              n.isRead ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100/50"
-                            }`}
+                            className={`p-3 text-left block cursor-pointer transition-colors text-xs ${n.isRead ? "bg-white hover:bg-gray-50" : "bg-blue-50 hover:bg-blue-100/50"}`}
                           >
                             <p className={`font-semibold ${n.isRead ? "text-gray-800" : "text-gray-955"}`}>{n.title}</p>
                             <p className="text-gray-600 mt-0.5 line-clamp-2">{n.content}</p>
@@ -386,28 +373,22 @@ export function MainLayout() {
               </div>
 
               {/* User Menu */}
-              <button
-                onClick={() => setShowProfileModal(true)}
-                aria-label="Thông tin tài khoản"
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <User className="w-5 h-5" />
+              <button onClick={() => setShowProfileModal(true)} aria-label="Thông tin tài khoản" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-gray-600 hover:bg-gray-100">
+                <User className="h-5 w-5 shrink-0 text-gray-400" />
+                <span className="hidden sm:block max-w-36">
+                  <span className="block truncate text-sm font-semibold text-gray-900">{accountInfo?.displayName || accountInfo?.username || "Người dùng"}</span>
+                  <span className="block truncate text-xs font-medium text-blue-600">{accountInfo?.roleName || "Chưa xác định"}</span>
+                </span>
               </button>
 
               {/* Logout */}
-              <button
-                onClick={handleLogout}
-                className="hidden md:flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
-              >
+              <button onClick={handleLogout} className="hidden md:flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100">
                 <LogOut className="w-4 h-4" />
                 <span>Đăng xuất</span>
               </button>
 
               {/* Mobile Menu Button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-gray-400 hover:text-gray-600">
                 {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
@@ -421,18 +402,13 @@ export function MainLayout() {
               {/* Navigation Links */}
               {navigation.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentRole === "customer"
-                  ? isCustomerNavigationActive(item.path, location.pathname)
-                  : location.pathname === item.path;
+                const isActive = currentRole === "customer" ? isCustomerNavigationActive(item.path, location.pathname) : location.pathname === item.path;
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50"
-                      }`}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg ${isActive ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50"}`}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.name}</span>
@@ -445,17 +421,17 @@ export function MainLayout() {
                   setShowProfileModal(true);
                   setIsMobileMenuOpen(false);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
+                className="w-full flex items-center gap-3 px-3 py-3 text-left text-gray-600 hover:bg-gray-50 rounded-lg"
               >
                 <User className="w-5 h-5" />
-                <span>Thông tin tài khoản</span>
+                <span>
+                  <span className="block font-medium">{accountInfo?.displayName || accountInfo?.username || "Người dùng"}</span>
+                  <span className="block text-xs font-medium text-blue-600">Actor: {accountInfo?.roleName || "Chưa xác định"}</span>
+                </span>
               </button>
 
               {/* Logout Mobile */}
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg"
-              >
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
                 <LogOut className="w-5 h-5" />
                 <span>Đăng xuất</span>
               </button>
@@ -482,11 +458,7 @@ export function MainLayout() {
                   <p className="text-xs text-gray-500">Tài khoản đang đăng nhập</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowProfileModal(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                aria-label="Đóng"
-              >
+              <button onClick={() => setShowProfileModal(false)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Đóng">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -506,10 +478,7 @@ export function MainLayout() {
             </div>
 
             <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-4">
-              <button
-                onClick={() => setShowProfileModal(false)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
+              <button onClick={() => setShowProfileModal(false)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                 Đóng
               </button>
             </div>

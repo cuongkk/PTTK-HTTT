@@ -187,14 +187,12 @@ export function RoomInspectionStatus() {
                 <div className="text-sm mb-4">
                   <p className="text-gray-600">Chi nhánh:</p>
                   <p className="font-medium text-gray-900">{room.building}</p>
-                  <p className="text-gray-600">Số giường khách yêu cầu:</p>
-                  <p className="font-medium text-gray-900">{room.requestedBedsCount}</p>
-                  <p className="text-gray-600">Số giường còn trống:</p>
-                  <p className="font-medium text-gray-900">{room.availableBedsCount}</p>
+                  <p className="font-medium text-gray-900">Số giường khách yêu cầu:{room.requestedBedsCount}</p>
+                  <p className="font-medium text-gray-900">Số giường còn trống:{room.availableBedsCount}</p>
                 </div>
 
                 {/* Hiển thị thông tin khách thuê/ghi chú trạng thái */}
-                <div className="text-sm mb-4 space-y-1">
+                <div className="text-sm mb-4 space-y-1"> 
                   <p className="text-gray-600">Tình trạng chi tiết</p>
                   <p className="font-medium text-gray-900">{room.condition}</p>
                   {room.customerName ? (

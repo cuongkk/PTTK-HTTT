@@ -66,7 +66,10 @@ export function AssignRoomViewing() {
       ) as string[];
       setAreas(distinctAreas);
 
-      const emptyRooms = roomsData.filter((r) => r.status === "trong");
+      const emptyRooms = roomsData.filter((r) => 
+        (r.roomType === "nguyen_can" && r.status === "trong") ||
+        (r.roomType === "ghep" && r.beds && r.beds.some((b) => b.status === "trong"))
+      );
       setVacantRooms(emptyRooms);
 
       // Pre-select matching room if application has one already suggested
@@ -99,7 +102,8 @@ export function AssignRoomViewing() {
       setSubmitting(true);
       await salesApi.createSchedule(reg.applicationId, {
         roomId: selectedRoom.roomId,
-        appointmentAt: new Date(appointmentDate).toISOString(),
+        // Lịch xem là mốc giờ địa phương do Sale nhập, không phải thời điểm UTC.
+        appointmentAt: appointmentDate,
         note: appointmentNote,
       });
 
@@ -107,8 +111,8 @@ export function AssignRoomViewing() {
         "Lên lịch hẹn thành công!\nHệ thống tự động gửi thông báo lịch xem phòng đến khách hàng."
       );
       backToDashboard();
-    } catch (err) {
-      toast.error("Không thể sắp lịch xem phòng.");
+    } catch (err: any) {
+      toast.error(err.message || "Không thể sắp lịch xem phòng.");
     } finally {
       setSubmitting(false);
     }
@@ -125,14 +129,28 @@ export function AssignRoomViewing() {
       (reg.gender === "Nữ" && selectedRoom.allowedGender.toLowerCase() === "nu")
     : false;
 
-  const checkCapacityMatch = reg && selectedRoom ? reg.capacity <= selectedRoom.capacity : false;
+  const checkCapacityMatch = reg && selectedRoom
+    ? (() => {
+        const availableBeds = selectedRoom.roomType === "ghep"
+          ? (selectedRoom.beds?.filter((b) => b.status === "trong").length ?? 0)
+          : selectedRoom.capacity;
+        return reg.capacity <= availableBeds;
+      })()
+    : false;
 
   const checkPriceMatch = reg && selectedRoom
     ? (() => {
-        const price = selectedRoom.roomPrice ?? 0;
-        if (reg.priceRange === "Dưới 1.5 triệu") return price <= 1500000;
-        if (reg.priceRange === "1.5 – 2 triệu") return price > 1500000 && price <= 2000000;
-        return price > 2000000;
+        const roomPrice = selectedRoom.roomPrice ?? 0;
+        const price = selectedRoom.roomType === "ghep" && selectedRoom.capacity > 0
+          ? roomPrice / selectedRoom.capacity
+          : roomPrice;
+
+        const min = reg.minimumPrice;
+        const max = reg.maximumPrice;
+
+        if (min !== null && min !== undefined && price < min) return false;
+        if (max !== null && max !== undefined && price > max) return false;
+        return true;
       })()
     : false;
 
@@ -216,15 +234,19 @@ export function AssignRoomViewing() {
                     match: checkGenderMatch,
                   },
                   {
-                    label: "Sức chứa tối đa",
+                    label: selectedRoom.roomType === "ghep" ? "Giường trống" : "Sức chứa tối đa",
                     req: `${reg.capacity} người`,
-                    roomVal: `${selectedRoom.capacity} người`,
+                    roomVal: selectedRoom.roomType === "ghep"
+                      ? `${selectedRoom.beds?.filter((b) => b.status === "trong").length ?? 0} giường trống`
+                      : `${selectedRoom.capacity} người`,
                     match: checkCapacityMatch,
                   },
                   {
                     label: "Mức giá thuê đề xuất",
                     req: reg.priceRange,
-                    roomVal: `${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ`,
+                    roomVal: selectedRoom.roomType === "ghep"
+                      ? `${((selectedRoom.roomPrice ?? 0) / (selectedRoom.capacity || 1)).toLocaleString("vi-VN")} đ/giường (Tổng: ${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ)`
+                      : `${selectedRoom.roomPrice?.toLocaleString("vi-VN") ?? "0"} đ`,
                     match: checkPriceMatch,
                   },
                 ].map((item) => (
@@ -409,13 +431,19 @@ export function AssignRoomViewing() {
                         </p>
                       </div>
                       <span className="text-xs font-bold text-blue-700 shrink-0">
-                        {room.roomPrice?.toLocaleString("vi-VN")} đ
+                        {room.roomType === "ghep" && room.capacity > 0
+                          ? `${((room.roomPrice ?? 0) / room.capacity).toLocaleString("vi-VN")} đ/giường`
+                          : `${room.roomPrice?.toLocaleString("vi-VN")} đ`}
                       </span>
                     </div>
                     <div className="flex gap-2 text-[9px] text-gray-400 font-medium">
-                      <span>Sức chứa: {room.capacity} người</span>
+                      <span>
+                        {room.roomType === "ghep"
+                          ? `Giường trống: ${room.beds?.filter(b => b.status === "trong").length ?? 0}/${room.capacity}`
+                          : `Sức chứa: ${room.capacity} người`}
+                      </span>
                       <span>·</span>
-                      <span>{room.roomType === "Whole" ? "Phòng nguyên căn" : "Phòng giường tầng"}</span>
+                      <span>{room.roomType === "nguyen_can" ? "Phòng nguyên căn" : "Phòng giường tầng"}</span>
                     </div>
                   </div>
                 ))

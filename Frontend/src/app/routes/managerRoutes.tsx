@@ -4,6 +4,7 @@ import { ManagerDashboard } from "../components/manager/ManagerDashboard";
 import { RoomInspectionStatus } from "../components/manager/RoomInpectionsStatus"; // Nhớ check lại xem chính xác là Inpections hay Inspections nhé bạn, ở HEAD cũ đang gõ thiếu chữ 's' á
 import { RoomInspectionConditions } from "../components/manager/RoomInspectionConditions";
 import { DepositConfirmation } from "../components/manager/DepositConfirmation";
+import { ManagerHandover } from "../components/manager/ManagerHandover";
 // Các component hiện tại
 import { ContractApproval } from "../components/manager/ContractApproval";
 import { TenantVerification } from "../components/manager/TenantVerification";
@@ -20,6 +21,7 @@ export const managerRoutes: RouteObject = {
     
     // Mang trang xác nhận đặt cọc quay trở lại
     { path: "deposit-confirmation", Component: DepositConfirmation },
+    { path: "handovers", Component: ManagerHandover },
     
     // Giữ nguyên các trang còn lại
     //{ path: "contract-approval", Component: ContractApproval }, 

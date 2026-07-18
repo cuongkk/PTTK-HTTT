@@ -54,6 +54,13 @@ public class CheckoutReportService : ICheckoutReportService
         var contract = await _db.RentalContracts
             .FirstOrDefaultAsync(c => c.ContractId == dto.ContractId);
 
+        var originalDeposit = contract == null
+            ? 0
+            : await _db.DepositSlips
+                .Where(d => d.DepositId == contract.DepositId)
+                .Select(d => d.DepositAmount)
+                .FirstOrDefaultAsync();
+
         if (contract != null)
         {
             string saleEmployeeId = contract.SalesEmployeeId; // Đây chính là mã nhân viên sale!
@@ -72,7 +79,7 @@ public class CheckoutReportService : ICheckoutReportService
                 AccountantEmployeeId = managerEmployeeId, // Chưa có kế toán tiếp nhận
                 CreatedDate = DateOnly.FromDateTime(DateTime.UtcNow),
 
-                OriginalDeposit = 0,
+                OriginalDeposit = originalDeposit,
                 RefundRate = 0,
                 BaseRefund = 0,
                 TotalDeductions = dto.EstimatedCost > 0 ? dto.EstimatedCost : 0,

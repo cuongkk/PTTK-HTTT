@@ -28,6 +28,8 @@
 
 **Dữ liệu ban đầu:** Nguyên phòng, sức chứa 2 người; phòng và giường 1–2 đều `trong`. Khách đăng ký thuê nguyên phòng.
 
+**Dữ liệu seed để bắt đầu demo:** hồ sơ `HSUC20000001` của `customer1` đã hoàn thành xem `PHONG_UC2`, trạng thái `da_xem_phong`. Actor thao tác tiếp theo là **Khách hàng**, bắt đầu tại bước 5.
+
 | Bước | Actor | Thao tác |
 |---:|---|---|
 | 1 | Khách hàng | Chọn `PHONG_UC2`, nhập thông tin 2 người và gửi đăng ký thuê nguyên phòng. |
@@ -50,53 +52,69 @@
 
 ## UC3 — PHONG_UC3
 
-**Dữ liệu ban đầu:** Phòng ghép nữ 4 giường; giường 1–2 `da_dat_coc`, giường 3–4 `trong`. Khách nữ đăng ký 2 người.
+**Dữ liệu ban đầu:** Phòng ghép nữ 4 giường; giường 1–2 `da_dat_coc`, giường 3–4 `trong`. Hồ sơ `HSUC30000001` của `customer2` đã thanh toán cọc cho giường 1–2 và chưa có hợp đồng. Actor thao tác đầu tiên của UC3 là **Khách hàng**.
 
 | Bước | Actor | Thao tác |
 |---:|---|---|
-| 1 | Khách hàng | Chọn `PHONG_UC3`, nhập thông tin 2 khách nữ và gửi đăng ký thuê. |
-| 2 | Sale | Kiểm tra giới tính, nhận thấy giường 3–4 còn trống và xếp lịch xem phòng. |
-| 3 | Khách hàng | Mở lịch xem, xem thông tin phòng và xác nhận bắt đầu xem phòng. |
-| 4 | Sale | Sau buổi xem, xác nhận khách đã hoàn thành xem phòng. |
-| 5 | Khách hàng | Gửi yêu cầu đặt cọc cho 2 giường còn lại. |
-| 6 | Sale | Rà soát giới tính, quốc tịch, giấy tờ và chuyển hồ sơ cho Quản lý. |
-| 7 | Quản lý | Kiểm tra theo từng giường và xác nhận giường 3–4 vẫn còn trống. |
-| 8 | Khách hàng | Xem và xác nhận đồng ý điều kiện thuê, nội quy ký túc xá. |
-| 9 | Hệ thống | Chuẩn hóa giới tính thành `Nu`, tạo phiếu cọc và liên kết giường 3–4. |
-| 10 | Kế toán | Tính tiền cọc cho giường 3–4 và gửi yêu cầu thanh toán. |
-| 11 | Khách hàng | Quét QR, thanh toán và nhấn xác nhận thanh toán thành công. |
-| 12 | Kế toán | Kiểm tra minh chứng và xác nhận giao dịch thanh toán cọc. |
-| 13 | Hệ thống | Chuyển giường 3–4 sang `da_dat_coc`; giữ giường 1–2 là `da_dat_coc`. |
+| 1 | Khách hàng | Mở `PHONG_UC3` trong tab phòng đã cọc, bổ sung hồ sơ chính thức của 2 người ở và gửi kiểm tra. |
+| 2 | Sale | Đối chiếu hồ sơ nhận phòng với đăng ký, phiếu cọc và danh sách người ở; chuyển Quản lý kiểm tra điều kiện lưu trú. |
+| 3 | Quản lý | Kiểm tra CCCD, giới tính nữ, số người/số giường và điều kiện lưu trú của từng thành viên. |
+| 4 | Hệ thống | Nếu đạt, chuyển hồ sơ sang `du_dieu_kien_nhan_phong`; nếu không đạt, trả lại lý do để bổ sung. |
+| 5 | Sale | Lập hợp đồng thuê cho `PHONG_UC3`, liên kết đúng phiếu cọc và giường 1–2; trạng thái hợp đồng `cho_ky`. |
+| 6 | Khách hàng | Xem nội dung hợp đồng, nội quy, danh sách người ở và ký xác nhận. |
+| 7 | Kế toán | Lập khoản thu nhận phòng đầu kỳ và gửi yêu cầu thanh toán cho khách. |
+| 8 | Khách hàng | Thanh toán khoản nhận phòng và gửi minh chứng. |
+| 9 | Kế toán | Xác nhận giao dịch nhận phòng hợp lệ. |
+| 10 | Quản lý | Lập biên bản bàn giao, ghi chỉ số điện nước và hiện trạng tài sản. |
+| 11 | Khách hàng | Kiểm tra và xác nhận biên bản bàn giao. |
+| 12 | Hệ thống | Chuyển hợp đồng sang `hieu_luc`, giường 1–2 sang `dang_thue`; giường 3–4 vẫn `trong`. |
 
-**Kết quả:** Cả 4 giường của `PHONG_UC3` đều `da_dat_coc`.
+**Kết quả:** Hợp đồng của `customer2` có hiệu lực; giường 1–2 `dang_thue`, giường 3–4 vẫn `trong`.
+
+### UC3 — triển khai bước 10: Bàn giao nhận phòng
+
+- Quản lý vào menu **Bàn giao nhận phòng** (`/manager/handovers`).
+- Danh sách chỉ gồm hợp đồng `cho_xac_nhan_ban_giao` chưa có biên bản.
+- Quản lý nhập hiện trạng phòng, chỉ số điện/nước đầu kỳ, ghi chú và kiểm tra danh sách tài sản, sau đó bấm **Lập biên bản và gửi Khách xác nhận**.
+- Hệ thống tạo `HandoverReport` và các chi tiết tài sản; hợp đồng vẫn giữ `cho_xac_nhan_ban_giao`.
+- Khách hàng mở biên bản từ Phòng của tôi và xác nhận. Khi đó hệ thống mới chuyển hợp đồng sang `hieu_luc` và giường thuê sang `dang_thue`.
 
 ---
 
 ## UC4 — PHONG_UC4
 
-**Dữ liệu ban đầu:** Phòng ghép 6 giường; giường 1–3 `dang_thue`, giường 4–6 `trong`. Khách đăng ký 2 người.
+**Dữ liệu ban đầu:** Phòng ghép nam 6 giường; giường 1–3 `dang_thue`, giường 4–6 `trong`. `customer3` có hợp đồng `HDUC40000001` đang `hieu_luc`, phiếu cọc hoàn thành và biên bản bàn giao. Actor thao tác đầu tiên của UC4 là **Khách hàng**.
 
 | Bước | Actor | Thao tác |
 |---:|---|---|
-| 1 | Khách hàng | Chọn `PHONG_UC4`, nhập thông tin 2 người và gửi đăng ký thuê ở ghép. |
-| 2 | Sale | Không chặn theo trạng thái tổng `dang_thue`; kiểm tra còn 3 giường trống và xếp lịch xem. |
-| 3 | Khách hàng | Mở lịch xem, xem thông tin phòng và xác nhận bắt đầu xem phòng. |
-| 4 | Sale | Sau buổi xem, xác nhận khách đã hoàn thành xem phòng. |
-| 5 | Khách hàng | Gửi yêu cầu đặt cọc cho 2 giường. |
-| 6 | Sale | Rà soát thông tin khách thuê và chuyển hồ sơ cho Quản lý. |
-| 7 | Quản lý | Kiểm tra theo từng giường và xác nhận còn đủ 2 trong 3 giường trống. |
-| 8 | Khách hàng | Xem và xác nhận đồng ý điều kiện thuê, nội quy ký túc xá. |
-| 9 | Hệ thống | Tạo phiếu đặt cọc và liên kết giường 4, giường 5. |
-| 10 | Kế toán | Tính tiền cọc cho 2 giường và gửi yêu cầu thanh toán. |
-| 11 | Khách hàng | Quét QR, thanh toán và nhấn xác nhận thanh toán thành công. |
-| 12 | Kế toán | Kiểm tra minh chứng và xác nhận giao dịch thanh toán cọc. |
-| 13 | Hệ thống | Giữ giường 1–3 `dang_thue`; chuyển giường 4–5 sang `da_dat_coc`; giữ giường 6 `trong`. |
+| 1 | Khách hàng | Mở `PHONG_UC4` trong tab đang thuê, chọn ngày dự kiến trả phòng, nhập lý do và gửi yêu cầu. |
+| 2 | Sale | Tiếp nhận yêu cầu, đối chiếu hợp đồng và xác nhận lịch kiểm tra trả phòng. |
+| 3 | Quản lý | Kiểm tra hiện trạng phòng, giường 1–3, tài sản, chìa khóa và chỉ số điện nước cuối kỳ. |
+| 4 | Hệ thống | Lập biên bản trả phòng và chuyển dữ liệu sang Kế toán đối soát. |
+| 5 | Kế toán | Tính tỷ lệ hoàn cọc, điện nước, dịch vụ, bồi thường/khấu trừ và số tiền hoàn hoặc thu thêm. |
+| 6 | Khách hàng | Xem toàn bộ biên bản và bảng đối soát; xác nhận kết quả. |
+| 7a | Kế toán | Nếu phải hoàn tiền, lập chứng từ chi và xác nhận đã hoàn cọc. |
+| 7b | Khách hàng | Nếu phải thu thêm, thanh toán khoản phát sinh và gửi minh chứng. |
+| 8 | Kế toán | Xác nhận giao dịch cuối cùng và hoàn tất đối soát. |
+| 9 | Hệ thống | Thanh lý hợp đồng, giải phóng giường 1–3 về `trong`; giường 4–6 vẫn `trong`. |
 
-**Kết quả:** Giường 1–3 `dang_thue`; giường 4–5 `da_dat_coc`; giường 6 `trong`.
+**Kết quả:** Hợp đồng `HDUC40000001` được thanh lý và toàn bộ 6 giường của `PHONG_UC4` là `trong`.
 
 ---
 
-## Luồng trạng thái hồ sơ dùng chung
+## UCHoanTien — Hoàn tiền cọc trước ký hợp đồng
+
+**Dữ liệu seed:** Phòng `UCHoanTien` (`PHONG_UCHT`) của `customer1` đã có phiếu cọc `DCUCHT000001`, mức cọc 3.000.000 VNĐ. Khách đã xác nhận thông tin nhận tiền; phiếu ở `cho_hoan_tien`.
+
+| Bước | Actor | Thao tác |
+|---:|---|---|
+| 1 | Khách hàng | Xác nhận thông tin nhận tiền hoàn cọc. |
+| 2 | Kế toán | Mở **Hoàn cọc**, chọn `UCHoanTien`, thực hiện chi hoàn 2.400.000 VNĐ (80%). |
+| 3 | Hệ thống | Tạo chứng từ chi, chuyển phiếu sang `da_hoan_coc` và giải phóng phòng/giường. |
+
+---
+
+## Luồng trạng thái hồ sơ UC2
 
 ```text
 moi
@@ -108,4 +126,3 @@ moi
 → cho_khach_thanh_toan_coc
 → da_dat_coc
 ```
-

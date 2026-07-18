@@ -492,13 +492,16 @@ public class SalesWorkflowService : ISalesWorkflowService
             : room.Capacity;
         if (availableCapacity < app.NumberOfPeople)
             incompatibilities.Add("không đủ chỗ hoặc giường trống");
-        if ((app.MinimumPrice.HasValue || app.MaximumPrice.HasValue) && !room.RoomPrice.HasValue)
+        var roomPrice = room.RoomType == RoomType.Shared && room.Capacity > 0
+            ? (room.RoomPrice / room.Capacity)
+            : room.RoomPrice;
+        if ((app.MinimumPrice.HasValue || app.MaximumPrice.HasValue) && !roomPrice.HasValue)
             incompatibilities.Add("phòng chưa có giá để đối chiếu");
         else
         {
-            if (app.MinimumPrice.HasValue && room.RoomPrice < app.MinimumPrice)
+            if (app.MinimumPrice.HasValue && roomPrice < app.MinimumPrice)
                 incompatibilities.Add("giá phòng thấp hơn khoảng khách yêu cầu");
-            if (app.MaximumPrice.HasValue && room.RoomPrice > app.MaximumPrice)
+            if (app.MaximumPrice.HasValue && roomPrice > app.MaximumPrice)
                 incompatibilities.Add("giá phòng vượt mức khách yêu cầu");
         }
         if (app.RequiresQuietLifestyle && !room.RequiresQuietLifestyle)
@@ -993,7 +996,7 @@ public class SalesWorkflowService : ISalesWorkflowService
         if (existingRequest != null)
         {
             // Transition: confirm customer's request
-            existingRequest.Status = "da_xac_nhan_lich";
+            existingRequest.Status = "cho_kiem_tra";
             existingRequest.SalesEmployeeId = employeeId;
             existingRequest.ConfirmedInspectionAt = DateTime.UtcNow;
             existingRequest.UpdatedAt = DateTime.UtcNow;

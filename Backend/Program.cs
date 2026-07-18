@@ -90,6 +90,7 @@ builder.Services.AddScoped<IRoomInpectionConditionService,RoomInpectionCondition
 builder.Services.AddScoped<IDepositConfirmationService, DepositConfirmationService>();
 builder.Services.AddScoped<ITenantVerificationService, TenantVerificationService>();
 builder.Services.AddScoped<ICheckoutReportService, CheckoutReportService>();
+builder.Services.AddScoped<IManagerHandoverService, ManagerHandoverService>();
 
 var app = builder.Build();
 

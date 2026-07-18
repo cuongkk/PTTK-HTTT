@@ -107,7 +107,12 @@ public record CustomerCheckoutDetailDto(
     List<CustomerReconciliationCostDto> Costs);
 
 public record ConfirmCheckoutReconciliationRequest(string SignerName);
+public class SubmitCheckoutRequest
+{
+    public string ExpectedCheckoutDate { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+}
 
 public record CustomerTenantDto(string FullName, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? NationalId, string? DocumentImageUrl, string? PermanentAddress, string? OccupationOrSchool);
 public record CustomerRoomContextDto(string RoomId, string RoomName, string BranchName, string RoomType, decimal MonthlyRent, string RoomStatus, string CustomerName, string Phone, string? Email, string? NationalId, string? Gender, string? Nationality, DateOnly? DateOfBirth, string? Address, string? ApplicationId, string? ApplicationStatus, short? NumberOfPeople, DateOnly? ExpectedMoveInDate, short? ExpectedRentalMonths, string? DepositId, string? DepositStatus, decimal? DepositAmount, string? ContractId, string? ContractStatus, string? InvoiceId, string? InvoiceStatus, decimal? InvoiceAmount, List<CustomerTenantDto> Tenants);
-public record CustomerPaymentDto(string InvoiceId, string PaymentType, string RoomId, string RoomName, decimal Amount, DateTime CreatedAt, DateTime? PaidAt, string Status, string PaymentMethod, string? BankName, string? BankAccountNumber, string? BankAccountHolder, string TransferContent, string? ProofImageUrl);
+public record CustomerPaymentDto(string InvoiceId, List<string> InvoiceIds, string PaymentType, string RoomId, string RoomName, decimal Amount, DateTime CreatedAt, DateTime? PaidAt, string Status, string PaymentMethod, string? BankName, string? BankAccountNumber, string? BankAccountHolder, string TransferContent, string? ProofImageUrl);
