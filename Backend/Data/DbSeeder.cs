@@ -156,7 +156,7 @@ public static class DbSeeder
             db.CheckoutRequests.Add(new CheckoutRequest { CheckoutRequestId = "YTUC40000001", ContractId = uc4ContractId, CustomerId = "KH0000000001", SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", ReconciliationId = "DSUC40000001", RequestedCheckoutAt = new DateTime(2026, 7, 17, 9, 0, 0), ConfirmedInspectionAt = new DateTime(2026, 7, 17, 10, 0, 0), Reason = "Kết thúc nhu cầu thuê, đã hoàn tất bàn giao phòng.", Status = "cho_doi_soat", CreatedAt = new DateTime(2026, 7, 16, 8, 0, 0, DateTimeKind.Utc), UpdatedAt = new DateTime(2026, 7, 17, 10, 0, 0, DateTimeKind.Utc), Note = "Quản lý đã lập biên bản; chờ Kế toán xác nhận đối soát." });
         await db.SaveChangesAsync();
 
-        // UCHoanTien - nhánh hoàn cọc trước ký hợp đồng, đã được khách xác nhận nhận tiền.
+        // UCHoanTien - nhánh hoàn cọc trước ký hợp đồng, bắt đầu từ lúc khách tự gửi yêu cầu.
         const string refundApplicationId = "HSUCHT000001";
         const string refundScheduleId = "LXUCHT000001";
         const string refundDepositId = "DCUCHT000001";
@@ -169,7 +169,7 @@ public static class DbSeeder
         if (!await db.RoomViewingScheduleRooms.AnyAsync(x => x.ScheduleId == refundScheduleId && x.RoomId == "PHONG_UCHT"))
             db.RoomViewingScheduleRooms.Add(new RoomViewingScheduleRoom { ScheduleId = refundScheduleId, RoomId = "PHONG_UCHT" });
         if (!await db.DepositSlips.AnyAsync(x => x.DepositId == refundDepositId))
-            db.DepositSlips.Add(new DepositSlip { DepositId = refundDepositId, ApplicationId = refundApplicationId, SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", DepositAmount = 3000000, CreatedAt = new DateTime(2026, 7, 11, 10, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 12, 10, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 11, 10, 10, 0, DateTimeKind.Utc), Status = "cho_hoan_tien", RefundReason = "Khách thay đổi kế hoạch thuê; đã xác nhận thông tin nhận tiền.", RefundRate = 80, RefundAmount = 2400000 });
+            db.DepositSlips.Add(new DepositSlip { DepositId = refundDepositId, ApplicationId = refundApplicationId, SalesEmployeeId = "NV00000005", ManagerEmployeeId = "NV00000002", DepositAmount = 3000000, CreatedAt = new DateTime(2026, 7, 11, 10, 0, 0, DateTimeKind.Utc), PaymentDueAt = new DateTime(2026, 7, 12, 10, 0, 0, DateTimeKind.Utc), PaidAt = new DateTime(2026, 7, 11, 10, 10, 0, DateTimeKind.Utc), Status = "hoan_thanh" });
         await db.SaveChangesAsync();
         if (!await db.DepositBeds.AnyAsync(x => x.DepositId == refundDepositId && x.BedId == "GPHONGUCHT1"))
             db.DepositBeds.Add(new DepositBed { DepositId = refundDepositId, BedId = "GPHONGUCHT1" });
@@ -260,7 +260,7 @@ public static class DbSeeder
             new Room { RoomId = "PHONG_UC2", BranchId = "CN0000001", RoomName = "Phòng UC2", RoomType = RoomType.Whole, Capacity = 2, Area = "Quận 5", RoomPrice = 4200000, Floor = 5, AreaSquareMeters = 24, Description = "Phòng nguyên căn cho tối đa 2 người demo UC2 - đặt cọc và xác nhận thuê", AllowedGender = "khong_gioi_han", RequiresQuietLifestyle = false, HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Empty },
             new Room { RoomId = "PHONG_UC3", BranchId = "CN0000002", RoomName = "Phòng UC3", RoomType = RoomType.Shared, Capacity = 4, Area = "Thủ Đức", RoomPrice = 5600000, Floor = 3, AreaSquareMeters = 29, Description = "Phòng ghép 4 giường, có 2 giường đã đặt cọc demo UC3 - ký hợp đồng và nhận phòng", AllowedGender = "nu", RequiresQuietLifestyle = true, CurfewTime = new TimeOnly(22, 30), HasAirConditioner = true, HasParking = false, Status = RoomBedStatus.Deposited },
             new Room { RoomId = "PHONG_UC4", BranchId = "CN0000002", RoomName = "Phòng UC4", RoomType = RoomType.Shared, Capacity = 6, Area = "Thủ Đức", RoomPrice = 7200000, Floor = 4, AreaSquareMeters = 38, Description = "Phòng ghép 6 giường, có 3 giường đang thuê demo UC4 - trả phòng, đối soát và hoàn cọc", AllowedGender = "nam", RequiresQuietLifestyle = false, CurfewTime = new TimeOnly(23, 30), HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Rented },
-            new Room { RoomId = "PHONG_UCHT", BranchId = "CN0000001", RoomName = "UCHoanTien", RoomType = RoomType.Whole, Capacity = 1, Area = "Quận 5", RoomPrice = 3000000, Floor = 6, AreaSquareMeters = 20, Description = "Phòng demo hoàn tiền cọc trước ký hợp đồng; Kế toán có thể thực hiện chi hoàn.", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = "cho_hoan_coc" }
+            new Room { RoomId = "PHONG_UCHT", BranchId = "CN0000001", RoomName = "UCHoanTien", RoomType = RoomType.Whole, Capacity = 1, Area = "Quận 5", RoomPrice = 3000000, Floor = 6, AreaSquareMeters = 20, Description = "Phòng demo hoàn tiền cọc trước ký hợp đồng; khách bắt đầu bằng yêu cầu hoàn cọc.", AllowedGender = "khong_gioi_han", HasAirConditioner = true, HasParking = true, Status = RoomBedStatus.Deposited }
         );
 
         foreach (var room in rooms)
@@ -298,6 +298,7 @@ public static class DbSeeder
                     {
                         "PHONG_UC3" => number <= 2 ? RoomBedStatus.Deposited : RoomBedStatus.Empty,
                         "PHONG_UC4" => number <= 3 ? RoomBedStatus.Rented : RoomBedStatus.Empty,
+                        "PHONG_UCHT" => RoomBedStatus.Deposited,
                         _ => RoomBedStatus.Empty,
                     };
                     var monthlyRent = room.RoomPrice!.Value / room.Capacity;

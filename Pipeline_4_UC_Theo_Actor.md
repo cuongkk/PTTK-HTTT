@@ -104,13 +104,17 @@
 
 ## UCHoanTien — Hoàn tiền cọc trước ký hợp đồng
 
-**Dữ liệu seed:** Phòng `UCHoanTien` (`PHONG_UCHT`) của `customer1` đã có phiếu cọc `DCUCHT000001`, mức cọc 3.000.000 VNĐ. Khách đã xác nhận thông tin nhận tiền; phiếu ở `cho_hoan_tien`.
+**Dữ liệu seed:** Phòng `UCHoanTien` (`PHONG_UCHT`) của `customer1` đã có phiếu cọc `DCUCHT000001`, mức cọc 3.000.000 VNĐ, trạng thái `hoan_thanh`. Khách hàng là actor bắt đầu demo.
 
 | Bước | Actor | Thao tác |
 |---:|---|---|
-| 1 | Khách hàng | Xác nhận thông tin nhận tiền hoàn cọc. |
-| 2 | Kế toán | Mở **Hoàn cọc**, chọn `UCHoanTien`, thực hiện chi hoàn 2.400.000 VNĐ (80%). |
-| 3 | Hệ thống | Tạo chứng từ chi, chuyển phiếu sang `da_hoan_coc` và giải phóng phòng/giường. |
+| 1 | Khách hàng | Mở `UCHoanTien` trong Phòng của tôi, nhập lý do và gửi yêu cầu hoàn cọc. |
+| 2 | Sale | Tiếp nhận yêu cầu hoàn cọc và chuyển Quản lý xác nhận điều kiện. |
+| 3 | Quản lý | Xác nhận điều kiện hoàn cọc, chuyển phiếu sang `cho_doi_soat_hoan_coc`. |
+| 4 | Kế toán | Mở **Lập đối soát**, tính tỷ lệ/số tiền hoàn 2.400.000 VNĐ (80%) và gửi kết quả cho khách. |
+| 5 | Khách hàng | Xác nhận thông tin nhận tiền, chuyển phiếu sang `cho_hoan_tien`. |
+| 6 | Kế toán | Mở **Hoàn cọc**, thực hiện chi hoàn và tạo chứng từ. |
+| 7 | Hệ thống | Chuyển phiếu sang `da_hoan_coc` và giải phóng phòng/giường. |
 
 ---
 
